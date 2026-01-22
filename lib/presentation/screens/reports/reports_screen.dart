@@ -26,13 +26,13 @@ class ReportsScreen extends ConsumerWidget {
               _ReportCard(
                 title: 'Profit & Loss',
                 description: 'Revenue, costs, and profit margins',
-                icon: FluentIcons.trending_up,
+                icon: FluentIcons.calculator,
                 onTap: () {},
               ),
               _ReportCard(
                 title: 'Inventory Valuation',
                 description: 'Stock value based on WAC',
-                icon: FluentIcons.warehouse_solid,
+                icon: FluentIcons.archive,
                 onTap: () {},
               ),
               _ReportCard(

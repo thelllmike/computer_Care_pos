@@ -123,7 +123,7 @@ class GrnScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                FluentIcons.receive,
+                FluentIcons.download,
                 color: AppTheme.successColor,
               ),
             ),
@@ -263,7 +263,7 @@ class _CreateGrnDialogState extends ConsumerState<CreateGrnDialog> {
                       ),
                       ...pos.map((po) => ComboBoxItem<String>(
                             value: po.id,
-                            child: Text('${po.poNumber} - ${Formatters.currency(po.totalAmount)}'),
+                            child: Text('${po.orderNumber} - ${Formatters.currency(po.totalAmount)}'),
                           )),
                     ],
                     onChanged: (value) => setState(() => _selectedPOId = value),

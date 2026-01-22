@@ -19001,6 +19001,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SyncQueueTable syncQueue = $SyncQueueTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final CategoryDao categoryDao = CategoryDao(this as AppDatabase);
+  late final CreditDao creditDao = CreditDao(this as AppDatabase);
   late final ProductDao productDao = ProductDao(this as AppDatabase);
   late final CustomerDao customerDao = CustomerDao(this as AppDatabase);
   late final SupplierDao supplierDao = SupplierDao(this as AppDatabase);
@@ -19008,7 +19009,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final PurchaseOrderDao purchaseOrderDao =
       PurchaseOrderDao(this as AppDatabase);
   late final GrnDao grnDao = GrnDao(this as AppDatabase);
+  late final RepairDao repairDao = RepairDao(this as AppDatabase);
   late final SalesDao salesDao = SalesDao(this as AppDatabase);
+  late final QuotationDao quotationDao = QuotationDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();

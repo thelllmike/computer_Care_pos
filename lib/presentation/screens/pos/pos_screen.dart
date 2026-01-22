@@ -604,7 +604,7 @@ class _ProductCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              product.requiresSerial ? FluentIcons.laptop : FluentIcons.product,
+              product.requiresSerial ? FluentIcons.laptop_secure : FluentIcons.product,
               size: 32,
               color: AppTheme.primaryColor,
             ),

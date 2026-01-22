@@ -130,7 +130,7 @@ class NavigationShell extends ConsumerWidget {
         body: const DashboardScreen(),
       ),
       PaneItem(
-        icon: const Icon(FluentIcons.point_of_sale),
+        icon: const Icon(FluentIcons.shopping_cart),
         title: const Text('POS'),
         body: const PosScreen(),
       ),
@@ -167,14 +167,14 @@ class NavigationShell extends ConsumerWidget {
         body: const PurchaseOrdersScreen(),
       ),
       PaneItem(
-        icon: const Icon(FluentIcons.receive),
+        icon: const Icon(FluentIcons.download),
         title: const Text('GRN'),
         body: const GrnScreen(),
       ),
       PaneItemSeparator(),
       PaneItemHeader(header: const Text('Operations')),
       PaneItem(
-        icon: const Icon(FluentIcons.warehouse_solid),
+        icon: const Icon(FluentIcons.archive),
         title: const Text('Inventory'),
         body: const InventoryScreen(),
       ),
@@ -264,7 +264,7 @@ class _SyncStatusIndicator extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isOnline ? FluentIcons.cloud : FluentIcons.cloud_off,
+              isOnline ? FluentIcons.cloud : FluentIcons.plug_disconnected,
               size: 14,
               color: isOnline ? AppTheme.successColor : AppTheme.warningColor,
             ),

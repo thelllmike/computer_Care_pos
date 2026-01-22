@@ -49,7 +49,7 @@ class InventoryScreen extends ConsumerWidget {
               children: [
                 _buildTabButton('Stock Levels', FluentIcons.product_list, 0, selectedTab, ref),
                 const SizedBox(width: 8),
-                _buildTabButton('Serial Numbers', FluentIcons.qr_code, 1, selectedTab, ref),
+                _buildTabButton('Serial Numbers', FluentIcons.generic_scan, 1, selectedTab, ref),
                 const SizedBox(width: 8),
                 _buildTabButton('Low Stock Alerts', FluentIcons.warning, 2, selectedTab, ref),
               ],
@@ -106,7 +106,7 @@ class InventoryScreen extends ConsumerWidget {
               child: _StatCard(
                 title: 'Serialized Units',
                 value: stats.serializedCount.toString(),
-                icon: FluentIcons.qr_code,
+                icon: FluentIcons.generic_scan,
                 color: Colors.blue,
               ),
             ),
@@ -316,7 +316,7 @@ class _StockLevelsTab extends ConsumerWidget {
                 color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text(
+              child: Text(
                 'SERIALIZED',
                 style: TextStyle(
                   fontSize: 10,
@@ -356,7 +356,7 @@ class _StockLevelsTab extends ConsumerWidget {
           const SizedBox(width: 16),
           if (item.product.requiresSerial)
             IconButton(
-              icon: const Icon(FluentIcons.qr_code),
+              icon: Icon(FluentIcons.generic_scan),
               onPressed: () => _showSerialsDialog(context, ref, item),
             ),
         ],
@@ -474,7 +474,7 @@ class _SerialNumbersTabState extends ConsumerState<_SerialNumbersTab> {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
-          FluentIcons.qr_code,
+          FluentIcons.generic_scan,
           color: _getStatusColor(status),
         ),
       ),

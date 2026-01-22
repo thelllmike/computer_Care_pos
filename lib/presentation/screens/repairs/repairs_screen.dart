@@ -1,11 +1,24 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../data/local/daos/repair_dao.dart';
+import '../../../data/local/database/app_database.dart';
+import '../../providers/repairs/repair_provider.dart';
+import '../../providers/inventory/customer_provider.dart';
+import '../../providers/inventory/product_provider.dart';
+import '../../providers/core/database_provider.dart';
+
 class RepairsScreen extends ConsumerWidget {
   const RepairsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(repairSummaryProvider);
+    final searchQuery = ref.watch(repairSearchQueryProvider);
+    final statusFilter = ref.watch(repairStatusFilterProvider);
+
     return ScaffoldPage.scrollable(
       header: PageHeader(
         title: const Text('Repair Jobs'),
@@ -15,7 +28,15 @@ class RepairsScreen extends ConsumerWidget {
             CommandBarButton(
               icon: const Icon(FluentIcons.add),
               label: const Text('New Job Card'),
-              onPressed: () {},
+              onPressed: () => _showCreateJobDialog(context, ref),
+            ),
+            CommandBarButton(
+              icon: const Icon(FluentIcons.refresh),
+              label: const Text('Refresh'),
+              onPressed: () {
+                ref.invalidate(repairJobsProvider);
+                ref.invalidate(repairSummaryProvider);
+              },
             ),
           ],
         ),
@@ -24,7 +45,69 @@ class RepairsScreen extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Summary cards
+              summaryAsync.when(
+                data: (summary) => Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'Active Jobs',
+                        value: summary.activeJobs.toString(),
+                        icon: FluentIcons.repair,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'Pending Diagnosis',
+                        value: summary.pendingJobs.toString(),
+                        icon: FluentIcons.search,
+                        color: AppTheme.warningColor,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'Completed Today',
+                        value: summary.completedToday.toString(),
+                        icon: FluentIcons.completed_solid,
+                        color: AppTheme.successColor,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'Total Revenue',
+                        value: Formatters.currency(summary.totalRevenue),
+                        icon: FluentIcons.money,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  ],
+                ),
+                loading: () => const Row(
+                  children: [
+                    Expanded(child: _SummaryCardLoading()),
+                    SizedBox(width: 16),
+                    Expanded(child: _SummaryCardLoading()),
+                    SizedBox(width: 16),
+                    Expanded(child: _SummaryCardLoading()),
+                    SizedBox(width: 16),
+                    Expanded(child: _SummaryCardLoading()),
+                  ],
+                ),
+                error: (e, _) => InfoBar(
+                  title: const Text('Error'),
+                  content: Text(e.toString()),
+                  severity: InfoBarSeverity.error,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Search and filter
               Row(
                 children: [
                   Expanded(
@@ -34,43 +117,1197 @@ class RepairsScreen extends ConsumerWidget {
                         padding: EdgeInsets.only(left: 8),
                         child: Icon(FluentIcons.search, size: 16),
                       ),
+                      onChanged: (value) =>
+                          ref.read(repairSearchQueryProvider.notifier).state = value,
                     ),
                   ),
                   const SizedBox(width: 16),
-                  ComboBox<String>(
-                    placeholder: const Text('Status'),
-                    items: const [
-                      ComboBoxItem(value: 'all', child: Text('All')),
-                      ComboBoxItem(value: 'received', child: Text('Received')),
-                      ComboBoxItem(value: 'diagnosing', child: Text('Diagnosing')),
-                      ComboBoxItem(value: 'in_progress', child: Text('In Progress')),
-                      ComboBoxItem(value: 'completed', child: Text('Completed')),
-                      ComboBoxItem(value: 'ready', child: Text('Ready for Pickup')),
+                  ComboBox<RepairStatus?>(
+                    value: statusFilter,
+                    placeholder: const Text('All Status'),
+                    items: [
+                      const ComboBoxItem<RepairStatus?>(
+                        value: null,
+                        child: Text('All Status'),
+                      ),
+                      ...RepairStatus.values.map((s) => ComboBoxItem(
+                            value: s,
+                            child: Text(s.displayName),
+                          )),
                     ],
-                    onChanged: (value) {},
+                    onChanged: (value) =>
+                        ref.read(repairStatusFilterProvider.notifier).state = value,
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-              Card(
-                child: SizedBox(
-                  height: 400,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(FluentIcons.repair, size: 48, color: Colors.grey[100]),
-                        const SizedBox(height: 16),
-                        Text('No repair jobs', style: TextStyle(color: Colors.grey[100])),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+
+              // Job list
+              _RepairJobsList(searchQuery: searchQuery, statusFilter: statusFilter),
             ],
           ),
         ),
       ],
     );
+  }
+
+  void _showCreateJobDialog(BuildContext context, WidgetRef ref) {
+    ref.read(repairFormProvider.notifier).clear();
+    showDialog(
+      context: context,
+      builder: (context) => const _RepairJobFormDialog(),
+    );
+  }
+}
+
+// ==================== Summary Card ====================
+
+class _SummaryCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _SummaryCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: FluentTheme.of(context)
+                        .typography
+                        .caption
+                        ?.copyWith(color: Colors.grey[100])),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: FluentTheme.of(context).typography.subtitle?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryCardLoading extends StatelessWidget {
+  const _SummaryCardLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: ProgressRing()),
+      ),
+    );
+  }
+}
+
+// ==================== Repair Jobs List ====================
+
+class _RepairJobsList extends ConsumerWidget {
+  final String searchQuery;
+  final RepairStatus? statusFilter;
+
+  const _RepairJobsList({
+    required this.searchQuery,
+    required this.statusFilter,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final jobsAsync = statusFilter != null
+        ? ref.watch(repairJobsByStatusProvider(statusFilter))
+        : ref.watch(repairJobsProvider);
+
+    return jobsAsync.when(
+      data: (jobs) {
+        var filtered = jobs;
+
+        if (searchQuery.isNotEmpty) {
+          final query = searchQuery.toLowerCase();
+          filtered = filtered
+              .where((j) =>
+                  j.jobNumber.toLowerCase().contains(query) ||
+                  (j.customerName?.toLowerCase().contains(query) ?? false))
+              .toList();
+        }
+
+        if (filtered.isEmpty) {
+          return Card(
+            child: SizedBox(
+              height: 400,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(FluentIcons.repair, size: 48, color: Colors.grey[100]),
+                    const SizedBox(height: 16),
+                    Text('No repair jobs', style: TextStyle(color: Colors.grey[100])),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Card(
+          child: Column(
+            children: filtered
+                .map((job) => _RepairJobTile(
+                      job: job,
+                      onTap: () => _showJobDetailDialog(context, ref, job.repairJob.id),
+                    ))
+                .toList(),
+          ),
+        );
+      },
+      loading: () => const Card(
+        child: SizedBox(
+          height: 200,
+          child: Center(child: ProgressRing()),
+        ),
+      ),
+      error: (e, _) => Card(
+        child: SizedBox(
+          height: 200,
+          child: Center(child: Text('Error: $e')),
+        ),
+      ),
+    );
+  }
+
+  void _showJobDetailDialog(BuildContext context, WidgetRef ref, String jobId) {
+    showDialog(
+      context: context,
+      builder: (context) => _RepairJobDetailDialog(jobId: jobId),
+    );
+  }
+}
+
+// ==================== Repair Job Tile ====================
+
+class _RepairJobTile extends StatelessWidget {
+  final RepairJobWithCustomer job;
+  final VoidCallback onTap;
+
+  const _RepairJobTile({
+    required this.job,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile.selectable(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: _getStatusColor(job.statusEnum).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          FluentIcons.repair,
+          color: _getStatusColor(job.statusEnum),
+        ),
+      ),
+      title: Row(
+        children: [
+          Text(job.jobNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: _getStatusColor(job.statusEnum).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              job.statusEnum.displayName,
+              style: TextStyle(
+                fontSize: 10,
+                color: _getStatusColor(job.statusEnum),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${job.customerName ?? "Unknown"} | ${job.deviceType}'),
+          Text(
+            'Received: ${Formatters.date(job.receivedDate)}',
+            style: TextStyle(fontSize: 11, color: Colors.grey[100]),
+          ),
+        ],
+      ),
+      trailing: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            Formatters.currency(job.totalCost),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          if (job.repairJob.isUnderWarranty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.successColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'WARRANTY',
+                style: TextStyle(
+                  fontSize: 9,
+                  color: AppTheme.successColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
+      onPressed: onTap,
+    );
+  }
+
+  Color _getStatusColor(RepairStatus status) {
+    switch (status) {
+      case RepairStatus.received:
+        return Colors.blue;
+      case RepairStatus.diagnosing:
+        return AppTheme.warningColor;
+      case RepairStatus.waitingApproval:
+        return Colors.orange;
+      case RepairStatus.waitingParts:
+        return Colors.purple;
+      case RepairStatus.inProgress:
+        return AppTheme.primaryColor;
+      case RepairStatus.completed:
+        return AppTheme.successColor;
+      case RepairStatus.readyForPickup:
+        return Colors.teal;
+      case RepairStatus.delivered:
+        return Colors.grey;
+      case RepairStatus.cancelled:
+        return AppTheme.errorColor;
+    }
+  }
+}
+
+// ==================== Repair Job Form Dialog ====================
+
+class _RepairJobFormDialog extends ConsumerStatefulWidget {
+  const _RepairJobFormDialog();
+
+  @override
+  ConsumerState<_RepairJobFormDialog> createState() => _RepairJobFormDialogState();
+}
+
+class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
+  final _problemController = TextEditingController();
+  final _estimatedCostController = TextEditingController();
+  final _notesController = TextEditingController();
+
+  @override
+  void dispose() {
+    _problemController.dispose();
+    _estimatedCostController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final formState = ref.watch(repairFormProvider);
+    final customersAsync = ref.watch(customersProvider);
+
+    return ContentDialog(
+      constraints: const BoxConstraints(maxWidth: 600),
+      title: Text(formState.isEditing ? 'Edit Repair Job' : 'New Repair Job'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Customer selection
+            InfoLabel(
+              label: 'Customer *',
+              child: customersAsync.when(
+                data: (customers) => AutoSuggestBox<String>(
+                  placeholder: 'Search customer...',
+                  items: customers
+                      .map((c) => AutoSuggestBoxItem(
+                            value: c.id,
+                            label: '${c.name} - ${c.phone ?? "No phone"}',
+                          ))
+                      .toList(),
+                  onSelected: (item) {
+                    final customer = customers.firstWhere((c) => c.id == item.value);
+                    ref.read(repairFormProvider.notifier).setCustomer(
+                          customer.id,
+                          customer.name,
+                        );
+                  },
+                ),
+                loading: () => const ProgressRing(),
+                error: (e, _) => Text('Error: $e'),
+              ),
+            ),
+            if (formState.customerName != null) ...[
+              const SizedBox(height: 8),
+              Text('Selected: ${formState.customerName}',
+                  style: TextStyle(color: AppTheme.primaryColor)),
+            ],
+            const SizedBox(height: 16),
+
+            // Device type
+            InfoLabel(
+              label: 'Device Type *',
+              child: ComboBox<String>(
+                value: formState.deviceType,
+                items: const [
+                  ComboBoxItem(value: 'LAPTOP', child: Text('Laptop')),
+                  ComboBoxItem(value: 'DESKTOP', child: Text('Desktop')),
+                  ComboBoxItem(value: 'PHONE', child: Text('Phone')),
+                  ComboBoxItem(value: 'TABLET', child: Text('Tablet')),
+                  ComboBoxItem(value: 'PRINTER', child: Text('Printer')),
+                  ComboBoxItem(value: 'OTHER', child: Text('Other')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    ref.read(repairFormProvider.notifier).setDeviceType(value);
+                  }
+                },
+                isExpanded: true,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Device info
+            Row(
+              children: [
+                Expanded(
+                  child: InfoLabel(
+                    label: 'Brand',
+                    child: TextBox(
+                      placeholder: 'e.g., Dell, HP, Apple',
+                      onChanged: (value) {
+                        ref.read(repairFormProvider.notifier).setDeviceInfo(
+                              brand: value.isEmpty ? null : value,
+                            );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InfoLabel(
+                    label: 'Model',
+                    child: TextBox(
+                      placeholder: 'e.g., Inspiron 15',
+                      onChanged: (value) {
+                        ref.read(repairFormProvider.notifier).setDeviceInfo(
+                              model: value.isEmpty ? null : value,
+                            );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Serial number
+            InfoLabel(
+              label: 'Serial Number',
+              child: TextBox(
+                placeholder: 'Device serial number (optional)',
+                onChanged: (value) {
+                  ref.read(repairFormProvider.notifier).setDeviceInfo(
+                        serial: value.isEmpty ? null : value,
+                      );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Warranty info if our device
+            if (formState.warrantyInfo != null) ...[
+              Card(
+                backgroundColor: formState.isUnderWarranty
+                    ? AppTheme.successColor.withValues(alpha: 0.1)
+                    : Colors.grey.withValues(alpha: 0.1),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        formState.isUnderWarranty
+                            ? FluentIcons.completed_solid
+                            : FluentIcons.warning,
+                        color: formState.isUnderWarranty
+                            ? AppTheme.successColor
+                            : AppTheme.warningColor,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              formState.isUnderWarranty
+                                  ? 'Under Warranty'
+                                  : 'Out of Warranty',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              formState.warrantyInfo!.productName,
+                              style: TextStyle(fontSize: 12, color: Colors.grey[100]),
+                            ),
+                            if (formState.warrantyInfo!.warrantyExpiry != null)
+                              Text(
+                                'Expires: ${Formatters.date(formState.warrantyInfo!.warrantyExpiry!)}',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[100]),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Problem description
+            InfoLabel(
+              label: 'Problem Description *',
+              child: TextBox(
+                controller: _problemController,
+                maxLines: 3,
+                placeholder: 'Describe the issue...',
+                onChanged: (value) {
+                  ref.read(repairFormProvider.notifier).setProblemDescription(value);
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Estimated cost
+            Row(
+              children: [
+                Expanded(
+                  child: InfoLabel(
+                    label: 'Estimated Cost',
+                    child: TextBox(
+                      controller: _estimatedCostController,
+                      keyboardType: TextInputType.number,
+                      placeholder: '0.00',
+                      onChanged: (value) {
+                        final cost = double.tryParse(value) ?? 0;
+                        ref.read(repairFormProvider.notifier).setEstimatedCost(cost);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InfoLabel(
+                    label: 'Promised Date',
+                    child: DatePicker(
+                      selected: formState.promisedDate,
+                      onChanged: (date) {
+                        ref.read(repairFormProvider.notifier).setPromisedDate(date);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Notes
+            InfoLabel(
+              label: 'Notes',
+              child: TextBox(
+                controller: _notesController,
+                maxLines: 2,
+                placeholder: 'Additional notes (optional)',
+                onChanged: (value) {
+                  ref.read(repairFormProvider.notifier).setNotes(
+                        value.isEmpty ? null : value,
+                      );
+                },
+              ),
+            ),
+
+            if (formState.error != null) ...[
+              const SizedBox(height: 16),
+              InfoBar(
+                title: const Text('Error'),
+                content: Text(formState.error!),
+                severity: InfoBarSeverity.error,
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        Button(
+          child: const Text('Cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        FilledButton(
+          onPressed: formState.isSaving ? null : () => _saveJob(context),
+          child: formState.isSaving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: ProgressRing(strokeWidth: 2),
+                )
+              : const Text('Create Job'),
+        ),
+      ],
+    );
+  }
+
+  void _saveJob(BuildContext context) async {
+    final job = await ref.read(repairFormProvider.notifier).saveRepairJob();
+    if (job != null && context.mounted) {
+      Navigator.of(context).pop();
+      displayInfoBar(context, builder: (context, close) {
+        return InfoBar(
+          title: const Text('Success'),
+          content: Text('Job ${job.jobNumber} created'),
+          severity: InfoBarSeverity.success,
+          action: IconButton(
+            icon: const Icon(FluentIcons.clear),
+            onPressed: close,
+          ),
+        );
+      });
+    }
+  }
+}
+
+// ==================== Repair Job Detail Dialog ====================
+
+class _RepairJobDetailDialog extends ConsumerWidget {
+  final String jobId;
+
+  const _RepairJobDetailDialog({required this.jobId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailAsync = ref.watch(repairJobDetailProvider(jobId));
+
+    return ContentDialog(
+      constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+      title: const Text('Repair Job Details'),
+      content: detailAsync.when(
+        data: (detail) {
+          if (detail == null) {
+            return const Center(child: Text('Job not found'));
+          }
+          return _RepairJobDetailContent(detail: detail);
+        },
+        loading: () => const Center(child: ProgressRing()),
+        error: (e, _) => Center(child: Text('Error: $e')),
+      ),
+      actions: [
+        Button(
+          child: const Text('Close'),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        if (detailAsync.valueOrNull != null &&
+            (detailAsync.valueOrNull!.repairJob.status == 'COMPLETED' ||
+             detailAsync.valueOrNull!.repairJob.status == 'READY_FOR_PICKUP' ||
+             detailAsync.valueOrNull!.repairJob.status == 'DELIVERED'))
+          Button(
+            child: const Text('Generate Invoice'),
+            onPressed: () {
+              Navigator.of(context).pop();
+              showDialog(
+                context: context,
+                builder: (context) => _GenerateInvoiceDialog(
+                  jobId: jobId,
+                  jobNumber: detailAsync.valueOrNull!.repairJob.jobNumber,
+                  totalCost: detailAsync.valueOrNull!.repairJob.totalCost,
+                ),
+              );
+            },
+          ),
+        if (detailAsync.valueOrNull != null &&
+            detailAsync.valueOrNull!.repairJob.status != 'DELIVERED' &&
+            detailAsync.valueOrNull!.repairJob.status != 'CANCELLED')
+          FilledButton(
+            child: const Text('Update Status'),
+            onPressed: () {
+              Navigator.of(context).pop();
+              showDialog(
+                context: context,
+                builder: (context) => _UpdateStatusDialog(
+                  jobId: jobId,
+                  currentStatus: RepairStatusExtension.fromString(
+                      detailAsync.valueOrNull!.repairJob.status),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _RepairJobDetailContent extends StatelessWidget {
+  final RepairJobDetail detail;
+
+  const _RepairJobDetailContent({required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    final job = detail.repairJob;
+    final status = RepairStatusExtension.fromString(job.status);
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header info
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(job.jobNumber,
+                        style: FluentTheme.of(context).typography.subtitle),
+                    const SizedBox(height: 4),
+                    Text('Customer: ${detail.customer?.name ?? "Unknown"}'),
+                    Text('Phone: ${detail.customer?.phone ?? "N/A"}'),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(status).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      status.displayName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getStatusColor(status),
+                      ),
+                    ),
+                  ),
+                  if (job.isUnderWarranty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.successColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'WARRANTY',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.successColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 16),
+
+          // Device info
+          Text('Device Information',
+              style: FluentTheme.of(context).typography.bodyStrong),
+          const SizedBox(height: 8),
+          _InfoRow('Type', job.deviceType),
+          if (job.deviceBrand != null) _InfoRow('Brand', job.deviceBrand!),
+          if (job.deviceModel != null) _InfoRow('Model', job.deviceModel!),
+          if (job.deviceSerial != null) _InfoRow('Serial', job.deviceSerial!),
+          const SizedBox(height: 16),
+
+          // Problem & Diagnosis
+          Text('Problem Description',
+              style: FluentTheme.of(context).typography.bodyStrong),
+          const SizedBox(height: 8),
+          Card(
+            backgroundColor: Colors.grey.withValues(alpha: 0.1),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(job.problemDescription),
+            ),
+          ),
+          if (job.diagnosis != null) ...[
+            const SizedBox(height: 16),
+            Text('Diagnosis', style: FluentTheme.of(context).typography.bodyStrong),
+            const SizedBox(height: 8),
+            Card(
+              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(job.diagnosis!),
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+
+          // Costs
+          Text('Costs', style: FluentTheme.of(context).typography.bodyStrong),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  _CostRow('Estimated', job.estimatedCost),
+                  _CostRow('Labor', job.laborCost),
+                  _CostRow('Parts', job.partsCost),
+                  const Divider(),
+                  _CostRow('Total', job.totalCost, isTotal: true),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Parts used
+          if (detail.parts.isNotEmpty) ...[
+            Text('Parts Used', style: FluentTheme.of(context).typography.bodyStrong),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(
+                children: detail.parts
+                    .map((part) => ListTile(
+                          title: Text(part.productName),
+                          subtitle: Text('Qty: ${part.part.quantity}'),
+                          trailing:
+                              Text(Formatters.currency(part.part.totalPrice)),
+                        ))
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Dates
+          Text('Timeline', style: FluentTheme.of(context).typography.bodyStrong),
+          const SizedBox(height: 8),
+          _InfoRow('Received', Formatters.dateTime(job.receivedDate)),
+          if (job.promisedDate != null)
+            _InfoRow('Promised', Formatters.date(job.promisedDate!)),
+          if (job.completedDate != null)
+            _InfoRow('Completed', Formatters.dateTime(job.completedDate!)),
+          if (job.deliveredDate != null)
+            _InfoRow('Delivered', Formatters.dateTime(job.deliveredDate!)),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(RepairStatus status) {
+    switch (status) {
+      case RepairStatus.received:
+        return Colors.blue;
+      case RepairStatus.diagnosing:
+        return AppTheme.warningColor;
+      case RepairStatus.waitingApproval:
+        return Colors.orange;
+      case RepairStatus.waitingParts:
+        return Colors.purple;
+      case RepairStatus.inProgress:
+        return AppTheme.primaryColor;
+      case RepairStatus.completed:
+        return AppTheme.successColor;
+      case RepairStatus.readyForPickup:
+        return Colors.teal;
+      case RepairStatus.delivered:
+        return Colors.grey;
+      case RepairStatus.cancelled:
+        return AppTheme.errorColor;
+    }
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(label, style: TextStyle(color: Colors.grey[100])),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+}
+
+class _CostRow extends StatelessWidget {
+  final String label;
+  final double amount;
+  final bool isTotal;
+
+  const _CostRow(this.label, this.amount, {this.isTotal = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : null,
+            ),
+          ),
+          Text(
+            Formatters.currency(amount),
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : null,
+              color: isTotal ? AppTheme.primaryColor : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== Update Status Dialog ====================
+
+class _UpdateStatusDialog extends ConsumerStatefulWidget {
+  final String jobId;
+  final RepairStatus currentStatus;
+
+  const _UpdateStatusDialog({
+    required this.jobId,
+    required this.currentStatus,
+  });
+
+  @override
+  ConsumerState<_UpdateStatusDialog> createState() => _UpdateStatusDialogState();
+}
+
+class _UpdateStatusDialogState extends ConsumerState<_UpdateStatusDialog> {
+  RepairStatus? _selectedStatus;
+  final _notesController = TextEditingController();
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  List<RepairStatus> _getValidTransitions() {
+    return RepairStatus.values
+        .where((s) => widget.currentStatus.canTransitionTo(s))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final updateState = ref.watch(statusUpdateProvider);
+    final validTransitions = _getValidTransitions();
+
+    return ContentDialog(
+      constraints: const BoxConstraints(maxWidth: 400),
+      title: const Text('Update Status'),
+      content: updateState.isSuccess
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(FluentIcons.completed_solid,
+                    size: 48, color: AppTheme.successColor),
+                const SizedBox(height: 16),
+                const Text('Status updated successfully'),
+              ],
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Current Status: ${widget.currentStatus.displayName}'),
+                const SizedBox(height: 16),
+                InfoLabel(
+                  label: 'New Status',
+                  child: ComboBox<RepairStatus>(
+                    value: _selectedStatus,
+                    placeholder: const Text('Select new status'),
+                    items: validTransitions
+                        .map((s) => ComboBoxItem(
+                              value: s,
+                              child: Text(s.displayName),
+                            ))
+                        .toList(),
+                    onChanged: (value) => setState(() => _selectedStatus = value),
+                    isExpanded: true,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                InfoLabel(
+                  label: 'Notes (optional)',
+                  child: TextBox(
+                    controller: _notesController,
+                    maxLines: 2,
+                    placeholder: 'Reason for status change',
+                  ),
+                ),
+                if (updateState.error != null) ...[
+                  const SizedBox(height: 16),
+                  InfoBar(
+                    title: const Text('Error'),
+                    content: Text(updateState.error!),
+                    severity: InfoBarSeverity.error,
+                  ),
+                ],
+              ],
+            ),
+      actions: updateState.isSuccess
+          ? [
+              FilledButton(
+                child: const Text('Done'),
+                onPressed: () {
+                  ref.read(statusUpdateProvider.notifier).reset();
+                  Navigator.of(context).pop();
+                },
+              ),
+            ]
+          : [
+              Button(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              FilledButton(
+                onPressed: _selectedStatus == null || updateState.isProcessing
+                    ? null
+                    : _updateStatus,
+                child: updateState.isProcessing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: ProgressRing(strokeWidth: 2),
+                      )
+                    : const Text('Update'),
+              ),
+            ],
+    );
+  }
+
+  void _updateStatus() {
+    if (_selectedStatus == null) return;
+
+    ref.read(statusUpdateProvider.notifier).updateStatus(
+          jobId: widget.jobId,
+          newStatus: _selectedStatus!,
+          notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+        );
+  }
+}
+
+class _GenerateInvoiceDialog extends ConsumerStatefulWidget {
+  final String jobId;
+  final String jobNumber;
+  final double totalCost;
+
+  const _GenerateInvoiceDialog({
+    required this.jobId,
+    required this.jobNumber,
+    required this.totalCost,
+  });
+
+  @override
+  ConsumerState<_GenerateInvoiceDialog> createState() => _GenerateInvoiceDialogState();
+}
+
+class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> {
+  bool _isCredit = false;
+  final _discountController = TextEditingController(text: '0');
+  final _notesController = TextEditingController();
+
+  @override
+  void dispose() {
+    _discountController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final invoiceState = ref.watch(serviceInvoiceProvider);
+    final discount = double.tryParse(_discountController.text) ?? 0;
+    final finalAmount = widget.totalCost - discount;
+
+    return ContentDialog(
+      constraints: const BoxConstraints(maxWidth: 450),
+      title: const Text('Generate Service Invoice'),
+      content: invoiceState.isSuccess
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  FluentIcons.check_mark,
+                  size: 48,
+                  color: AppTheme.successColor,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Invoice Generated!',
+                  style: FluentTheme.of(context).typography.subtitle,
+                ),
+                const SizedBox(height: 8),
+                Text('Invoice Number: ${invoiceState.invoiceNumber}'),
+              ],
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InfoBar(
+                  title: Text('Repair Job: ${widget.jobNumber}'),
+                  content: Text(
+                    'Total Amount: ${Formatters.currency(widget.totalCost)}',
+                  ),
+                  severity: InfoBarSeverity.info,
+                ),
+                const SizedBox(height: 16),
+                InfoLabel(
+                  label: 'Discount Amount',
+                  child: TextBox(
+                    controller: _discountController,
+                    keyboardType: TextInputType.number,
+                    prefix: const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Text('Rs.'),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Final Amount:'),
+                    Text(
+                      Formatters.currency(finalAmount),
+                      style: FluentTheme.of(context).typography.bodyStrong,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Checkbox(
+                  checked: _isCredit,
+                  onChanged: (value) => setState(() => _isCredit = value ?? false),
+                  content: const Text('Credit Sale (Customer will pay later)'),
+                ),
+                const SizedBox(height: 16),
+                InfoLabel(
+                  label: 'Notes (optional)',
+                  child: TextBox(
+                    controller: _notesController,
+                    maxLines: 2,
+                    placeholder: 'Additional notes for the invoice',
+                  ),
+                ),
+                if (invoiceState.error != null) ...[
+                  const SizedBox(height: 16),
+                  InfoBar(
+                    title: const Text('Error'),
+                    content: Text(invoiceState.error!),
+                    severity: InfoBarSeverity.error,
+                  ),
+                ],
+              ],
+            ),
+      actions: invoiceState.isSuccess
+          ? [
+              FilledButton(
+                child: const Text('Done'),
+                onPressed: () {
+                  ref.read(serviceInvoiceProvider.notifier).reset();
+                  Navigator.of(context).pop();
+                },
+              ),
+            ]
+          : [
+              Button(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              FilledButton(
+                onPressed: invoiceState.isProcessing ? null : _generateInvoice,
+                child: invoiceState.isProcessing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: ProgressRing(strokeWidth: 2),
+                      )
+                    : const Text('Generate Invoice'),
+              ),
+            ],
+    );
+  }
+
+  void _generateInvoice() {
+    final discount = double.tryParse(_discountController.text) ?? 0;
+    ref.read(serviceInvoiceProvider.notifier).generateInvoice(
+          repairJobId: widget.jobId,
+          isCredit: _isCredit,
+          discountAmount: discount,
+          notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+        );
   }
 }

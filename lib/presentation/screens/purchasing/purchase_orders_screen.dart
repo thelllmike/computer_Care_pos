@@ -89,7 +89,7 @@ class PurchaseOrdersScreen extends ConsumerWidget {
                   if (searchQuery.isNotEmpty) {
                     final query = searchQuery.toLowerCase();
                     filtered = filtered.where((po) =>
-                        po.poNumber.toLowerCase().contains(query) ||
+                        po.orderNumber.toLowerCase().contains(query) ||
                         (po.supplierName?.toLowerCase().contains(query) ?? false)).toList();
                   }
 
@@ -158,7 +158,7 @@ class PurchaseOrdersScreen extends ConsumerWidget {
             ),
             title: Row(
               children: [
-                Text(po.poNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(po.orderNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -215,7 +215,7 @@ class PurchaseOrdersScreen extends ConsumerWidget {
         return Colors.blue;
       case OrderStatus.partiallyReceived:
         return AppTheme.warningColor;
-      case OrderStatus.received:
+      case OrderStatus.completed:
         return AppTheme.successColor;
       case OrderStatus.cancelled:
         return AppTheme.errorColor;
@@ -241,7 +241,7 @@ class PurchaseOrdersScreen extends ConsumerWidget {
       context: context,
       builder: (context) => ContentDialog(
         title: const Text('Delete Purchase Order'),
-        content: Text('Are you sure you want to delete "${po.poNumber}"?'),
+        content: Text('Are you sure you want to delete "${po.orderNumber}"?'),
         actions: [
           Button(
             child: const Text('Cancel'),
@@ -421,7 +421,7 @@ class _PurchaseOrderDetailDialogState extends ConsumerState<PurchaseOrderDetailD
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    detail.purchaseOrder.poNumber,
+                    detail.purchaseOrder.orderNumber,
                     style: FluentTheme.of(context).typography.subtitle,
                   ),
                   const SizedBox(height: 4),
@@ -561,7 +561,7 @@ class _PurchaseOrderDetailDialogState extends ConsumerState<PurchaseOrderDetailD
         return Colors.blue;
       case OrderStatus.partiallyReceived:
         return AppTheme.warningColor;
-      case OrderStatus.received:
+      case OrderStatus.completed:
         return AppTheme.successColor;
       case OrderStatus.cancelled:
         return AppTheme.errorColor;
@@ -639,7 +639,7 @@ class _AddPOItemDialogState extends ConsumerState<AddPOItemDialog> {
                   setState(() => _selectedProductId = value);
                   // Auto-fill cost from product
                   final product = products.firstWhere((p) => p.id == value);
-                  _unitCostController.text = product.costPrice.toString();
+                  _unitCostController.text = product.weightedAvgCost.toString();
                 },
                 isExpanded: true,
               ),

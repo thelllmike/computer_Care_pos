@@ -8,13 +8,16 @@ import 'package:path/path.dart' as p;
 import '../../../core/constants/app_constants.dart';
 import '../tables/tables.dart';
 import '../daos/category_dao.dart';
+import '../daos/credit_dao.dart';
 import '../daos/product_dao.dart';
 import '../daos/customer_dao.dart';
 import '../daos/supplier_dao.dart';
 import '../daos/inventory_dao.dart';
 import '../daos/purchase_order_dao.dart';
 import '../daos/grn_dao.dart';
+import '../daos/repair_dao.dart';
 import '../daos/sales_dao.dart';
+import '../daos/quotation_dao.dart';
 
 part 'app_database.g.dart';
 
@@ -57,13 +60,16 @@ part 'app_database.g.dart';
   ],
   daos: [
     CategoryDao,
+    CreditDao,
     ProductDao,
     CustomerDao,
     SupplierDao,
     InventoryDao,
     PurchaseOrderDao,
     GrnDao,
+    RepairDao,
     SalesDao,
+    QuotationDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {

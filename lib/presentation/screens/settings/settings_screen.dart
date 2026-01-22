@@ -23,12 +23,12 @@ class SettingsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      const InfoLabel(
+                      InfoLabel(
                         label: 'Company Name',
                         child: TextBox(placeholder: 'Enter company name'),
                       ),
                       const SizedBox(height: 16),
-                      const InfoLabel(
+                      InfoLabel(
                         label: 'Address',
                         child: TextBox(
                           placeholder: 'Enter address',
@@ -38,14 +38,14 @@ class SettingsScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          const Expanded(
+                          Expanded(
                             child: InfoLabel(
                               label: 'Phone',
                               child: TextBox(placeholder: 'Phone number'),
                             ),
                           ),
                           const SizedBox(width: 16),
-                          const Expanded(
+                          Expanded(
                             child: InfoLabel(
                               label: 'Email',
                               child: TextBox(placeholder: 'Email address'),
