@@ -2,12 +2,28 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/formatters.dart';
+import '../../providers/inventory/inventory_provider.dart';
+import '../../providers/repairs/repair_provider.dart';
+import '../../providers/sales/sales_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
+  void _refreshDashboard(WidgetRef ref) {
+    ref.invalidate(salesSummaryProvider(DateRange.today()));
+    ref.invalidate(repairSummaryProvider);
+    ref.invalidate(lowStockProvider);
+    ref.invalidate(todaysSalesProvider);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final salesSummaryAsync = ref.watch(salesSummaryProvider(DateRange.today()));
+    final repairSummaryAsync = ref.watch(repairSummaryProvider);
+    final lowStockAsync = ref.watch(lowStockProvider);
+    final todaysSalesAsync = ref.watch(todaysSalesProvider);
+
     return ScaffoldPage.scrollable(
       header: PageHeader(
         title: const Text('Dashboard'),
@@ -17,9 +33,7 @@ class DashboardScreen extends ConsumerWidget {
             CommandBarButton(
               icon: const Icon(FluentIcons.refresh),
               label: const Text('Refresh'),
-              onPressed: () {
-                // Refresh dashboard data
-              },
+              onPressed: () => _refreshDashboard(ref),
             ),
           ],
         ),
@@ -34,38 +48,94 @@ class DashboardScreen extends ConsumerWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _SummaryCard(
-                      title: "Today's Sales",
-                      value: 'LKR 0.00',
-                      icon: FluentIcons.money,
-                      color: AppTheme.successColor,
+                    child: salesSummaryAsync.when(
+                      data: (summary) => _SummaryCard(
+                        title: "Today's Sales",
+                        value: Formatters.currency(summary.totalRevenue),
+                        icon: FluentIcons.money,
+                        color: AppTheme.successColor,
+                      ),
+                      loading: () => const _SummaryCard(
+                        title: "Today's Sales",
+                        value: '...',
+                        icon: FluentIcons.money,
+                        color: AppTheme.successColor,
+                      ),
+                      error: (_, __) => const _SummaryCard(
+                        title: "Today's Sales",
+                        value: 'Error',
+                        icon: FluentIcons.money,
+                        color: AppTheme.successColor,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _SummaryCard(
-                      title: "Today's Profit",
-                      value: 'LKR 0.00',
-                      icon: FluentIcons.chart,
-                      color: AppTheme.primaryColor,
+                    child: salesSummaryAsync.when(
+                      data: (summary) => _SummaryCard(
+                        title: "Today's Profit",
+                        value: Formatters.currency(summary.totalProfit),
+                        icon: FluentIcons.chart,
+                        color: AppTheme.primaryColor,
+                      ),
+                      loading: () => const _SummaryCard(
+                        title: "Today's Profit",
+                        value: '...',
+                        icon: FluentIcons.chart,
+                        color: AppTheme.primaryColor,
+                      ),
+                      error: (_, __) => const _SummaryCard(
+                        title: "Today's Profit",
+                        value: 'Error',
+                        icon: FluentIcons.chart,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _SummaryCard(
-                      title: 'Pending Repairs',
-                      value: '0',
-                      icon: FluentIcons.repair,
-                      color: AppTheme.warningColor,
+                    child: repairSummaryAsync.when(
+                      data: (summary) => _SummaryCard(
+                        title: 'Pending Repairs',
+                        value: summary.pendingJobs.toString(),
+                        icon: FluentIcons.repair,
+                        color: AppTheme.warningColor,
+                      ),
+                      loading: () => const _SummaryCard(
+                        title: 'Pending Repairs',
+                        value: '...',
+                        icon: FluentIcons.repair,
+                        color: AppTheme.warningColor,
+                      ),
+                      error: (_, __) => const _SummaryCard(
+                        title: 'Pending Repairs',
+                        value: 'Error',
+                        icon: FluentIcons.repair,
+                        color: AppTheme.warningColor,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _SummaryCard(
-                      title: 'Low Stock Items',
-                      value: '0',
-                      icon: FluentIcons.warning,
-                      color: AppTheme.errorColor,
+                    child: lowStockAsync.when(
+                      data: (items) => _SummaryCard(
+                        title: 'Low Stock Items',
+                        value: items.length.toString(),
+                        icon: FluentIcons.warning,
+                        color: AppTheme.errorColor,
+                      ),
+                      loading: () => const _SummaryCard(
+                        title: 'Low Stock Items',
+                        value: '...',
+                        icon: FluentIcons.warning,
+                        color: AppTheme.errorColor,
+                      ),
+                      error: (_, __) => const _SummaryCard(
+                        title: 'Low Stock Items',
+                        value: 'Error',
+                        icon: FluentIcons.warning,
+                        color: AppTheme.errorColor,
+                      ),
                     ),
                   ),
                 ],
@@ -77,24 +147,74 @@ class DashboardScreen extends ConsumerWidget {
                 style: FluentTheme.of(context).typography.subtitle,
               ),
               const SizedBox(height: 16),
-              Card(
-                child: SizedBox(
-                  height: 300,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          FluentIcons.document,
-                          size: 48,
-                          color: Colors.grey[100],
+              todaysSalesAsync.when(
+                data: (sales) => sales.isEmpty
+                    ? Card(
+                        child: SizedBox(
+                          height: 300,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  FluentIcons.document,
+                                  size: 48,
+                                  color: Colors.grey[100],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No transactions yet',
+                                  style: TextStyle(color: Colors.grey[100]),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No transactions yet',
-                          style: TextStyle(color: Colors.grey[100]),
+                      )
+                    : Card(
+                        child: SizedBox(
+                          height: 300,
+                          child: ListView.builder(
+                            itemCount: sales.length > 10 ? 10 : sales.length,
+                            itemBuilder: (context, index) {
+                              final sale = sales[index];
+                              return ListTile.selectable(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.successColor.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    FluentIcons.shopping_cart,
+                                    color: AppTheme.successColor,
+                                    size: 16,
+                                  ),
+                                ),
+                                title: Text(sale.sale.invoiceNumber),
+                                subtitle: Text(
+                                  sale.customer?.name ?? 'Walk-in Customer',
+                                ),
+                                trailing: Text(
+                                  Formatters.currency(sale.sale.totalAmount),
+                                  style: FluentTheme.of(context).typography.bodyStrong,
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ],
+                      ),
+                loading: () => const Card(
+                  child: SizedBox(
+                    height: 300,
+                    child: Center(child: ProgressRing()),
+                  ),
+                ),
+                error: (e, _) => Card(
+                  child: SizedBox(
+                    height: 300,
+                    child: Center(
+                      child: Text('Error loading transactions: $e'),
                     ),
                   ),
                 ),

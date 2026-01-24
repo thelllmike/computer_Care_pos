@@ -50,6 +50,28 @@ class DateRange {
       end: DateTime(now.year, now.month + 1, 0, 23, 59, 59),
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is DateRange &&
+        other.start.year == start.year &&
+        other.start.month == start.month &&
+        other.start.day == start.day &&
+        other.end.year == end.year &&
+        other.end.month == end.month &&
+        other.end.day == end.day;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        start.year,
+        start.month,
+        start.day,
+        end.year,
+        end.month,
+        end.day,
+      );
 }
 
 // ==================== Cart State Management ====================
@@ -451,6 +473,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       // Invalidate providers
       _ref.invalidate(salesProvider);
       _ref.invalidate(todaysSalesProvider);
+      _ref.invalidate(salesSummaryProvider(DateRange.today()));
 
       state = state.copyWith(
         isProcessing: false,
