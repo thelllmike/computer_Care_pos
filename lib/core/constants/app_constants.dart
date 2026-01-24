@@ -6,8 +6,8 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   // Supabase Configuration
-  static const String supabaseUrl = 'YOUR_SUPABASE_URL';
-  static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+  static const String supabaseUrl = 'https://lyxoupjpkybsqvozikdx.supabase.co';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5eG91cGpwa3lic3F2b3ppa2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNDAzNTEsImV4cCI6MjA4NDgxNjM1MX0.tgn1_sBuhBxy0t6ItMq-lyxMA4SpR2ylY65pKFYCW7Q';
 
   // Database
   static const String databaseName = 'laptop_shop_pos.db';
