@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../providers/credits/credit_provider.dart';
+import '../../providers/expenses/expense_provider.dart';
 import '../../providers/inventory/inventory_provider.dart';
 import '../../providers/repairs/repair_provider.dart';
 import '../../providers/sales/sales_provider.dart';
@@ -326,9 +327,15 @@ class _ProfitReportContentState extends ConsumerState<_ProfitReportContent> {
     }
   }
 
+  DateRangeParams _getExpenseDateRange() {
+    final range = _getDateRange();
+    return DateRangeParams(startDate: range.start, endDate: range.end);
+  }
+
   @override
   Widget build(BuildContext context) {
     final summaryAsync = ref.watch(salesSummaryProvider(_getDateRange()));
+    final expenseAsync = ref.watch(expenseSummaryProvider(_getExpenseDateRange()));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -353,41 +360,158 @@ class _ProfitReportContentState extends ConsumerState<_ProfitReportContent> {
           ),
           const SizedBox(height: 24),
           summaryAsync.when(
-            data: (summary) => Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Profit & Loss Summary', style: FluentTheme.of(context).typography.subtitle),
-                    const SizedBox(height: 24),
-                    _ProfitRow(label: 'Revenue', value: summary.totalRevenue, isPositive: true),
-                    const Divider(),
-                    _ProfitRow(label: 'Cost of Goods Sold', value: summary.totalCost, isPositive: false),
-                    const Divider(),
-                    _ProfitRow(
-                      label: 'Gross Profit',
-                      value: summary.totalProfit,
-                      isPositive: summary.totalProfit >= 0,
-                      isBold: true,
+            data: (summary) {
+              return expenseAsync.when(
+                data: (expenseSummary) {
+                  final totalExpenses = expenseSummary.totalAmount;
+                  final netProfit = summary.totalProfit - totalExpenses;
+                  final netProfitMargin = summary.totalRevenue > 0
+                      ? (netProfit / summary.totalRevenue) * 100
+                      : 0.0;
+
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Profit & Loss Summary', style: FluentTheme.of(context).typography.subtitle),
+                          const SizedBox(height: 24),
+
+                          // Revenue Section
+                          Text('REVENUE', style: TextStyle(fontSize: 12, color: Colors.grey[100], fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          _ProfitRow(label: 'Sales Revenue', value: summary.totalRevenue, isPositive: true),
+                          const Divider(),
+
+                          // Cost of Goods Section
+                          const SizedBox(height: 8),
+                          Text('COST OF GOODS SOLD', style: TextStyle(fontSize: 12, color: Colors.grey[100], fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          _ProfitRow(label: 'Cost of Goods Sold', value: summary.totalCost, isPositive: false),
+                          const Divider(),
+
+                          // Gross Profit
+                          _ProfitRow(
+                            label: 'Gross Profit',
+                            value: summary.totalProfit,
+                            isPositive: summary.totalProfit >= 0,
+                            isBold: true,
+                          ),
+                          const Divider(),
+
+                          // Operating Expenses Section
+                          const SizedBox(height: 8),
+                          Text('OPERATING EXPENSES', style: TextStyle(fontSize: 12, color: Colors.grey[100], fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+
+                          // Show expense breakdown by category
+                          if (expenseSummary.categoryBreakdown.isNotEmpty) ...[
+                            ...expenseSummary.categoryBreakdown.entries.map((entry) {
+                              return _ProfitRow(
+                                label: '  ${_getCategoryDisplayName(entry.key)}',
+                                value: entry.value,
+                                isPositive: false,
+                              );
+                            }),
+                          ] else ...[
+                            _ProfitRow(label: '  No expenses recorded', value: 0, isPositive: false),
+                          ],
+
+                          _ProfitRow(
+                            label: 'Total Expenses',
+                            value: totalExpenses,
+                            isPositive: false,
+                            isBold: true,
+                          ),
+                          const Divider(),
+
+                          // Net Profit Section
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: netProfit >= 0
+                                  ? AppTheme.successColor.withValues(alpha: 0.1)
+                                  : AppTheme.errorColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              children: [
+                                _ProfitRow(
+                                  label: 'NET PROFIT',
+                                  value: netProfit,
+                                  isPositive: netProfit >= 0,
+                                  isBold: true,
+                                ),
+                                const SizedBox(height: 8),
+                                _ProfitRow(
+                                  label: 'Net Profit Margin',
+                                  value: netProfitMargin,
+                                  isPercentage: true,
+                                  isPositive: netProfitMargin >= 0,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const Divider(),
-                    _ProfitRow(
-                      label: 'Profit Margin',
-                      value: summary.profitMargin,
-                      isPercentage: true,
-                      isPositive: summary.profitMargin >= 0,
+                  );
+                },
+                loading: () => const Center(child: ProgressRing()),
+                error: (e, _) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Profit & Loss Summary', style: FluentTheme.of(context).typography.subtitle),
+                        const SizedBox(height: 24),
+                        _ProfitRow(label: 'Revenue', value: summary.totalRevenue, isPositive: true),
+                        const Divider(),
+                        _ProfitRow(label: 'Cost of Goods Sold', value: summary.totalCost, isPositive: false),
+                        const Divider(),
+                        _ProfitRow(
+                          label: 'Gross Profit',
+                          value: summary.totalProfit,
+                          isPositive: summary.totalProfit >= 0,
+                          isBold: true,
+                        ),
+                        const Divider(),
+                        InfoBar(
+                          title: const Text('Expenses'),
+                          content: const Text('Unable to load expenses'),
+                          severity: InfoBarSeverity.warning,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
             loading: () => const Center(child: ProgressRing()),
             error: (e, _) => Center(child: Text('Error: $e')),
           ),
         ],
       ),
     );
+  }
+
+  String _getCategoryDisplayName(String code) {
+    const categoryNames = {
+      'ELECTRICITY': 'Electricity',
+      'WATER': 'Water',
+      'RENT': 'Rent',
+      'INTERNET': 'Internet',
+      'TELEPHONE': 'Telephone',
+      'SALARY': 'Salary',
+      'SUPPLIES': 'Office Supplies',
+      'MAINTENANCE': 'Maintenance',
+      'TRANSPORT': 'Transport',
+      'OTHER': 'Other Expenses',
+    };
+    return categoryNames[code] ?? code;
   }
 }
 

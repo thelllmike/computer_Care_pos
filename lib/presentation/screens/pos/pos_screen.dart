@@ -286,34 +286,68 @@ class _PosScreenState extends ConsumerState<PosScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: customersAsync.when(
-              data: (customers) => ComboBox<String>(
-                placeholder: const Text('Walk-in Customer'),
-                value: cart.customerId,
+              data: (customers) => AutoSuggestBox<String>(
+                placeholder: 'Search by name or phone...',
                 items: [
-                  const ComboBoxItem<String>(
-                    value: null,
-                    child: Text('Walk-in Customer'),
+                  AutoSuggestBoxItem<String>(
+                    value: '',
+                    label: 'Walk-in Customer',
                   ),
-                  ...customers.map((c) => ComboBoxItem<String>(
+                  ...customers.map((c) => AutoSuggestBoxItem<String>(
                         value: c.id,
-                        child: Text('${c.name} (${c.code})'),
+                        // Include phone in label for search matching
+                        label: '${c.name} - ${c.phone ?? ''} - ${c.code}',
                       )),
                 ],
-                onChanged: (value) {
-                  final customer = value != null
-                      ? customers.firstWhere((c) => c.id == value)
-                      : null;
-                  ref.read(cartProvider.notifier).setCustomer(
-                        value,
-                        customer?.name,
-                      );
+                onSelected: (item) {
+                  if (item.value == null || item.value!.isEmpty) {
+                    ref.read(cartProvider.notifier).setCustomer(null, null);
+                  } else {
+                    final customer = customers.firstWhere((c) => c.id == item.value);
+                    ref.read(cartProvider.notifier).setCustomer(
+                          customer.id,
+                          customer.name,
+                        );
+                  }
                 },
-                isExpanded: true,
               ),
               loading: () => const ProgressRing(),
               error: (_, __) => const Text('Error loading customers'),
             ),
           ),
+          if (cart.customerName != null) ...[
+            const SizedBox(width: 8),
+            Tooltip(
+              message: cart.customerName!,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(FluentIcons.contact, size: 12, color: AppTheme.primaryColor),
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 100),
+                      child: Text(
+                        cart.customerName!,
+                        style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => ref.read(cartProvider.notifier).setCustomer(null, null),
+                      child: Icon(FluentIcons.cancel, size: 12, color: AppTheme.primaryColor),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
