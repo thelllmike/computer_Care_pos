@@ -787,13 +787,13 @@ class _RepairJobDetailDialog extends ConsumerWidget {
   }
 }
 
-class _RepairJobDetailContent extends StatelessWidget {
+class _RepairJobDetailContent extends ConsumerWidget {
   final RepairJobDetail detail;
 
   const _RepairJobDetailContent({required this.detail});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final job = detail.repairJob;
     final status = RepairStatusExtension.fromString(job.status);
 
@@ -914,23 +914,72 @@ class _RepairJobDetailContent extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Parts used
-          if (detail.parts.isNotEmpty) ...[
-            Text('Parts Used', style: FluentTheme.of(context).typography.bodyStrong),
-            const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Parts Used', style: FluentTheme.of(context).typography.bodyStrong),
+              Button(
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(FluentIcons.add, size: 14),
+                    SizedBox(width: 4),
+                    Text('Add Part'),
+                  ],
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => _AddPartDialog(
+                      repairJobId: detail.repairJob.id,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (detail.parts.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(FluentIcons.package, size: 32, color: Colors.grey[100]),
+                      const SizedBox(height: 8),
+                      Text('No parts added yet', style: TextStyle(color: Colors.grey[100])),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
             Card(
               child: Column(
                 children: detail.parts
                     .map((part) => ListTile(
                           title: Text(part.productName),
-                          subtitle: Text('Qty: ${part.part.quantity}'),
-                          trailing:
-                              Text(Formatters.currency(part.part.totalPrice)),
+                          subtitle: Text('Qty: ${part.part.quantity} × ${Formatters.currency(part.part.unitPrice)}'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                Formatters.currency(part.part.totalPrice),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: Icon(FluentIcons.delete, size: 16, color: AppTheme.errorColor),
+                                onPressed: () => _showRemovePartDialog(context, ref, part.part.id, detail.repairJob.id),
+                              ),
+                            ],
+                          ),
                         ))
                     .toList(),
               ),
             ),
-            const SizedBox(height: 16),
-          ],
+          const SizedBox(height: 16),
 
           // Dates
           Text('Timeline', style: FluentTheme.of(context).typography.bodyStrong),
@@ -1310,4 +1359,266 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
           notes: _notesController.text.isNotEmpty ? _notesController.text : null,
         );
   }
+}
+
+// ==================== Add Part Dialog ====================
+
+class _AddPartDialog extends ConsumerStatefulWidget {
+  final String repairJobId;
+
+  const _AddPartDialog({required this.repairJobId});
+
+  @override
+  ConsumerState<_AddPartDialog> createState() => _AddPartDialogState();
+}
+
+class _AddPartDialogState extends ConsumerState<_AddPartDialog> {
+  Product? _selectedProduct;
+  int _quantity = 1;
+  double _unitPrice = 0;
+  double _unitCost = 0;
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  Widget build(BuildContext context) {
+    final productsAsync = ref.watch(productsProvider);
+
+    return ContentDialog(
+      constraints: const BoxConstraints(maxWidth: 500),
+      title: const Text('Add Part to Repair'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InfoLabel(
+            label: 'Select Part/Product *',
+            child: productsAsync.when(
+              data: (products) => AutoSuggestBox<String>(
+                placeholder: 'Search product...',
+                items: products
+                    .map((p) => AutoSuggestBoxItem(
+                          value: p.id,
+                          label: '${p.code} - ${p.name}',
+                        ))
+                    .toList(),
+                onSelected: (item) async {
+                  final product = products.firstWhere((p) => p.id == item.value);
+                  final db = ref.read(databaseProvider);
+                  final inventory = await db.inventoryDao.getInventoryByProductId(product.id);
+
+                  setState(() {
+                    _selectedProduct = product;
+                    _unitPrice = product.sellingPrice;
+                    _unitCost = inventory?.quantityOnHand != null && inventory!.quantityOnHand > 0
+                        ? inventory.totalCost / inventory.quantityOnHand
+                        : product.weightedAvgCost;
+                  });
+                },
+              ),
+              loading: () => const ProgressRing(),
+              error: (e, _) => Text('Error: $e'),
+            ),
+          ),
+          if (_selectedProduct != null) ...[
+            const SizedBox(height: 8),
+            Card(
+              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_selectedProduct!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Code: ${_selectedProduct!.code}'),
+                          FutureBuilder(
+                            future: ref.read(databaseProvider).inventoryDao.getInventoryByProductId(_selectedProduct!.id),
+                            builder: (context, snapshot) {
+                              final qty = snapshot.data?.quantityOnHand ?? 0;
+                              return Text(
+                                'In Stock: $qty',
+                                style: TextStyle(
+                                  color: qty > 0 ? AppTheme.successColor : AppTheme.errorColor,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: InfoLabel(
+                    label: 'Quantity',
+                    child: NumberBox<int>(
+                      value: _quantity,
+                      min: 1,
+                      max: 100,
+                      onChanged: (value) => setState(() => _quantity = value ?? 1),
+                      mode: SpinButtonPlacementMode.inline,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InfoLabel(
+                    label: 'Unit Price (Selling)',
+                    child: TextBox(
+                      controller: TextEditingController(text: _unitPrice.toStringAsFixed(2)),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) => _unitPrice = double.tryParse(value) ?? _unitPrice,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total Price:'),
+                    Text(
+                      Formatters.currency(_unitPrice * _quantity),
+                      style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                            color: AppTheme.primaryColor,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 16),
+            InfoBar(
+              title: const Text('Error'),
+              content: Text(_error!),
+              severity: InfoBarSeverity.error,
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        Button(
+          child: const Text('Cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        FilledButton(
+          onPressed: _selectedProduct == null || _isLoading ? null : _addPart,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: ProgressRing(strokeWidth: 2),
+                )
+              : const Text('Add Part'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addPart() async {
+    if (_selectedProduct == null) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final success = await ref.read(partsManagementProvider.notifier).addPart(
+            repairJobId: widget.repairJobId,
+            productId: _selectedProduct!.id,
+            quantity: _quantity,
+            unitCost: _unitCost,
+            unitPrice: _unitPrice,
+          );
+
+      if (success && mounted) {
+        ref.invalidate(repairJobDetailProvider(widget.repairJobId));
+        Navigator.of(context).pop();
+        displayInfoBar(context, builder: (context, close) {
+          return InfoBar(
+            title: const Text('Part added successfully'),
+            content: Text('${_quantity}x ${_selectedProduct!.name} added'),
+            severity: InfoBarSeverity.success,
+            onClose: close,
+          );
+        });
+      } else if (mounted) {
+        setState(() {
+          _error = 'Failed to add part. Check stock availability.';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+}
+
+// Helper function to confirm part removal
+void _showRemovePartDialog(BuildContext context, WidgetRef ref, String partId, String repairJobId) {
+  showDialog(
+    context: context,
+    builder: (dialogContext) => ContentDialog(
+      title: const Text('Remove Part'),
+      content: const Text('Are you sure you want to remove this part? It will be returned to inventory.'),
+      actions: [
+        Button(
+          child: const Text('Cancel'),
+          onPressed: () => Navigator.of(dialogContext).pop(),
+        ),
+        FilledButton(
+          style: ButtonStyle(backgroundColor: WidgetStateProperty.all(AppTheme.errorColor)),
+          child: const Text('Remove'),
+          onPressed: () async {
+            Navigator.of(dialogContext).pop();
+            try {
+              await ref.read(partsManagementProvider.notifier).removePart(partId, repairJobId);
+              ref.invalidate(repairJobDetailProvider(repairJobId));
+              if (context.mounted) {
+                displayInfoBar(context, builder: (context, close) {
+                  return InfoBar(
+                    title: const Text('Part removed'),
+                    content: const Text('Part returned to inventory'),
+                    severity: InfoBarSeverity.success,
+                    onClose: close,
+                  );
+                });
+              }
+            } catch (e) {
+              if (context.mounted) {
+                displayInfoBar(context, builder: (context, close) {
+                  return InfoBar(
+                    title: const Text('Error'),
+                    content: Text(e.toString()),
+                    severity: InfoBarSeverity.error,
+                    onClose: close,
+                  );
+                });
+              }
+            }
+          },
+        ),
+      ],
+    ),
+  );
 }

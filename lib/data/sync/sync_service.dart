@@ -203,7 +203,7 @@ class SyncService {
 
         // Upsert records to local database
         for (final record in records) {
-          await _upsertRecord(table, record as Map<String, dynamic>);
+          await _upsertRecord(table, record);
           count++;
         }
 
@@ -224,9 +224,10 @@ class SyncService {
 
   /// Upserts a record to the local database based on table name
   Future<void> _upsertRecord(String table, Map<String, dynamic> record) async {
-    // Implementation depends on table structure
-    // This is a simplified version - actual implementation would need
-    // table-specific logic
+    final updatedAt = record['updated_at'] != null
+        ? DateTime.tryParse(record['updated_at'] as String)
+        : null;
+
     switch (table) {
       case 'categories':
         await _database.into(_database.categories).insertOnConflictUpdate(
@@ -239,11 +240,108 @@ class SyncService {
                 sortOrder: Value(record['sort_order'] as int? ?? 0),
                 isActive: Value(record['is_active'] as bool? ?? true),
                 syncStatus: const Value('SYNCED'),
-                serverUpdatedAt: Value(DateTime.parse(record['updated_at'] as String)),
+                serverUpdatedAt: Value(updatedAt),
               ),
             );
         break;
-      // Add cases for other tables...
+
+      case 'products':
+        await _database.into(_database.products).insertOnConflictUpdate(
+              ProductsCompanion.insert(
+                id: record['id'] as String,
+                code: record['code'] as String,
+                name: record['name'] as String,
+                barcode: Value(record['barcode'] as String?),
+                description: Value(record['description'] as String?),
+                categoryId: Value(record['category_id'] as String?),
+                productType: Value(record['product_type'] as String? ?? 'ACCESSORY'),
+                requiresSerial: Value(record['requires_serial'] as bool? ?? false),
+                sellingPrice: Value((record['selling_price'] as num?)?.toDouble() ?? 0),
+                weightedAvgCost: Value((record['weighted_avg_cost'] as num?)?.toDouble() ?? 0),
+                warrantyMonths: Value(record['warranty_months'] as int? ?? 0),
+                reorderLevel: Value(record['reorder_level'] as int? ?? 5),
+                brand: Value(record['brand'] as String?),
+                model: Value(record['model'] as String?),
+                isActive: Value(record['is_active'] as bool? ?? true),
+                syncStatus: const Value('SYNCED'),
+                serverUpdatedAt: Value(updatedAt),
+              ),
+            );
+        break;
+
+      case 'customers':
+        await _database.into(_database.customers).insertOnConflictUpdate(
+              CustomersCompanion.insert(
+                id: record['id'] as String,
+                code: record['code'] as String,
+                name: record['name'] as String,
+                email: Value(record['email'] as String?),
+                phone: Value(record['phone'] as String?),
+                address: Value(record['address'] as String?),
+                nic: Value(record['nic'] as String?),
+                creditEnabled: Value(record['credit_enabled'] as bool? ?? false),
+                creditLimit: Value((record['credit_limit'] as num?)?.toDouble() ?? 0),
+                creditBalance: Value((record['credit_balance'] as num?)?.toDouble() ?? 0),
+                notes: Value(record['notes'] as String?),
+                isActive: Value(record['is_active'] as bool? ?? true),
+                syncStatus: const Value('SYNCED'),
+                serverUpdatedAt: Value(updatedAt),
+              ),
+            );
+        break;
+
+      case 'suppliers':
+        await _database.into(_database.suppliers).insertOnConflictUpdate(
+              SuppliersCompanion.insert(
+                id: record['id'] as String,
+                code: record['code'] as String,
+                name: record['name'] as String,
+                contactPerson: Value(record['contact_person'] as String?),
+                email: Value(record['email'] as String?),
+                phone: Value(record['phone'] as String?),
+                address: Value(record['address'] as String?),
+                taxId: Value(record['tax_id'] as String?),
+                paymentTermDays: Value(record['payment_term_days'] as int? ?? 30),
+                notes: Value(record['notes'] as String?),
+                isActive: Value(record['is_active'] as bool? ?? true),
+                syncStatus: const Value('SYNCED'),
+                serverUpdatedAt: Value(updatedAt),
+              ),
+            );
+        break;
+
+      case 'inventory':
+        await _database.into(_database.inventory).insertOnConflictUpdate(
+              InventoryCompanion.insert(
+                id: record['id'] as String,
+                productId: record['product_id'] as String,
+                quantityOnHand: Value(record['quantity_on_hand'] as int? ?? 0),
+                totalCost: Value((record['total_cost'] as num?)?.toDouble() ?? 0),
+                reservedQuantity: Value(record['reserved_quantity'] as int? ?? 0),
+                syncStatus: const Value('SYNCED'),
+                serverUpdatedAt: Value(updatedAt),
+              ),
+            );
+        break;
+
+      case 'serial_numbers':
+        await _database.into(_database.serialNumbers).insertOnConflictUpdate(
+              SerialNumbersCompanion.insert(
+                id: record['id'] as String,
+                serialNumber: record['serial_number'] as String,
+                productId: record['product_id'] as String,
+                status: Value(record['status'] as String? ?? 'IN_STOCK'),
+                unitCost: Value((record['unit_cost'] as num?)?.toDouble() ?? 0),
+                grnId: Value(record['grn_id'] as String?),
+                grnItemId: Value(record['grn_item_id'] as String?),
+                saleId: Value(record['sale_id'] as String?),
+                customerId: Value(record['customer_id'] as String?),
+                notes: Value(record['notes'] as String?),
+                syncStatus: const Value('SYNCED'),
+                serverUpdatedAt: Value(updatedAt),
+              ),
+            );
+        break;
     }
   }
 
