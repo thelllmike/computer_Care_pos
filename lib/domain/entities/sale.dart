@@ -50,6 +50,8 @@ class SaleItem {
   final String id;
   final String saleId;
   final String productId;
+  final String? productName;
+  final String? productCode;
   final int quantity;
   final double unitPrice;
   final double unitCost;
@@ -63,6 +65,8 @@ class SaleItem {
     required this.id,
     required this.saleId,
     required this.productId,
+    this.productName,
+    this.productCode,
     required this.quantity,
     required this.unitPrice,
     required this.unitCost,

@@ -224,8 +224,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
     final job = await getRepairJobById(id);
     if (job == null) return null;
 
-    final customer = job.customerId.isNotEmpty
-        ? await (select(customers)..where((c) => c.id.equals(job.customerId)))
+    final customer = (job.customerId != null && job.customerId!.isNotEmpty)
+        ? await (select(customers)..where((c) => c.id.equals(job.customerId!)))
             .getSingleOrNull()
         : null;
 
@@ -249,7 +249,9 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
 
   // Create repair job
   Future<RepairJob> createRepairJob({
-    required String customerId,
+    String? customerId, // Nullable for manual customers
+    String? manualCustomerName, // For walk-in customers
+    String? manualCustomerPhone,
     required String deviceType,
     required String problemDescription,
     String? serialNumberId,
@@ -261,6 +263,11 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
     String? receivedBy,
     String? notes,
   }) async {
+    // Validate that either customerId or manualCustomerName is provided
+    if (customerId == null && (manualCustomerName == null || manualCustomerName.isEmpty)) {
+      throw Exception('Either a customer or manual customer name is required');
+    }
+
     return transaction(() async {
       final jobNumber = await attachedDatabase.getNextSequenceNumber('REPAIR_JOB');
       final jobId = _uuid.v4();
@@ -280,7 +287,9 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
       final job = RepairJobsCompanion.insert(
         id: jobId,
         jobNumber: jobNumber,
-        customerId: customerId,
+        customerId: Value(customerId),
+        manualCustomerName: Value(manualCustomerName),
+        manualCustomerPhone: Value(manualCustomerPhone),
         serialNumberId: Value(serialNumberId),
         deviceType: deviceType,
         deviceBrand: Value(deviceBrand),
@@ -663,10 +672,12 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
   // ==================== Service Invoice Generation ====================
 
   /// Generate a service invoice for a completed repair job
+  /// Supports partial payments - remaining balance goes to customer credit
   Future<ServiceInvoiceResult> generateServiceInvoice({
     required String repairJobId,
     bool isCredit = false,
     double discountAmount = 0,
+    double? partialPayment, // Optional partial payment amount
     String? notes,
     String? createdBy,
   }) async {
@@ -682,6 +693,11 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
           status != RepairStatus.readyForPickup &&
           status != RepairStatus.delivered) {
         throw Exception('Repair job must be completed before generating invoice');
+      }
+
+      // Credit repairs require a customer
+      if (isCredit && (job.customerId == null || job.customerId!.isEmpty)) {
+        throw Exception('Credit repairs require a registered customer');
       }
 
       // Get repair parts
@@ -710,7 +726,17 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
       final grossProfit = subtotal - totalCost - discountAmount;
 
       // Determine paid amount
-      double paidAmount = isCredit ? 0 : totalAmount;
+      // If partial payment is provided, use it; otherwise full payment or 0 for credit
+      double paidAmount;
+      if (partialPayment != null) {
+        paidAmount = partialPayment.clamp(0, totalAmount);
+        // If there's remaining balance, treat as credit
+        if (paidAmount < totalAmount) {
+          isCredit = true;
+        }
+      } else {
+        paidAmount = isCredit ? 0 : totalAmount;
+      }
 
       // Create sale record
       await into(sales).insert(SalesCompanion.insert(
@@ -767,33 +793,42 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
         ));
       }
 
-      // If credit sale, create credit transaction
-      if (isCredit && job.customerId.isNotEmpty) {
-        // Get current balance to calculate new balance
-        final customer = await (select(customers)
-              ..where((c) => c.id.equals(job.customerId)))
-            .getSingle();
-        final newBalance = customer.creditBalance + totalAmount;
+      // If credit sale (partial or full credit), create credit transaction
+      if (isCredit && job.customerId != null && job.customerId!.isNotEmpty) {
+        // Calculate credit amount (total - paid)
+        final creditAmount = totalAmount - paidAmount;
 
-        await into(creditTransactions).insert(CreditTransactionsCompanion.insert(
-          id: _uuid.v4(),
-          customerId: job.customerId,
-          transactionType: 'SALE',
-          amount: totalAmount,
-          balanceAfter: newBalance,
-          transactionDate: now,
-          referenceId: Value(saleId),
-          notes: Value('Service Invoice: $invoiceNumber'),
-          createdBy: Value(createdBy),
-        ));
+        if (creditAmount > 0) {
+          // Get current balance to calculate new balance
+          final customer = await (select(customers)
+                ..where((c) => c.id.equals(job.customerId!)))
+              .getSingle();
+          final newBalance = customer.creditBalance + creditAmount;
 
-        // Update customer credit balance
-        await (update(customers)..where((c) => c.id.equals(job.customerId))).write(
-          CustomersCompanion(
-            creditBalance: Value(newBalance),
-            updatedAt: Value(now),
-          ),
-        );
+          final paymentNote = paidAmount > 0
+              ? 'Service Invoice: $invoiceNumber (Partial payment: ${paidAmount.toStringAsFixed(2)})'
+              : 'Service Invoice: $invoiceNumber';
+
+          await into(creditTransactions).insert(CreditTransactionsCompanion.insert(
+            id: _uuid.v4(),
+            customerId: job.customerId!,
+            transactionType: 'SALE',
+            amount: creditAmount, // Only record the unpaid amount as credit
+            balanceAfter: newBalance,
+            transactionDate: now,
+            referenceId: Value(saleId),
+            notes: Value(paymentNote),
+            createdBy: Value(createdBy),
+          ));
+
+          // Update customer credit balance
+          await (update(customers)..where((c) => c.id.equals(job.customerId!))).write(
+            CustomersCompanion(
+              creditBalance: Value(newBalance),
+              updatedAt: Value(now),
+            ),
+          );
+        }
       }
 
       // Update repair job with sale reference (store in notes for now)
@@ -831,8 +866,10 @@ class RepairJobWithCustomer {
   String get deviceType => repairJob.deviceType;
   String get status => repairJob.status;
   RepairStatus get statusEnum => RepairStatusExtension.fromString(status);
-  String? get customerName => customer?.name;
-  String? get customerPhone => customer?.phone;
+  // Returns customer name from database or manual customer name
+  String? get customerName => customer?.name ?? repairJob.manualCustomerName;
+  String? get customerPhone => customer?.phone ?? repairJob.manualCustomerPhone;
+  bool get isManualCustomer => repairJob.customerId == null && repairJob.manualCustomerName != null;
   DateTime get receivedDate => repairJob.receivedDate;
   double get totalCost => repairJob.totalCost;
 }

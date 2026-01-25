@@ -49,6 +49,9 @@ class RepairFormState {
   final String? repairJobId;
   final String? customerId;
   final String? customerName;
+  final String? manualCustomerName; // For walk-in customers
+  final String? manualCustomerPhone;
+  final bool useManualCustomer;
   final String deviceType;
   final String? deviceBrand;
   final String? deviceModel;
@@ -70,6 +73,9 @@ class RepairFormState {
     this.repairJobId,
     this.customerId,
     this.customerName,
+    this.manualCustomerName,
+    this.manualCustomerPhone,
+    this.useManualCustomer = false,
     this.deviceType = 'LAPTOP',
     this.deviceBrand,
     this.deviceModel,
@@ -96,6 +102,9 @@ class RepairFormState {
     String? repairJobId,
     String? customerId,
     String? customerName,
+    String? manualCustomerName,
+    String? manualCustomerPhone,
+    bool? useManualCustomer,
     String? deviceType,
     String? deviceBrand,
     String? deviceModel,
@@ -114,11 +123,15 @@ class RepairFormState {
     String? error,
     bool clearCustomer = false,
     bool clearSerial = false,
+    bool clearManualCustomer = false,
   }) {
     return RepairFormState(
       repairJobId: repairJobId ?? this.repairJobId,
       customerId: clearCustomer ? null : (customerId ?? this.customerId),
       customerName: clearCustomer ? null : (customerName ?? this.customerName),
+      manualCustomerName: clearManualCustomer ? null : (manualCustomerName ?? this.manualCustomerName),
+      manualCustomerPhone: clearManualCustomer ? null : (manualCustomerPhone ?? this.manualCustomerPhone),
+      useManualCustomer: useManualCustomer ?? this.useManualCustomer,
       deviceType: deviceType ?? this.deviceType,
       deviceBrand: deviceBrand ?? this.deviceBrand,
       deviceModel: deviceModel ?? this.deviceModel,
@@ -137,6 +150,10 @@ class RepairFormState {
       error: error,
     );
   }
+
+  // Get display customer name
+  String? get displayCustomerName => useManualCustomer ? manualCustomerName : customerName;
+  bool get hasCustomer => useManualCustomer ? (manualCustomerName?.isNotEmpty ?? false) : (customerId != null);
 }
 
 class RepairFormNotifier extends StateNotifier<RepairFormState> {
@@ -152,7 +169,28 @@ class RepairFormNotifier extends StateNotifier<RepairFormState> {
     state = state.copyWith(
       customerId: customerId,
       customerName: customerName,
+      useManualCustomer: false,
       clearCustomer: customerId == null,
+      clearManualCustomer: true,
+    );
+  }
+
+  // Set manual customer (walk-in)
+  void setManualCustomer(String? name, String? phone) {
+    state = state.copyWith(
+      manualCustomerName: name,
+      manualCustomerPhone: phone,
+      useManualCustomer: true,
+      clearCustomer: true,
+    );
+  }
+
+  // Toggle between database customer and manual customer
+  void setUseManualCustomer(bool useManual) {
+    state = state.copyWith(
+      useManualCustomer: useManual,
+      clearCustomer: useManual,
+      clearManualCustomer: !useManual,
     );
   }
 
@@ -233,8 +271,8 @@ class RepairFormNotifier extends StateNotifier<RepairFormState> {
 
   // Save repair job
   Future<RepairJob?> saveRepairJob({String? createdBy}) async {
-    if (state.customerId == null) {
-      state = state.copyWith(error: 'Please select a customer');
+    if (!state.hasCustomer) {
+      state = state.copyWith(error: 'Please select or enter a customer');
       return null;
     }
 
@@ -261,7 +299,9 @@ class RepairFormNotifier extends StateNotifier<RepairFormState> {
         job = (await _db.repairDao.getRepairJobById(state.repairJobId!))!;
       } else {
         job = await _db.repairDao.createRepairJob(
-          customerId: state.customerId!,
+          customerId: state.useManualCustomer ? null : state.customerId,
+          manualCustomerName: state.useManualCustomer ? state.manualCustomerName : null,
+          manualCustomerPhone: state.useManualCustomer ? state.manualCustomerPhone : null,
           deviceType: state.deviceType,
           problemDescription: state.problemDescription,
           serialNumberId: state.serialNumberId,
@@ -522,6 +562,7 @@ class ServiceInvoiceNotifier extends StateNotifier<ServiceInvoiceState> {
     required String repairJobId,
     bool isCredit = false,
     double discountAmount = 0,
+    double? partialPayment, // Optional partial payment for credit repairs
     String? notes,
     String? createdBy,
   }) async {
@@ -532,6 +573,7 @@ class ServiceInvoiceNotifier extends StateNotifier<ServiceInvoiceState> {
         repairJobId: repairJobId,
         isCredit: isCredit,
         discountAmount: discountAmount,
+        partialPayment: partialPayment,
         notes: notes,
         createdBy: createdBy,
       );

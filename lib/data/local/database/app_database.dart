@@ -18,6 +18,7 @@ import '../daos/grn_dao.dart';
 import '../daos/repair_dao.dart';
 import '../daos/sales_dao.dart';
 import '../daos/quotation_dao.dart';
+import '../daos/expense_dao.dart';
 
 part 'app_database.g.dart';
 
@@ -51,6 +52,8 @@ part 'app_database.g.dart';
     RepairJobs,
     RepairParts,
     RepairStatusHistory,
+    // Expenses
+    Expenses,
     // System
     AuditLogs,
     NumberSequences,
@@ -70,6 +73,7 @@ part 'app_database.g.dart';
     RepairDao,
     SalesDao,
     QuotationDao,
+    ExpenseDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -78,7 +82,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration {
@@ -88,7 +92,30 @@ class AppDatabase extends _$AppDatabase {
         await _seedInitialData();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Handle future migrations here
+        // Migration from version 1 to 2
+        if (from < 2) {
+          // Create expenses table
+          await m.createTable(expenses);
+
+          // Add manual customer columns to repair_jobs
+          await customStatement(
+            'ALTER TABLE repair_jobs ADD COLUMN manual_customer_name TEXT',
+          );
+          await customStatement(
+            'ALTER TABLE repair_jobs ADD COLUMN manual_customer_phone TEXT',
+          );
+
+          // Add expense sequence
+          await into(numberSequences).insert(
+            NumberSequencesCompanion.insert(
+              id: 'seq_expense',
+              sequenceType: 'EXPENSE',
+              prefix: 'EXP',
+              currentYear: DateTime.now().year,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+        }
       },
     );
   }
@@ -144,6 +171,12 @@ class AppDatabase extends _$AppDatabase {
           id: 'seq_product',
           sequenceType: 'PRODUCT',
           prefix: AppConstants.productPrefix,
+          currentYear: year,
+        ),
+        NumberSequencesCompanion.insert(
+          id: 'seq_expense',
+          sequenceType: 'EXPENSE',
+          prefix: 'EXP',
           currentYear: year,
         ),
       ]);

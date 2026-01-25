@@ -6,6 +6,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/local/database/app_database.dart';
 import '../../../data/local/daos/sales_dao.dart';
+import '../../../domain/entities/sale.dart' as entity;
+import '../../providers/core/database_provider.dart';
+import '../../../services/printing/receipt_printer.dart';
+import '../../providers/core/settings_provider.dart';
 import '../../providers/inventory/product_provider.dart';
 import '../../providers/inventory/customer_provider.dart';
 import '../../providers/inventory/category_provider.dart';
@@ -547,9 +551,12 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   }
 
   void _showSuccessDialog(Sale sale) {
+    final cartState = ref.read(cartProvider);
+    final customerName = cartState.customerName;
+
     showDialog(
       context: context,
-      builder: (context) => ContentDialog(
+      builder: (dialogContext) => ContentDialog(
         title: const Text('Sale Complete'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -566,18 +573,92 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         actions: [
           Button(
             child: const Text('Print Receipt'),
-            onPressed: () {
-              // TODO: Print receipt
-              Navigator.pop(context);
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _printReceipt(sale.id, customerName);
             },
           ),
           FilledButton(
             child: const Text('Done'),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _printReceipt(String saleId, String? customerName) async {
+    try {
+      final companySettings = await ref.read(companySettingsProvider.future);
+      final db = ref.read(databaseProvider);
+
+      // Fetch full sale details
+      final saleDetail = await db.salesDao.getSaleDetail(saleId);
+      if (saleDetail == null) {
+        throw Exception('Sale not found');
+      }
+
+      // Convert to domain entity Sale with items
+      final entitySale = entity.Sale(
+        id: saleDetail.sale.id,
+        invoiceNumber: saleDetail.sale.invoiceNumber,
+        customerId: saleDetail.sale.customerId,
+        saleDate: saleDetail.sale.saleDate,
+        subtotal: saleDetail.sale.subtotal,
+        discountAmount: saleDetail.sale.discountAmount,
+        taxAmount: saleDetail.sale.taxAmount,
+        totalAmount: saleDetail.sale.totalAmount,
+        paidAmount: saleDetail.sale.paidAmount,
+        totalCost: saleDetail.sale.totalCost,
+        grossProfit: saleDetail.sale.grossProfit,
+        isCredit: saleDetail.sale.isCredit,
+        status: saleDetail.sale.status,
+        notes: saleDetail.sale.notes,
+        createdBy: saleDetail.sale.createdBy,
+        createdAt: saleDetail.sale.createdAt,
+        updatedAt: saleDetail.sale.updatedAt,
+        items: saleDetail.items.map((item) => entity.SaleItem(
+          id: item.item.id,
+          saleId: item.item.saleId,
+          productId: item.item.productId,
+          productName: item.product.name,
+          productCode: item.product.code,
+          quantity: item.item.quantity,
+          unitPrice: item.item.unitPrice,
+          unitCost: item.item.unitCost,
+          discountAmount: item.item.discountAmount,
+          totalPrice: item.item.totalPrice,
+          totalCost: item.item.totalCost,
+          profit: item.item.profit,
+          serials: item.serials.map((s) => entity.SaleSerial(
+            id: s.id,
+            saleItemId: s.saleItemId,
+            serialNumberId: s.serialNumberId,
+            serialNumber: s.serialNumber,
+            unitCost: s.unitCost,
+          )).toList(),
+        )).toList(),
+      );
+
+      await ReceiptPrinter.printThermalReceipt(
+        sale: entitySale,
+        companyName: companySettings.name.isNotEmpty ? companySettings.name : 'M-TRONIC',
+        companyAddress: companySettings.address.isNotEmpty ? companySettings.address : '',
+        companyPhone: companySettings.phone.isNotEmpty ? companySettings.phone : '',
+        customerName: customerName ?? saleDetail.customer?.name,
+      );
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(context, builder: (context, close) {
+          return InfoBar(
+            title: const Text('Print Error'),
+            content: Text(e.toString()),
+            severity: InfoBarSeverity.error,
+            onClose: close,
+          );
+        });
+      }
+    }
   }
 }
 

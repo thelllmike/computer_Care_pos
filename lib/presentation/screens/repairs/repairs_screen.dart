@@ -1,6 +1,10 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/local/daos/repair_dao.dart';
@@ -9,6 +13,7 @@ import '../../providers/repairs/repair_provider.dart';
 import '../../providers/inventory/customer_provider.dart';
 import '../../providers/inventory/product_provider.dart';
 import '../../providers/core/database_provider.dart';
+import '../../providers/core/settings_provider.dart';
 
 class RepairsScreen extends ConsumerWidget {
   const RepairsScreen({super.key});
@@ -457,34 +462,101 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Customer selection
-            InfoLabel(
-              label: 'Customer *',
-              child: customersAsync.when(
-                data: (customers) => AutoSuggestBox<String>(
-                  placeholder: 'Search customer...',
-                  items: customers
-                      .map((c) => AutoSuggestBoxItem(
-                            value: c.id,
-                            label: '${c.name} - ${c.phone ?? "No phone"}',
-                          ))
-                      .toList(),
-                  onSelected: (item) {
-                    final customer = customers.firstWhere((c) => c.id == item.value);
-                    ref.read(repairFormProvider.notifier).setCustomer(
-                          customer.id,
-                          customer.name,
-                        );
-                  },
+            // Customer type toggle
+            Row(
+              children: [
+                Expanded(
+                  child: RadioButton(
+                    checked: !formState.useManualCustomer,
+                    content: const Text('Existing Customer'),
+                    onChanged: (checked) {
+                      if (checked) {
+                        ref.read(repairFormProvider.notifier).setUseManualCustomer(false);
+                      }
+                    },
+                  ),
                 ),
-                loading: () => const ProgressRing(),
-                error: (e, _) => Text('Error: $e'),
-              ),
+                Expanded(
+                  child: RadioButton(
+                    checked: formState.useManualCustomer,
+                    content: const Text('Walk-in Customer'),
+                    onChanged: (checked) {
+                      if (checked) {
+                        ref.read(repairFormProvider.notifier).setUseManualCustomer(true);
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
-            if (formState.customerName != null) ...[
-              const SizedBox(height: 8),
-              Text('Selected: ${formState.customerName}',
-                  style: TextStyle(color: AppTheme.primaryColor)),
+            const SizedBox(height: 12),
+
+            // Customer selection or manual entry
+            if (!formState.useManualCustomer) ...[
+              InfoLabel(
+                label: 'Customer *',
+                child: customersAsync.when(
+                  data: (customers) => AutoSuggestBox<String>(
+                    placeholder: 'Search customer...',
+                    items: customers
+                        .map((c) => AutoSuggestBoxItem(
+                              value: c.id,
+                              label: '${c.name} - ${c.phone ?? "No phone"}',
+                            ))
+                        .toList(),
+                    onSelected: (item) {
+                      final customer = customers.firstWhere((c) => c.id == item.value);
+                      ref.read(repairFormProvider.notifier).setCustomer(
+                            customer.id,
+                            customer.name,
+                          );
+                    },
+                  ),
+                  loading: () => const ProgressRing(),
+                  error: (e, _) => Text('Error: $e'),
+                ),
+              ),
+              if (formState.customerName != null) ...[
+                const SizedBox(height: 8),
+                Text('Selected: ${formState.customerName}',
+                    style: TextStyle(color: AppTheme.primaryColor)),
+              ],
+            ] else ...[
+              // Manual customer entry
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: InfoLabel(
+                      label: 'Customer Name *',
+                      child: TextBox(
+                        placeholder: 'Enter customer name',
+                        onChanged: (value) {
+                          ref.read(repairFormProvider.notifier).setManualCustomer(
+                                value.isEmpty ? null : value,
+                                formState.manualCustomerPhone,
+                              );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: InfoLabel(
+                      label: 'Phone',
+                      child: TextBox(
+                        placeholder: 'Phone number',
+                        onChanged: (value) {
+                          ref.read(repairFormProvider.notifier).setManualCustomer(
+                                formState.manualCustomerName,
+                                value.isEmpty ? null : value,
+                              );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
             const SizedBox(height: 16),
 
@@ -895,7 +967,32 @@ class _RepairJobDetailContent extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // Costs
-          Text('Costs', style: FluentTheme.of(context).typography.bodyStrong),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Costs', style: FluentTheme.of(context).typography.bodyStrong),
+              Button(
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(FluentIcons.edit, size: 14),
+                    SizedBox(width: 4),
+                    Text('Edit Costs'),
+                  ],
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => _EditCostsDialog(
+                      repairJobId: detail.repairJob.id,
+                      currentEstimatedCost: job.estimatedCost,
+                      currentLaborCost: job.laborCost,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Card(
             child: Padding(
@@ -1224,12 +1321,15 @@ class _GenerateInvoiceDialog extends ConsumerStatefulWidget {
 
 class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> {
   bool _isCredit = false;
+  bool _isPartialPayment = false;
   final _discountController = TextEditingController(text: '0');
+  final _partialPaymentController = TextEditingController();
   final _notesController = TextEditingController();
 
   @override
   void dispose() {
     _discountController.dispose();
+    _partialPaymentController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -1299,9 +1399,62 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                 const SizedBox(height: 16),
                 Checkbox(
                   checked: _isCredit,
-                  onChanged: (value) => setState(() => _isCredit = value ?? false),
+                  onChanged: (value) => setState(() {
+                    _isCredit = value ?? false;
+                    if (!_isCredit) {
+                      _isPartialPayment = false;
+                      _partialPaymentController.clear();
+                    }
+                  }),
                   content: const Text('Credit Sale (Customer will pay later)'),
                 ),
+                if (_isCredit) ...[
+                  const SizedBox(height: 12),
+                  Checkbox(
+                    checked: _isPartialPayment,
+                    onChanged: (value) => setState(() {
+                      _isPartialPayment = value ?? false;
+                      if (!_isPartialPayment) {
+                        _partialPaymentController.clear();
+                      }
+                    }),
+                    content: const Text('Partial Payment (Pay some now, rest as credit)'),
+                  ),
+                  if (_isPartialPayment) ...[
+                    const SizedBox(height: 12),
+                    InfoLabel(
+                      label: 'Amount Paying Now',
+                      child: TextBox(
+                        controller: _partialPaymentController,
+                        keyboardType: TextInputType.number,
+                        prefix: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Text('Rs.'),
+                        ),
+                        placeholder: '0.00',
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Builder(builder: (context) {
+                      final partialPay = double.tryParse(_partialPaymentController.text) ?? 0;
+                      final creditAmount = finalAmount - partialPay;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Credit Amount:'),
+                          Text(
+                            Formatters.currency(creditAmount > 0 ? creditAmount : 0),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.warningColor,
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ],
+                ],
                 const SizedBox(height: 16),
                 InfoLabel(
                   label: 'Notes (optional)',
@@ -1323,6 +1476,19 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
             ),
       actions: invoiceState.isSuccess
           ? [
+              Button(
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(FluentIcons.print, size: 16),
+                    SizedBox(width: 8),
+                    Text('Print Invoice'),
+                  ],
+                ),
+                onPressed: () async {
+                  await _printRepairInvoice(invoiceState);
+                },
+              ),
               FilledButton(
                 child: const Text('Done'),
                 onPressed: () {
@@ -1352,12 +1518,243 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
 
   void _generateInvoice() {
     final discount = double.tryParse(_discountController.text) ?? 0;
+    final partialPayment = _isPartialPayment
+        ? double.tryParse(_partialPaymentController.text)
+        : null;
+
     ref.read(serviceInvoiceProvider.notifier).generateInvoice(
           repairJobId: widget.jobId,
           isCredit: _isCredit,
           discountAmount: discount,
+          partialPayment: partialPayment,
           notes: _notesController.text.isNotEmpty ? _notesController.text : null,
         );
+  }
+
+  Future<void> _printRepairInvoice(ServiceInvoiceState invoiceState) async {
+    try {
+      final companySettings = await ref.read(companySettingsProvider.future);
+      final jobDetail = await ref.read(repairJobDetailProvider(widget.jobId).future);
+
+      if (jobDetail == null) {
+        throw Exception('Repair job not found');
+      }
+
+      final discount = double.tryParse(_discountController.text) ?? 0;
+      final finalAmount = widget.totalCost - discount;
+
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(40),
+          build: (context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          companySettings.name.isNotEmpty ? companySettings.name : 'M-TRONIC',
+                          style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+                        ),
+                        pw.SizedBox(height: 4),
+                        if (companySettings.address.isNotEmpty)
+                          pw.Text(companySettings.address),
+                        if (companySettings.phone.isNotEmpty)
+                          pw.Text('Tel: ${companySettings.phone}'),
+                        if (companySettings.email.isNotEmpty)
+                          pw.Text('Email: ${companySettings.email}'),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text(
+                          'SERVICE INVOICE',
+                          style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold, color: PdfColors.green700),
+                        ),
+                        pw.Text(invoiceState.invoiceNumber ?? '', style: const pw.TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 30),
+
+                // Customer and Job info
+                pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Customer:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                          pw.SizedBox(height: 4),
+                          pw.Text(jobDetail.customer?.name ?? 'Walk-in Customer'),
+                          if (jobDetail.customer?.phone != null)
+                            pw.Text('Tel: ${jobDetail.customer!.phone}'),
+                        ],
+                      ),
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text('Job #: ${jobDetail.repairJob.jobNumber}'),
+                        pw.Text('Date: ${Formatters.date(DateTime.now())}'),
+                        if (_isCredit)
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.orange100,
+                              borderRadius: pw.BorderRadius.circular(4),
+                            ),
+                            child: pw.Text('CREDIT SALE', style: const pw.TextStyle(color: PdfColors.orange900)),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 20),
+
+                // Device info
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Device Information:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 4),
+                      pw.Text('${jobDetail.repairJob.deviceBrand ?? ''} ${jobDetail.repairJob.deviceModel ?? ''} (${jobDetail.repairJob.deviceType})'),
+                      if (jobDetail.repairJob.deviceSerial != null)
+                        pw.Text('Serial: ${jobDetail.repairJob.deviceSerial}'),
+                      pw.SizedBox(height: 8),
+                      pw.Text('Problem: ${jobDetail.repairJob.problemDescription}'),
+                      if (jobDetail.repairJob.diagnosis != null) ...[
+                        pw.SizedBox(height: 4),
+                        pw.Text('Diagnosis: ${jobDetail.repairJob.diagnosis}'),
+                      ],
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+
+                // Parts table
+                if (jobDetail.parts.isNotEmpty) ...[
+                  pw.Text('Parts Used:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 8),
+                  pw.Table(
+                    border: pw.TableBorder.all(color: PdfColors.grey300),
+                    columnWidths: {
+                      0: const pw.FlexColumnWidth(3),
+                      1: const pw.FlexColumnWidth(1),
+                      2: const pw.FlexColumnWidth(1.5),
+                      3: const pw.FlexColumnWidth(1.5),
+                    },
+                    children: [
+                      pw.TableRow(
+                        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                        children: [
+                          pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Part', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                          pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Qty', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                          pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Price', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                          pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Total', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                        ],
+                      ),
+                      ...jobDetail.parts.map((part) => pw.TableRow(
+                            children: [
+                              pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(part.productName)),
+                              pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${part.part.quantity}')),
+                              pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(Formatters.currency(part.part.unitPrice))),
+                              pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(Formatters.currency(part.part.totalPrice))),
+                            ],
+                          )),
+                    ],
+                  ),
+                  pw.SizedBox(height: 20),
+                ],
+
+                // Totals
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
+                  children: [
+                    pw.SizedBox(
+                      width: 220,
+                      child: pw.Column(
+                        children: [
+                          _pdfTotalRow('Labor Cost', jobDetail.repairJob.laborCost),
+                          _pdfTotalRow('Parts Cost', jobDetail.repairJob.partsCost),
+                          if (discount > 0)
+                            _pdfTotalRow('Discount', -discount),
+                          pw.Divider(color: PdfColors.green300),
+                          _pdfTotalRow('Total', finalAmount, isTotal: true),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                pw.Spacer(),
+
+                // Footer
+                pw.Divider(color: PdfColors.grey300),
+                pw.SizedBox(height: 8),
+                pw.Center(child: pw.Text('Thank you for your business!')),
+                pw.SizedBox(height: 8),
+                pw.Center(
+                  child: pw.Text(
+                    AppConstants.poweredBy,
+                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      await Printing.layoutPdf(
+        onLayout: (format) async => pdf.save(),
+        name: 'ServiceInvoice_${invoiceState.invoiceNumber}',
+      );
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(context, builder: (context, close) {
+          return InfoBar(
+            title: const Text('Print Error'),
+            content: Text(e.toString()),
+            severity: InfoBarSeverity.error,
+            onClose: close,
+          );
+        });
+      }
+    }
+  }
+
+  static pw.Widget _pdfTotalRow(String label, double amount, {bool isTotal = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(label, style: pw.TextStyle(fontWeight: isTotal ? pw.FontWeight.bold : null, fontSize: isTotal ? 14 : 12)),
+          pw.Text(
+            Formatters.currency(amount),
+            style: pw.TextStyle(fontWeight: isTotal ? pw.FontWeight.bold : null, fontSize: isTotal ? 14 : 12, color: isTotal ? PdfColors.green700 : null),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1571,6 +1968,148 @@ class _AddPartDialogState extends ConsumerState<_AddPartDialog> {
         });
       }
     }
+  }
+}
+
+// ==================== Edit Costs Dialog ====================
+
+class _EditCostsDialog extends ConsumerStatefulWidget {
+  final String repairJobId;
+  final double currentEstimatedCost;
+  final double currentLaborCost;
+
+  const _EditCostsDialog({
+    required this.repairJobId,
+    required this.currentEstimatedCost,
+    required this.currentLaborCost,
+  });
+
+  @override
+  ConsumerState<_EditCostsDialog> createState() => _EditCostsDialogState();
+}
+
+class _EditCostsDialogState extends ConsumerState<_EditCostsDialog> {
+  late TextEditingController _estimatedCostController;
+  late TextEditingController _laborCostController;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _estimatedCostController = TextEditingController(
+      text: widget.currentEstimatedCost.toStringAsFixed(2),
+    );
+    _laborCostController = TextEditingController(
+      text: widget.currentLaborCost.toStringAsFixed(2),
+    );
+  }
+
+  @override
+  void dispose() {
+    _estimatedCostController.dispose();
+    _laborCostController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveCosts() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final estimatedCost = double.tryParse(_estimatedCostController.text) ?? 0;
+      final laborCost = double.tryParse(_laborCostController.text) ?? 0;
+
+      final db = ref.read(databaseProvider);
+      await db.repairDao.updateRepairJob(
+        id: widget.repairJobId,
+        estimatedCost: estimatedCost,
+        laborCost: laborCost,
+      );
+
+      ref.invalidate(repairJobDetailProvider(widget.repairJobId));
+      ref.invalidate(repairJobsProvider);
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        displayInfoBar(context, builder: (context, close) {
+          return InfoBar(
+            title: const Text('Costs updated successfully'),
+            severity: InfoBarSeverity.success,
+            onClose: close,
+          );
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(context, builder: (context, close) {
+          return InfoBar(
+            title: const Text('Failed to update costs'),
+            content: Text(e.toString()),
+            severity: InfoBarSeverity.error,
+            onClose: close,
+          );
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ContentDialog(
+      constraints: const BoxConstraints(maxWidth: 400),
+      title: const Text('Edit Repair Costs'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InfoLabel(
+            label: 'Estimated Cost',
+            child: TextBox(
+              controller: _estimatedCostController,
+              keyboardType: TextInputType.number,
+              prefix: const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Text('LKR'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          InfoLabel(
+            label: 'Labor Cost',
+            child: TextBox(
+              controller: _laborCostController,
+              keyboardType: TextInputType.number,
+              prefix: const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Text('LKR'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          InfoBar(
+            title: const Text('Note'),
+            content: const Text('Parts cost is calculated from added parts. Total = Labor + Parts'),
+            severity: InfoBarSeverity.info,
+          ),
+        ],
+      ),
+      actions: [
+        Button(
+          child: const Text('Cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        FilledButton(
+          onPressed: _isLoading ? null : _saveCosts,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: ProgressRing(strokeWidth: 2),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
   }
 }
 

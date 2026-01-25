@@ -118,55 +118,245 @@ class SyncService {
     final errors = <String>[];
     var count = 0;
 
-    // Get all pending items from sync queue
-    final pendingItems = await (_database.select(_database.syncQueue)
-          ..where((t) => t.processedAt.isNull()))
-        .get();
-
-    for (final item in pendingItems) {
-      try {
-        final payload = jsonDecode(item.payload) as Map<String, dynamic>;
-
-        switch (item.operation) {
-          case 'INSERT':
-            await _supabaseClient.from(item.queueTableName).insert(payload);
-            break;
-          case 'UPDATE':
-            await _supabaseClient
-                .from(item.queueTableName)
-                .update(payload)
-                .eq('id', item.recordId);
-            break;
-          case 'DELETE':
-            await _supabaseClient
-                .from(item.queueTableName)
-                .delete()
-                .eq('id', item.recordId);
-            break;
-        }
-
-        // Mark as processed
-        await (_database.update(_database.syncQueue)
-              ..where((t) => t.id.equals(item.id)))
-            .write(SyncQueueCompanion(
-          processedAt: Value(DateTime.now()),
-        ));
-
-        count++;
-      } catch (e) {
-        // Increment retry count
-        await (_database.update(_database.syncQueue)
-              ..where((t) => t.id.equals(item.id)))
-            .write(SyncQueueCompanion(
-          retryCount: Value(item.retryCount + 1),
-          lastError: Value(e.toString()),
-        ));
-
-        errors.add('Failed to sync ${item.queueTableName}/${item.recordId}: $e');
-      }
-    }
+    // Push pending records from each table based on syncStatus
+    count += await _pushPendingTable('categories', _database.categories, errors);
+    count += await _pushPendingTable('products', _database.products, errors);
+    count += await _pushPendingTable('customers', _database.customers, errors);
+    count += await _pushPendingTable('suppliers', _database.suppliers, errors);
+    count += await _pushPendingTable('inventory', _database.inventory, errors);
+    count += await _pushPendingTable('sales', _database.sales, errors);
+    count += await _pushPendingTable('repair_jobs', _database.repairJobs, errors);
 
     return (count: count, errors: errors);
+  }
+
+  /// Push pending records from a specific table
+  Future<int> _pushPendingTable<T extends Table, D>(
+    String tableName,
+    TableInfo<T, D> table,
+    List<String> errors,
+  ) async {
+    var count = 0;
+
+    try {
+      // Get records with PENDING sync status
+      final query = _database.select(table);
+      final records = await query.get();
+
+      for (final record in records) {
+        final recordMap = (record as dynamic);
+
+        // Check if syncStatus is PENDING
+        if (recordMap.syncStatus != 'PENDING') continue;
+
+        try {
+          // Convert to JSON for Supabase
+          final data = _recordToJson(tableName, record);
+          if (data == null) continue;
+
+          // Upsert to Supabase
+          await _supabaseClient
+              .from(tableName)
+              .upsert(data, onConflict: 'id');
+
+          // Mark as synced
+          await _markAsSynced(tableName, recordMap.id as String);
+          count++;
+        } catch (e) {
+          errors.add('Failed to push $tableName/${recordMap.id}: $e');
+        }
+      }
+    } catch (e) {
+      errors.add('Failed to query $tableName: $e');
+    }
+
+    return count;
+  }
+
+  /// Convert a record to JSON for Supabase
+  Map<String, dynamic>? _recordToJson(String tableName, dynamic record) {
+    try {
+      switch (tableName) {
+        case 'categories':
+          return {
+            'id': record.id,
+            'code': record.code,
+            'name': record.name,
+            'description': record.description,
+            'parent_id': record.parentId,
+            'sort_order': record.sortOrder,
+            'is_active': record.isActive,
+            'updated_at': DateTime.now().toIso8601String(),
+          };
+        case 'products':
+          return {
+            'id': record.id,
+            'code': record.code,
+            'name': record.name,
+            'barcode': record.barcode,
+            'description': record.description,
+            'category_id': record.categoryId,
+            'product_type': record.productType,
+            'requires_serial': record.requiresSerial,
+            'selling_price': record.sellingPrice,
+            'weighted_avg_cost': record.weightedAvgCost,
+            'warranty_months': record.warrantyMonths,
+            'reorder_level': record.reorderLevel,
+            'brand': record.brand,
+            'model': record.model,
+            'is_active': record.isActive,
+            'updated_at': DateTime.now().toIso8601String(),
+          };
+        case 'customers':
+          return {
+            'id': record.id,
+            'code': record.code,
+            'name': record.name,
+            'email': record.email,
+            'phone': record.phone,
+            'address': record.address,
+            'nic': record.nic,
+            'credit_enabled': record.creditEnabled,
+            'credit_limit': record.creditLimit,
+            'credit_balance': record.creditBalance,
+            'notes': record.notes,
+            'is_active': record.isActive,
+            'updated_at': DateTime.now().toIso8601String(),
+          };
+        case 'suppliers':
+          return {
+            'id': record.id,
+            'code': record.code,
+            'name': record.name,
+            'contact_person': record.contactPerson,
+            'email': record.email,
+            'phone': record.phone,
+            'address': record.address,
+            'tax_id': record.taxId,
+            'payment_term_days': record.paymentTermDays,
+            'notes': record.notes,
+            'is_active': record.isActive,
+            'updated_at': DateTime.now().toIso8601String(),
+          };
+        case 'inventory':
+          return {
+            'id': record.id,
+            'product_id': record.productId,
+            'quantity_on_hand': record.quantityOnHand,
+            'total_cost': record.totalCost,
+            'reserved_quantity': record.reservedQuantity,
+            'last_stock_date': record.lastStockDate?.toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          };
+        case 'sales':
+          return {
+            'id': record.id,
+            'invoice_number': record.invoiceNumber,
+            'customer_id': record.customerId,
+            'sale_date': record.saleDate.toIso8601String(),
+            'subtotal': record.subtotal,
+            'discount_amount': record.discountAmount,
+            'tax_amount': record.taxAmount,
+            'total_amount': record.totalAmount,
+            'paid_amount': record.paidAmount,
+            'total_cost': record.totalCost,
+            'gross_profit': record.grossProfit,
+            'is_credit': record.isCredit,
+            'status': record.status,
+            'notes': record.notes,
+            'created_by': record.createdBy,
+            'updated_at': DateTime.now().toIso8601String(),
+          };
+        case 'repair_jobs':
+          return {
+            'id': record.id,
+            'job_number': record.jobNumber,
+            'customer_id': record.customerId,
+            'device_type': record.deviceType,
+            'device_brand': record.deviceBrand,
+            'device_model': record.deviceModel,
+            'device_serial': record.deviceSerial,
+            'problem_description': record.problemDescription,
+            'diagnosis': record.diagnosis,
+            'estimated_cost': record.estimatedCost,
+            'actual_cost': record.actualCost,
+            'labor_cost': record.laborCost,
+            'parts_cost': record.partsCost,
+            'total_cost': record.totalCost,
+            'status': record.status,
+            'received_date': record.receivedDate.toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          };
+        default:
+          return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Mark a record as synced
+  Future<void> _markAsSynced(String tableName, String id) async {
+    final now = DateTime.now();
+
+    switch (tableName) {
+      case 'categories':
+        await (_database.update(_database.categories)
+              ..where((t) => t.id.equals(id)))
+            .write(CategoriesCompanion(
+          syncStatus: const Value('SYNCED'),
+          serverUpdatedAt: Value(now),
+        ));
+        break;
+      case 'products':
+        await (_database.update(_database.products)
+              ..where((t) => t.id.equals(id)))
+            .write(ProductsCompanion(
+          syncStatus: const Value('SYNCED'),
+          serverUpdatedAt: Value(now),
+        ));
+        break;
+      case 'customers':
+        await (_database.update(_database.customers)
+              ..where((t) => t.id.equals(id)))
+            .write(CustomersCompanion(
+          syncStatus: const Value('SYNCED'),
+          serverUpdatedAt: Value(now),
+        ));
+        break;
+      case 'suppliers':
+        await (_database.update(_database.suppliers)
+              ..where((t) => t.id.equals(id)))
+            .write(SuppliersCompanion(
+          syncStatus: const Value('SYNCED'),
+          serverUpdatedAt: Value(now),
+        ));
+        break;
+      case 'inventory':
+        await (_database.update(_database.inventory)
+              ..where((t) => t.id.equals(id)))
+            .write(InventoryCompanion(
+          syncStatus: const Value('SYNCED'),
+          serverUpdatedAt: Value(now),
+        ));
+        break;
+      case 'sales':
+        await (_database.update(_database.sales)
+              ..where((t) => t.id.equals(id)))
+            .write(SalesCompanion(
+          syncStatus: const Value('SYNCED'),
+          serverUpdatedAt: Value(now),
+        ));
+        break;
+      case 'repair_jobs':
+        await (_database.update(_database.repairJobs)
+              ..where((t) => t.id.equals(id)))
+            .write(RepairJobsCompanion(
+          syncStatus: const Value('SYNCED'),
+          serverUpdatedAt: Value(now),
+        ));
+        break;
+    }
   }
 
   /// Pulls changes from Supabase to local database

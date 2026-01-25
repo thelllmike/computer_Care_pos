@@ -1,6 +1,7 @@
 export 'categories_table.dart';
 export 'credit_transactions_table.dart';
 export 'customers_table.dart';
+export 'expenses_table.dart';
 export 'grn_table.dart';
 export 'inventory_table.dart';
 export 'payments_table.dart';

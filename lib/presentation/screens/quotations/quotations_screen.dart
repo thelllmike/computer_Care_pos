@@ -12,6 +12,7 @@ import '../../providers/inventory/customer_provider.dart';
 import '../../providers/inventory/product_provider.dart';
 import '../../providers/sales/quotation_provider.dart';
 import '../../providers/core/database_provider.dart';
+import '../../providers/core/settings_provider.dart';
 
 final _searchQueryProvider = StateProvider<String>((ref) => '');
 final _statusFilterProvider = StateProvider<QuotationStatus?>((ref) => null);
@@ -787,12 +788,13 @@ class _QuotationDetailDialog extends ConsumerWidget {
             ),
             onPressed: () async {
               final detail = detailAsync.valueOrNull!;
+              final companySettings = await ref.read(companySettingsProvider.future);
               await ReceiptPrinter.printQuotation(
                 detail: detail,
-                companyName: 'Your Company Name',
-                companyAddress: '123 Business Street, City',
-                companyPhone: '+1 234 567 890',
-                companyEmail: 'sales@company.com',
+                companyName: companySettings.name.isNotEmpty ? companySettings.name : 'Your Company',
+                companyAddress: companySettings.address.isNotEmpty ? companySettings.address : '',
+                companyPhone: companySettings.phone.isNotEmpty ? companySettings.phone : '',
+                companyEmail: companySettings.email.isNotEmpty ? companySettings.email : '',
               );
             },
           ),

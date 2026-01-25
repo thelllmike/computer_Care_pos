@@ -4,7 +4,9 @@ import 'customers_table.dart';
 class RepairJobs extends Table {
   TextColumn get id => text()();
   TextColumn get jobNumber => text().unique()();
-  TextColumn get customerId => text().references(Customers, #id)();
+  TextColumn get customerId => text().nullable().references(Customers, #id)(); // Nullable for manual customers
+  TextColumn get manualCustomerName => text().nullable()(); // For walk-in customers without database entry
+  TextColumn get manualCustomerPhone => text().nullable()(); // Phone for manual customers
   TextColumn get serialNumberId => text().nullable()(); // If it's our sold device
   TextColumn get deviceType => text()(); // LAPTOP, PHONE, etc.
   TextColumn get deviceBrand => text().nullable()();

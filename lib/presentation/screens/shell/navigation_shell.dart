@@ -18,6 +18,8 @@ import '../credits/credits_screen.dart';
 import '../repairs/repairs_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
+import '../expenses/expenses_screen.dart';
+import '../../../core/constants/app_constants.dart';
 
 final selectedIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -44,9 +46,9 @@ class NavigationShell extends ConsumerWidget {
               size: 24,
             ),
             const SizedBox(width: 12),
-            const Text(
-              'Laptop Shop POS',
-              style: TextStyle(
+            Text(
+              AppConstants.appName,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -196,6 +198,17 @@ class NavigationShell extends ConsumerWidget {
           icon: const Icon(FluentIcons.repair),
           title: const Text('Repairs'),
           body: const RepairsScreen(),
+        ),
+      );
+    }
+
+    // Expenses - available to admin only
+    if (role == UserRole.admin) {
+      items.add(
+        PaneItem(
+          icon: const Icon(FluentIcons.calculator),
+          title: const Text('Expenses'),
+          body: const ExpensesScreen(),
         ),
       );
     }
