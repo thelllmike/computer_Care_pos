@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/local/daos/repair_dao.dart';
 import '../../../data/local/database/app_database.dart';
 import '../core/database_provider.dart';
+import '../sales/sales_provider.dart';
+import '../credits/credit_provider.dart';
 
 // Provider for repair summary
 final repairSummaryProvider = FutureProvider<RepairSummary>((ref) {
@@ -578,9 +580,21 @@ class ServiceInvoiceNotifier extends StateNotifier<ServiceInvoiceState> {
         createdBy: createdBy,
       );
 
-      // Invalidate providers
+      // Invalidate providers - repairs
       _ref.invalidate(repairJobDetailProvider(repairJobId));
       _ref.invalidate(repairSummaryProvider);
+      _ref.invalidate(repairJobsProvider);
+
+      // Invalidate providers - sales (invoice was created)
+      _ref.invalidate(salesProvider);
+      _ref.invalidate(salesHistoryProvider);
+      _ref.invalidate(todaysSalesProvider);
+
+      // Invalidate credit providers if this was a credit sale
+      if (isCredit) {
+        _ref.invalidate(creditSummaryProvider);
+        _ref.invalidate(outstandingCustomersProvider);
+      }
 
       state = state.copyWith(
         isProcessing: false,

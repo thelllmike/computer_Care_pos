@@ -14190,6 +14190,12 @@ class $RepairJobsTable extends RepairJobs
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
       'notes', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _invoiceIdMeta =
+      const VerificationMeta('invoiceId');
+  @override
+  late final GeneratedColumn<String> invoiceId = GeneratedColumn<String>(
+      'invoice_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -14253,6 +14259,7 @@ class $RepairJobsTable extends RepairJobs
         receivedBy,
         assignedTo,
         notes,
+        invoiceId,
         createdAt,
         updatedAt,
         syncStatus,
@@ -14424,6 +14431,10 @@ class $RepairJobsTable extends RepairJobs
       context.handle(
           _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
     }
+    if (data.containsKey('invoice_id')) {
+      context.handle(_invoiceIdMeta,
+          invoiceId.isAcceptableOrUnknown(data['invoice_id']!, _invoiceIdMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -14513,6 +14524,8 @@ class $RepairJobsTable extends RepairJobs
           .read(DriftSqlType.string, data['${effectivePrefix}assigned_to']),
       notes: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      invoiceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}invoice_id']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -14560,6 +14573,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
   final String? receivedBy;
   final String? assignedTo;
   final String? notes;
+  final String? invoiceId;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String syncStatus;
@@ -14593,6 +14607,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
       this.receivedBy,
       this.assignedTo,
       this.notes,
+      this.invoiceId,
       required this.createdAt,
       this.updatedAt,
       required this.syncStatus,
@@ -14657,6 +14672,9 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || invoiceId != null) {
+      map['invoice_id'] = Variable<String>(invoiceId);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || updatedAt != null) {
@@ -14730,6 +14748,9 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
           : Value(assignedTo),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      invoiceId: invoiceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(invoiceId),
       createdAt: Value(createdAt),
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
@@ -14778,6 +14799,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
       receivedBy: serializer.fromJson<String?>(json['receivedBy']),
       assignedTo: serializer.fromJson<String?>(json['assignedTo']),
       notes: serializer.fromJson<String?>(json['notes']),
+      invoiceId: serializer.fromJson<String?>(json['invoiceId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -14816,6 +14838,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
       'receivedBy': serializer.toJson<String?>(receivedBy),
       'assignedTo': serializer.toJson<String?>(assignedTo),
       'notes': serializer.toJson<String?>(notes),
+      'invoiceId': serializer.toJson<String?>(invoiceId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -14852,6 +14875,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
           Value<String?> receivedBy = const Value.absent(),
           Value<String?> assignedTo = const Value.absent(),
           Value<String?> notes = const Value.absent(),
+          Value<String?> invoiceId = const Value.absent(),
           DateTime? createdAt,
           Value<DateTime?> updatedAt = const Value.absent(),
           String? syncStatus,
@@ -14895,6 +14919,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
         receivedBy: receivedBy.present ? receivedBy.value : this.receivedBy,
         assignedTo: assignedTo.present ? assignedTo.value : this.assignedTo,
         notes: notes.present ? notes.value : this.notes,
+        invoiceId: invoiceId.present ? invoiceId.value : this.invoiceId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
@@ -14964,6 +14989,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
       assignedTo:
           data.assignedTo.present ? data.assignedTo.value : this.assignedTo,
       notes: data.notes.present ? data.notes.value : this.notes,
+      invoiceId: data.invoiceId.present ? data.invoiceId.value : this.invoiceId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       syncStatus:
@@ -15007,6 +15033,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
           ..write('receivedBy: $receivedBy, ')
           ..write('assignedTo: $assignedTo, ')
           ..write('notes: $notes, ')
+          ..write('invoiceId: $invoiceId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -15045,6 +15072,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
         receivedBy,
         assignedTo,
         notes,
+        invoiceId,
         createdAt,
         updatedAt,
         syncStatus,
@@ -15082,6 +15110,7 @@ class RepairJob extends DataClass implements Insertable<RepairJob> {
           other.receivedBy == this.receivedBy &&
           other.assignedTo == this.assignedTo &&
           other.notes == this.notes &&
+          other.invoiceId == this.invoiceId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.syncStatus == this.syncStatus &&
@@ -15117,6 +15146,7 @@ class RepairJobsCompanion extends UpdateCompanion<RepairJob> {
   final Value<String?> receivedBy;
   final Value<String?> assignedTo;
   final Value<String?> notes;
+  final Value<String?> invoiceId;
   final Value<DateTime> createdAt;
   final Value<DateTime?> updatedAt;
   final Value<String> syncStatus;
@@ -15151,6 +15181,7 @@ class RepairJobsCompanion extends UpdateCompanion<RepairJob> {
     this.receivedBy = const Value.absent(),
     this.assignedTo = const Value.absent(),
     this.notes = const Value.absent(),
+    this.invoiceId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -15186,6 +15217,7 @@ class RepairJobsCompanion extends UpdateCompanion<RepairJob> {
     this.receivedBy = const Value.absent(),
     this.assignedTo = const Value.absent(),
     this.notes = const Value.absent(),
+    this.invoiceId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -15225,6 +15257,7 @@ class RepairJobsCompanion extends UpdateCompanion<RepairJob> {
     Expression<String>? receivedBy,
     Expression<String>? assignedTo,
     Expression<String>? notes,
+    Expression<String>? invoiceId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<String>? syncStatus,
@@ -15262,6 +15295,7 @@ class RepairJobsCompanion extends UpdateCompanion<RepairJob> {
       if (receivedBy != null) 'received_by': receivedBy,
       if (assignedTo != null) 'assigned_to': assignedTo,
       if (notes != null) 'notes': notes,
+      if (invoiceId != null) 'invoice_id': invoiceId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -15299,6 +15333,7 @@ class RepairJobsCompanion extends UpdateCompanion<RepairJob> {
       Value<String?>? receivedBy,
       Value<String?>? assignedTo,
       Value<String?>? notes,
+      Value<String?>? invoiceId,
       Value<DateTime>? createdAt,
       Value<DateTime?>? updatedAt,
       Value<String>? syncStatus,
@@ -15333,6 +15368,7 @@ class RepairJobsCompanion extends UpdateCompanion<RepairJob> {
       receivedBy: receivedBy ?? this.receivedBy,
       assignedTo: assignedTo ?? this.assignedTo,
       notes: notes ?? this.notes,
+      invoiceId: invoiceId ?? this.invoiceId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -15427,6 +15463,9 @@ class RepairJobsCompanion extends UpdateCompanion<RepairJob> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (invoiceId.present) {
+      map['invoice_id'] = Variable<String>(invoiceId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -15478,6 +15517,7 @@ class RepairJobsCompanion extends UpdateCompanion<RepairJob> {
           ..write('receivedBy: $receivedBy, ')
           ..write('assignedTo: $assignedTo, ')
           ..write('notes: $notes, ')
+          ..write('invoiceId: $invoiceId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -17498,6 +17538,2233 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('createdBy: $createdBy, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StockLossesTable extends StockLosses
+    with TableInfo<$StockLossesTable, StockLossesData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StockLossesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _lossNumberMeta =
+      const VerificationMeta('lossNumber');
+  @override
+  late final GeneratedColumn<String> lossNumber = GeneratedColumn<String>(
+      'loss_number', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _productIdMeta =
+      const VerificationMeta('productId');
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+      'product_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES products (id)'));
+  static const VerificationMeta _quantityMeta =
+      const VerificationMeta('quantity');
+  @override
+  late final GeneratedColumn<int> quantity = GeneratedColumn<int>(
+      'quantity', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _serialNumberIdMeta =
+      const VerificationMeta('serialNumberId');
+  @override
+  late final GeneratedColumn<String> serialNumberId = GeneratedColumn<String>(
+      'serial_number_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES serial_numbers (id)'));
+  static const VerificationMeta _lossTypeMeta =
+      const VerificationMeta('lossType');
+  @override
+  late final GeneratedColumn<String> lossType = GeneratedColumn<String>(
+      'loss_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _lossReasonMeta =
+      const VerificationMeta('lossReason');
+  @override
+  late final GeneratedColumn<String> lossReason = GeneratedColumn<String>(
+      'loss_reason', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _unitCostMeta =
+      const VerificationMeta('unitCost');
+  @override
+  late final GeneratedColumn<double> unitCost = GeneratedColumn<double>(
+      'unit_cost', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _totalLossAmountMeta =
+      const VerificationMeta('totalLossAmount');
+  @override
+  late final GeneratedColumn<double> totalLossAmount = GeneratedColumn<double>(
+      'total_loss_amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _lossDateMeta =
+      const VerificationMeta('lossDate');
+  @override
+  late final GeneratedColumn<DateTime> lossDate = GeneratedColumn<DateTime>(
+      'loss_date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+      'notes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdByMeta =
+      const VerificationMeta('createdBy');
+  @override
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+      'created_by', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('SYNCED'));
+  static const VerificationMeta _localUpdatedAtMeta =
+      const VerificationMeta('localUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> localUpdatedAt =
+      GeneratedColumn<DateTime>('local_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _serverUpdatedAtMeta =
+      const VerificationMeta('serverUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> serverUpdatedAt =
+      GeneratedColumn<DateTime>('server_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        lossNumber,
+        productId,
+        quantity,
+        serialNumberId,
+        lossType,
+        lossReason,
+        unitCost,
+        totalLossAmount,
+        lossDate,
+        notes,
+        createdBy,
+        createdAt,
+        updatedAt,
+        syncStatus,
+        localUpdatedAt,
+        serverUpdatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stock_losses';
+  @override
+  VerificationContext validateIntegrity(Insertable<StockLossesData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('loss_number')) {
+      context.handle(
+          _lossNumberMeta,
+          lossNumber.isAcceptableOrUnknown(
+              data['loss_number']!, _lossNumberMeta));
+    } else if (isInserting) {
+      context.missing(_lossNumberMeta);
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(_productIdMeta,
+          productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta));
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(_quantityMeta,
+          quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta));
+    } else if (isInserting) {
+      context.missing(_quantityMeta);
+    }
+    if (data.containsKey('serial_number_id')) {
+      context.handle(
+          _serialNumberIdMeta,
+          serialNumberId.isAcceptableOrUnknown(
+              data['serial_number_id']!, _serialNumberIdMeta));
+    }
+    if (data.containsKey('loss_type')) {
+      context.handle(_lossTypeMeta,
+          lossType.isAcceptableOrUnknown(data['loss_type']!, _lossTypeMeta));
+    } else if (isInserting) {
+      context.missing(_lossTypeMeta);
+    }
+    if (data.containsKey('loss_reason')) {
+      context.handle(
+          _lossReasonMeta,
+          lossReason.isAcceptableOrUnknown(
+              data['loss_reason']!, _lossReasonMeta));
+    } else if (isInserting) {
+      context.missing(_lossReasonMeta);
+    }
+    if (data.containsKey('unit_cost')) {
+      context.handle(_unitCostMeta,
+          unitCost.isAcceptableOrUnknown(data['unit_cost']!, _unitCostMeta));
+    } else if (isInserting) {
+      context.missing(_unitCostMeta);
+    }
+    if (data.containsKey('total_loss_amount')) {
+      context.handle(
+          _totalLossAmountMeta,
+          totalLossAmount.isAcceptableOrUnknown(
+              data['total_loss_amount']!, _totalLossAmountMeta));
+    } else if (isInserting) {
+      context.missing(_totalLossAmountMeta);
+    }
+    if (data.containsKey('loss_date')) {
+      context.handle(_lossDateMeta,
+          lossDate.isAcceptableOrUnknown(data['loss_date']!, _lossDateMeta));
+    } else if (isInserting) {
+      context.missing(_lossDateMeta);
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(_createdByMeta,
+          createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
+    if (data.containsKey('local_updated_at')) {
+      context.handle(
+          _localUpdatedAtMeta,
+          localUpdatedAt.isAcceptableOrUnknown(
+              data['local_updated_at']!, _localUpdatedAtMeta));
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+          _serverUpdatedAtMeta,
+          serverUpdatedAt.isAcceptableOrUnknown(
+              data['server_updated_at']!, _serverUpdatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StockLossesData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StockLossesData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      lossNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}loss_number'])!,
+      productId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}product_id'])!,
+      quantity: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}quantity'])!,
+      serialNumberId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}serial_number_id']),
+      lossType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}loss_type'])!,
+      lossReason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}loss_reason'])!,
+      unitCost: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}unit_cost'])!,
+      totalLossAmount: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}total_loss_amount'])!,
+      lossDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}loss_date'])!,
+      notes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      createdBy: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_by']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+      localUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at']),
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at']),
+    );
+  }
+
+  @override
+  $StockLossesTable createAlias(String alias) {
+    return $StockLossesTable(attachedDatabase, alias);
+  }
+}
+
+class StockLossesData extends DataClass implements Insertable<StockLossesData> {
+  final String id;
+  final String lossNumber;
+  final String productId;
+  final int quantity;
+  final String? serialNumberId;
+  final String lossType;
+  final String lossReason;
+  final double unitCost;
+  final double totalLossAmount;
+  final DateTime lossDate;
+  final String? notes;
+  final String? createdBy;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  final String syncStatus;
+  final DateTime? localUpdatedAt;
+  final DateTime? serverUpdatedAt;
+  const StockLossesData(
+      {required this.id,
+      required this.lossNumber,
+      required this.productId,
+      required this.quantity,
+      this.serialNumberId,
+      required this.lossType,
+      required this.lossReason,
+      required this.unitCost,
+      required this.totalLossAmount,
+      required this.lossDate,
+      this.notes,
+      this.createdBy,
+      required this.createdAt,
+      this.updatedAt,
+      required this.syncStatus,
+      this.localUpdatedAt,
+      this.serverUpdatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['loss_number'] = Variable<String>(lossNumber);
+    map['product_id'] = Variable<String>(productId);
+    map['quantity'] = Variable<int>(quantity);
+    if (!nullToAbsent || serialNumberId != null) {
+      map['serial_number_id'] = Variable<String>(serialNumberId);
+    }
+    map['loss_type'] = Variable<String>(lossType);
+    map['loss_reason'] = Variable<String>(lossReason);
+    map['unit_cost'] = Variable<double>(unitCost);
+    map['total_loss_amount'] = Variable<double>(totalLossAmount);
+    map['loss_date'] = Variable<DateTime>(lossDate);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || createdBy != null) {
+      map['created_by'] = Variable<String>(createdBy);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    if (!nullToAbsent || localUpdatedAt != null) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    }
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    }
+    return map;
+  }
+
+  StockLossesCompanion toCompanion(bool nullToAbsent) {
+    return StockLossesCompanion(
+      id: Value(id),
+      lossNumber: Value(lossNumber),
+      productId: Value(productId),
+      quantity: Value(quantity),
+      serialNumberId: serialNumberId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serialNumberId),
+      lossType: Value(lossType),
+      lossReason: Value(lossReason),
+      unitCost: Value(unitCost),
+      totalLossAmount: Value(totalLossAmount),
+      lossDate: Value(lossDate),
+      notes:
+          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      createdBy: createdBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdBy),
+      createdAt: Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      syncStatus: Value(syncStatus),
+      localUpdatedAt: localUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localUpdatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+    );
+  }
+
+  factory StockLossesData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StockLossesData(
+      id: serializer.fromJson<String>(json['id']),
+      lossNumber: serializer.fromJson<String>(json['lossNumber']),
+      productId: serializer.fromJson<String>(json['productId']),
+      quantity: serializer.fromJson<int>(json['quantity']),
+      serialNumberId: serializer.fromJson<String?>(json['serialNumberId']),
+      lossType: serializer.fromJson<String>(json['lossType']),
+      lossReason: serializer.fromJson<String>(json['lossReason']),
+      unitCost: serializer.fromJson<double>(json['unitCost']),
+      totalLossAmount: serializer.fromJson<double>(json['totalLossAmount']),
+      lossDate: serializer.fromJson<DateTime>(json['lossDate']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdBy: serializer.fromJson<String?>(json['createdBy']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localUpdatedAt: serializer.fromJson<DateTime?>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'lossNumber': serializer.toJson<String>(lossNumber),
+      'productId': serializer.toJson<String>(productId),
+      'quantity': serializer.toJson<int>(quantity),
+      'serialNumberId': serializer.toJson<String?>(serialNumberId),
+      'lossType': serializer.toJson<String>(lossType),
+      'lossReason': serializer.toJson<String>(lossReason),
+      'unitCost': serializer.toJson<double>(unitCost),
+      'totalLossAmount': serializer.toJson<double>(totalLossAmount),
+      'lossDate': serializer.toJson<DateTime>(lossDate),
+      'notes': serializer.toJson<String?>(notes),
+      'createdBy': serializer.toJson<String?>(createdBy),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'localUpdatedAt': serializer.toJson<DateTime?>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
+    };
+  }
+
+  StockLossesData copyWith(
+          {String? id,
+          String? lossNumber,
+          String? productId,
+          int? quantity,
+          Value<String?> serialNumberId = const Value.absent(),
+          String? lossType,
+          String? lossReason,
+          double? unitCost,
+          double? totalLossAmount,
+          DateTime? lossDate,
+          Value<String?> notes = const Value.absent(),
+          Value<String?> createdBy = const Value.absent(),
+          DateTime? createdAt,
+          Value<DateTime?> updatedAt = const Value.absent(),
+          String? syncStatus,
+          Value<DateTime?> localUpdatedAt = const Value.absent(),
+          Value<DateTime?> serverUpdatedAt = const Value.absent()}) =>
+      StockLossesData(
+        id: id ?? this.id,
+        lossNumber: lossNumber ?? this.lossNumber,
+        productId: productId ?? this.productId,
+        quantity: quantity ?? this.quantity,
+        serialNumberId:
+            serialNumberId.present ? serialNumberId.value : this.serialNumberId,
+        lossType: lossType ?? this.lossType,
+        lossReason: lossReason ?? this.lossReason,
+        unitCost: unitCost ?? this.unitCost,
+        totalLossAmount: totalLossAmount ?? this.totalLossAmount,
+        lossDate: lossDate ?? this.lossDate,
+        notes: notes.present ? notes.value : this.notes,
+        createdBy: createdBy.present ? createdBy.value : this.createdBy,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
+        localUpdatedAt:
+            localUpdatedAt.present ? localUpdatedAt.value : this.localUpdatedAt,
+        serverUpdatedAt: serverUpdatedAt.present
+            ? serverUpdatedAt.value
+            : this.serverUpdatedAt,
+      );
+  StockLossesData copyWithCompanion(StockLossesCompanion data) {
+    return StockLossesData(
+      id: data.id.present ? data.id.value : this.id,
+      lossNumber:
+          data.lossNumber.present ? data.lossNumber.value : this.lossNumber,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      serialNumberId: data.serialNumberId.present
+          ? data.serialNumberId.value
+          : this.serialNumberId,
+      lossType: data.lossType.present ? data.lossType.value : this.lossType,
+      lossReason:
+          data.lossReason.present ? data.lossReason.value : this.lossReason,
+      unitCost: data.unitCost.present ? data.unitCost.value : this.unitCost,
+      totalLossAmount: data.totalLossAmount.present
+          ? data.totalLossAmount.value
+          : this.totalLossAmount,
+      lossDate: data.lossDate.present ? data.lossDate.value : this.lossDate,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+      localUpdatedAt: data.localUpdatedAt.present
+          ? data.localUpdatedAt.value
+          : this.localUpdatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockLossesData(')
+          ..write('id: $id, ')
+          ..write('lossNumber: $lossNumber, ')
+          ..write('productId: $productId, ')
+          ..write('quantity: $quantity, ')
+          ..write('serialNumberId: $serialNumberId, ')
+          ..write('lossType: $lossType, ')
+          ..write('lossReason: $lossReason, ')
+          ..write('unitCost: $unitCost, ')
+          ..write('totalLossAmount: $totalLossAmount, ')
+          ..write('lossDate: $lossDate, ')
+          ..write('notes: $notes, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      lossNumber,
+      productId,
+      quantity,
+      serialNumberId,
+      lossType,
+      lossReason,
+      unitCost,
+      totalLossAmount,
+      lossDate,
+      notes,
+      createdBy,
+      createdAt,
+      updatedAt,
+      syncStatus,
+      localUpdatedAt,
+      serverUpdatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StockLossesData &&
+          other.id == this.id &&
+          other.lossNumber == this.lossNumber &&
+          other.productId == this.productId &&
+          other.quantity == this.quantity &&
+          other.serialNumberId == this.serialNumberId &&
+          other.lossType == this.lossType &&
+          other.lossReason == this.lossReason &&
+          other.unitCost == this.unitCost &&
+          other.totalLossAmount == this.totalLossAmount &&
+          other.lossDate == this.lossDate &&
+          other.notes == this.notes &&
+          other.createdBy == this.createdBy &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.localUpdatedAt == this.localUpdatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt);
+}
+
+class StockLossesCompanion extends UpdateCompanion<StockLossesData> {
+  final Value<String> id;
+  final Value<String> lossNumber;
+  final Value<String> productId;
+  final Value<int> quantity;
+  final Value<String?> serialNumberId;
+  final Value<String> lossType;
+  final Value<String> lossReason;
+  final Value<double> unitCost;
+  final Value<double> totalLossAmount;
+  final Value<DateTime> lossDate;
+  final Value<String?> notes;
+  final Value<String?> createdBy;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> updatedAt;
+  final Value<String> syncStatus;
+  final Value<DateTime?> localUpdatedAt;
+  final Value<DateTime?> serverUpdatedAt;
+  final Value<int> rowid;
+  const StockLossesCompanion({
+    this.id = const Value.absent(),
+    this.lossNumber = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.serialNumberId = const Value.absent(),
+    this.lossType = const Value.absent(),
+    this.lossReason = const Value.absent(),
+    this.unitCost = const Value.absent(),
+    this.totalLossAmount = const Value.absent(),
+    this.lossDate = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StockLossesCompanion.insert({
+    required String id,
+    required String lossNumber,
+    required String productId,
+    required int quantity,
+    this.serialNumberId = const Value.absent(),
+    required String lossType,
+    required String lossReason,
+    required double unitCost,
+    required double totalLossAmount,
+    required DateTime lossDate,
+    this.notes = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        lossNumber = Value(lossNumber),
+        productId = Value(productId),
+        quantity = Value(quantity),
+        lossType = Value(lossType),
+        lossReason = Value(lossReason),
+        unitCost = Value(unitCost),
+        totalLossAmount = Value(totalLossAmount),
+        lossDate = Value(lossDate);
+  static Insertable<StockLossesData> custom({
+    Expression<String>? id,
+    Expression<String>? lossNumber,
+    Expression<String>? productId,
+    Expression<int>? quantity,
+    Expression<String>? serialNumberId,
+    Expression<String>? lossType,
+    Expression<String>? lossReason,
+    Expression<double>? unitCost,
+    Expression<double>? totalLossAmount,
+    Expression<DateTime>? lossDate,
+    Expression<String>? notes,
+    Expression<String>? createdBy,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
+    Expression<DateTime>? localUpdatedAt,
+    Expression<DateTime>? serverUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (lossNumber != null) 'loss_number': lossNumber,
+      if (productId != null) 'product_id': productId,
+      if (quantity != null) 'quantity': quantity,
+      if (serialNumberId != null) 'serial_number_id': serialNumberId,
+      if (lossType != null) 'loss_type': lossType,
+      if (lossReason != null) 'loss_reason': lossReason,
+      if (unitCost != null) 'unit_cost': unitCost,
+      if (totalLossAmount != null) 'total_loss_amount': totalLossAmount,
+      if (lossDate != null) 'loss_date': lossDate,
+      if (notes != null) 'notes': notes,
+      if (createdBy != null) 'created_by': createdBy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StockLossesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? lossNumber,
+      Value<String>? productId,
+      Value<int>? quantity,
+      Value<String?>? serialNumberId,
+      Value<String>? lossType,
+      Value<String>? lossReason,
+      Value<double>? unitCost,
+      Value<double>? totalLossAmount,
+      Value<DateTime>? lossDate,
+      Value<String?>? notes,
+      Value<String?>? createdBy,
+      Value<DateTime>? createdAt,
+      Value<DateTime?>? updatedAt,
+      Value<String>? syncStatus,
+      Value<DateTime?>? localUpdatedAt,
+      Value<DateTime?>? serverUpdatedAt,
+      Value<int>? rowid}) {
+    return StockLossesCompanion(
+      id: id ?? this.id,
+      lossNumber: lossNumber ?? this.lossNumber,
+      productId: productId ?? this.productId,
+      quantity: quantity ?? this.quantity,
+      serialNumberId: serialNumberId ?? this.serialNumberId,
+      lossType: lossType ?? this.lossType,
+      lossReason: lossReason ?? this.lossReason,
+      unitCost: unitCost ?? this.unitCost,
+      totalLossAmount: totalLossAmount ?? this.totalLossAmount,
+      lossDate: lossDate ?? this.lossDate,
+      notes: notes ?? this.notes,
+      createdBy: createdBy ?? this.createdBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (lossNumber.present) {
+      map['loss_number'] = Variable<String>(lossNumber.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<int>(quantity.value);
+    }
+    if (serialNumberId.present) {
+      map['serial_number_id'] = Variable<String>(serialNumberId.value);
+    }
+    if (lossType.present) {
+      map['loss_type'] = Variable<String>(lossType.value);
+    }
+    if (lossReason.present) {
+      map['loss_reason'] = Variable<String>(lossReason.value);
+    }
+    if (unitCost.present) {
+      map['unit_cost'] = Variable<double>(unitCost.value);
+    }
+    if (totalLossAmount.present) {
+      map['total_loss_amount'] = Variable<double>(totalLossAmount.value);
+    }
+    if (lossDate.present) {
+      map['loss_date'] = Variable<DateTime>(lossDate.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (localUpdatedAt.present) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockLossesCompanion(')
+          ..write('id: $id, ')
+          ..write('lossNumber: $lossNumber, ')
+          ..write('productId: $productId, ')
+          ..write('quantity: $quantity, ')
+          ..write('serialNumberId: $serialNumberId, ')
+          ..write('lossType: $lossType, ')
+          ..write('lossReason: $lossReason, ')
+          ..write('unitCost: $unitCost, ')
+          ..write('totalLossAmount: $totalLossAmount, ')
+          ..write('lossDate: $lossDate, ')
+          ..write('notes: $notes, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WarrantyClaimsTable extends WarrantyClaims
+    with TableInfo<$WarrantyClaimsTable, WarrantyClaim> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WarrantyClaimsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _claimNumberMeta =
+      const VerificationMeta('claimNumber');
+  @override
+  late final GeneratedColumn<String> claimNumber = GeneratedColumn<String>(
+      'claim_number', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _serialNumberIdMeta =
+      const VerificationMeta('serialNumberId');
+  @override
+  late final GeneratedColumn<String> serialNumberId = GeneratedColumn<String>(
+      'serial_number_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES serial_numbers (id)'));
+  static const VerificationMeta _supplierIdMeta =
+      const VerificationMeta('supplierId');
+  @override
+  late final GeneratedColumn<String> supplierId = GeneratedColumn<String>(
+      'supplier_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES suppliers (id)'));
+  static const VerificationMeta _claimReasonMeta =
+      const VerificationMeta('claimReason');
+  @override
+  late final GeneratedColumn<String> claimReason = GeneratedColumn<String>(
+      'claim_reason', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('PENDING'));
+  static const VerificationMeta _dateSentToSupplierMeta =
+      const VerificationMeta('dateSentToSupplier');
+  @override
+  late final GeneratedColumn<DateTime> dateSentToSupplier =
+      GeneratedColumn<DateTime>('date_sent_to_supplier', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _expectedReturnDateMeta =
+      const VerificationMeta('expectedReturnDate');
+  @override
+  late final GeneratedColumn<DateTime> expectedReturnDate =
+      GeneratedColumn<DateTime>('expected_return_date', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _actualReturnDateMeta =
+      const VerificationMeta('actualReturnDate');
+  @override
+  late final GeneratedColumn<DateTime> actualReturnDate =
+      GeneratedColumn<DateTime>('actual_return_date', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _supplierResponseMeta =
+      const VerificationMeta('supplierResponse');
+  @override
+  late final GeneratedColumn<String> supplierResponse = GeneratedColumn<String>(
+      'supplier_response', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _resolutionNotesMeta =
+      const VerificationMeta('resolutionNotes');
+  @override
+  late final GeneratedColumn<String> resolutionNotes = GeneratedColumn<String>(
+      'resolution_notes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdByMeta =
+      const VerificationMeta('createdBy');
+  @override
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+      'created_by', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('SYNCED'));
+  static const VerificationMeta _localUpdatedAtMeta =
+      const VerificationMeta('localUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> localUpdatedAt =
+      GeneratedColumn<DateTime>('local_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _serverUpdatedAtMeta =
+      const VerificationMeta('serverUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> serverUpdatedAt =
+      GeneratedColumn<DateTime>('server_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        claimNumber,
+        serialNumberId,
+        supplierId,
+        claimReason,
+        status,
+        dateSentToSupplier,
+        expectedReturnDate,
+        actualReturnDate,
+        supplierResponse,
+        resolutionNotes,
+        createdBy,
+        createdAt,
+        updatedAt,
+        syncStatus,
+        localUpdatedAt,
+        serverUpdatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'warranty_claims';
+  @override
+  VerificationContext validateIntegrity(Insertable<WarrantyClaim> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('claim_number')) {
+      context.handle(
+          _claimNumberMeta,
+          claimNumber.isAcceptableOrUnknown(
+              data['claim_number']!, _claimNumberMeta));
+    } else if (isInserting) {
+      context.missing(_claimNumberMeta);
+    }
+    if (data.containsKey('serial_number_id')) {
+      context.handle(
+          _serialNumberIdMeta,
+          serialNumberId.isAcceptableOrUnknown(
+              data['serial_number_id']!, _serialNumberIdMeta));
+    } else if (isInserting) {
+      context.missing(_serialNumberIdMeta);
+    }
+    if (data.containsKey('supplier_id')) {
+      context.handle(
+          _supplierIdMeta,
+          supplierId.isAcceptableOrUnknown(
+              data['supplier_id']!, _supplierIdMeta));
+    } else if (isInserting) {
+      context.missing(_supplierIdMeta);
+    }
+    if (data.containsKey('claim_reason')) {
+      context.handle(
+          _claimReasonMeta,
+          claimReason.isAcceptableOrUnknown(
+              data['claim_reason']!, _claimReasonMeta));
+    } else if (isInserting) {
+      context.missing(_claimReasonMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('date_sent_to_supplier')) {
+      context.handle(
+          _dateSentToSupplierMeta,
+          dateSentToSupplier.isAcceptableOrUnknown(
+              data['date_sent_to_supplier']!, _dateSentToSupplierMeta));
+    }
+    if (data.containsKey('expected_return_date')) {
+      context.handle(
+          _expectedReturnDateMeta,
+          expectedReturnDate.isAcceptableOrUnknown(
+              data['expected_return_date']!, _expectedReturnDateMeta));
+    }
+    if (data.containsKey('actual_return_date')) {
+      context.handle(
+          _actualReturnDateMeta,
+          actualReturnDate.isAcceptableOrUnknown(
+              data['actual_return_date']!, _actualReturnDateMeta));
+    }
+    if (data.containsKey('supplier_response')) {
+      context.handle(
+          _supplierResponseMeta,
+          supplierResponse.isAcceptableOrUnknown(
+              data['supplier_response']!, _supplierResponseMeta));
+    }
+    if (data.containsKey('resolution_notes')) {
+      context.handle(
+          _resolutionNotesMeta,
+          resolutionNotes.isAcceptableOrUnknown(
+              data['resolution_notes']!, _resolutionNotesMeta));
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(_createdByMeta,
+          createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
+    if (data.containsKey('local_updated_at')) {
+      context.handle(
+          _localUpdatedAtMeta,
+          localUpdatedAt.isAcceptableOrUnknown(
+              data['local_updated_at']!, _localUpdatedAtMeta));
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+          _serverUpdatedAtMeta,
+          serverUpdatedAt.isAcceptableOrUnknown(
+              data['server_updated_at']!, _serverUpdatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WarrantyClaim map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WarrantyClaim(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      claimNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}claim_number'])!,
+      serialNumberId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}serial_number_id'])!,
+      supplierId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}supplier_id'])!,
+      claimReason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}claim_reason'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      dateSentToSupplier: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}date_sent_to_supplier']),
+      expectedReturnDate: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}expected_return_date']),
+      actualReturnDate: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}actual_return_date']),
+      supplierResponse: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}supplier_response']),
+      resolutionNotes: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}resolution_notes']),
+      createdBy: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_by']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+      localUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at']),
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at']),
+    );
+  }
+
+  @override
+  $WarrantyClaimsTable createAlias(String alias) {
+    return $WarrantyClaimsTable(attachedDatabase, alias);
+  }
+}
+
+class WarrantyClaim extends DataClass implements Insertable<WarrantyClaim> {
+  final String id;
+  final String claimNumber;
+  final String serialNumberId;
+  final String supplierId;
+  final String claimReason;
+  final String status;
+  final DateTime? dateSentToSupplier;
+  final DateTime? expectedReturnDate;
+  final DateTime? actualReturnDate;
+  final String? supplierResponse;
+  final String? resolutionNotes;
+  final String? createdBy;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  final String syncStatus;
+  final DateTime? localUpdatedAt;
+  final DateTime? serverUpdatedAt;
+  const WarrantyClaim(
+      {required this.id,
+      required this.claimNumber,
+      required this.serialNumberId,
+      required this.supplierId,
+      required this.claimReason,
+      required this.status,
+      this.dateSentToSupplier,
+      this.expectedReturnDate,
+      this.actualReturnDate,
+      this.supplierResponse,
+      this.resolutionNotes,
+      this.createdBy,
+      required this.createdAt,
+      this.updatedAt,
+      required this.syncStatus,
+      this.localUpdatedAt,
+      this.serverUpdatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['claim_number'] = Variable<String>(claimNumber);
+    map['serial_number_id'] = Variable<String>(serialNumberId);
+    map['supplier_id'] = Variable<String>(supplierId);
+    map['claim_reason'] = Variable<String>(claimReason);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || dateSentToSupplier != null) {
+      map['date_sent_to_supplier'] = Variable<DateTime>(dateSentToSupplier);
+    }
+    if (!nullToAbsent || expectedReturnDate != null) {
+      map['expected_return_date'] = Variable<DateTime>(expectedReturnDate);
+    }
+    if (!nullToAbsent || actualReturnDate != null) {
+      map['actual_return_date'] = Variable<DateTime>(actualReturnDate);
+    }
+    if (!nullToAbsent || supplierResponse != null) {
+      map['supplier_response'] = Variable<String>(supplierResponse);
+    }
+    if (!nullToAbsent || resolutionNotes != null) {
+      map['resolution_notes'] = Variable<String>(resolutionNotes);
+    }
+    if (!nullToAbsent || createdBy != null) {
+      map['created_by'] = Variable<String>(createdBy);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    if (!nullToAbsent || localUpdatedAt != null) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    }
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    }
+    return map;
+  }
+
+  WarrantyClaimsCompanion toCompanion(bool nullToAbsent) {
+    return WarrantyClaimsCompanion(
+      id: Value(id),
+      claimNumber: Value(claimNumber),
+      serialNumberId: Value(serialNumberId),
+      supplierId: Value(supplierId),
+      claimReason: Value(claimReason),
+      status: Value(status),
+      dateSentToSupplier: dateSentToSupplier == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dateSentToSupplier),
+      expectedReturnDate: expectedReturnDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expectedReturnDate),
+      actualReturnDate: actualReturnDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actualReturnDate),
+      supplierResponse: supplierResponse == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supplierResponse),
+      resolutionNotes: resolutionNotes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolutionNotes),
+      createdBy: createdBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdBy),
+      createdAt: Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      syncStatus: Value(syncStatus),
+      localUpdatedAt: localUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localUpdatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+    );
+  }
+
+  factory WarrantyClaim.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WarrantyClaim(
+      id: serializer.fromJson<String>(json['id']),
+      claimNumber: serializer.fromJson<String>(json['claimNumber']),
+      serialNumberId: serializer.fromJson<String>(json['serialNumberId']),
+      supplierId: serializer.fromJson<String>(json['supplierId']),
+      claimReason: serializer.fromJson<String>(json['claimReason']),
+      status: serializer.fromJson<String>(json['status']),
+      dateSentToSupplier:
+          serializer.fromJson<DateTime?>(json['dateSentToSupplier']),
+      expectedReturnDate:
+          serializer.fromJson<DateTime?>(json['expectedReturnDate']),
+      actualReturnDate:
+          serializer.fromJson<DateTime?>(json['actualReturnDate']),
+      supplierResponse: serializer.fromJson<String?>(json['supplierResponse']),
+      resolutionNotes: serializer.fromJson<String?>(json['resolutionNotes']),
+      createdBy: serializer.fromJson<String?>(json['createdBy']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localUpdatedAt: serializer.fromJson<DateTime?>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'claimNumber': serializer.toJson<String>(claimNumber),
+      'serialNumberId': serializer.toJson<String>(serialNumberId),
+      'supplierId': serializer.toJson<String>(supplierId),
+      'claimReason': serializer.toJson<String>(claimReason),
+      'status': serializer.toJson<String>(status),
+      'dateSentToSupplier': serializer.toJson<DateTime?>(dateSentToSupplier),
+      'expectedReturnDate': serializer.toJson<DateTime?>(expectedReturnDate),
+      'actualReturnDate': serializer.toJson<DateTime?>(actualReturnDate),
+      'supplierResponse': serializer.toJson<String?>(supplierResponse),
+      'resolutionNotes': serializer.toJson<String?>(resolutionNotes),
+      'createdBy': serializer.toJson<String?>(createdBy),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'localUpdatedAt': serializer.toJson<DateTime?>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
+    };
+  }
+
+  WarrantyClaim copyWith(
+          {String? id,
+          String? claimNumber,
+          String? serialNumberId,
+          String? supplierId,
+          String? claimReason,
+          String? status,
+          Value<DateTime?> dateSentToSupplier = const Value.absent(),
+          Value<DateTime?> expectedReturnDate = const Value.absent(),
+          Value<DateTime?> actualReturnDate = const Value.absent(),
+          Value<String?> supplierResponse = const Value.absent(),
+          Value<String?> resolutionNotes = const Value.absent(),
+          Value<String?> createdBy = const Value.absent(),
+          DateTime? createdAt,
+          Value<DateTime?> updatedAt = const Value.absent(),
+          String? syncStatus,
+          Value<DateTime?> localUpdatedAt = const Value.absent(),
+          Value<DateTime?> serverUpdatedAt = const Value.absent()}) =>
+      WarrantyClaim(
+        id: id ?? this.id,
+        claimNumber: claimNumber ?? this.claimNumber,
+        serialNumberId: serialNumberId ?? this.serialNumberId,
+        supplierId: supplierId ?? this.supplierId,
+        claimReason: claimReason ?? this.claimReason,
+        status: status ?? this.status,
+        dateSentToSupplier: dateSentToSupplier.present
+            ? dateSentToSupplier.value
+            : this.dateSentToSupplier,
+        expectedReturnDate: expectedReturnDate.present
+            ? expectedReturnDate.value
+            : this.expectedReturnDate,
+        actualReturnDate: actualReturnDate.present
+            ? actualReturnDate.value
+            : this.actualReturnDate,
+        supplierResponse: supplierResponse.present
+            ? supplierResponse.value
+            : this.supplierResponse,
+        resolutionNotes: resolutionNotes.present
+            ? resolutionNotes.value
+            : this.resolutionNotes,
+        createdBy: createdBy.present ? createdBy.value : this.createdBy,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
+        localUpdatedAt:
+            localUpdatedAt.present ? localUpdatedAt.value : this.localUpdatedAt,
+        serverUpdatedAt: serverUpdatedAt.present
+            ? serverUpdatedAt.value
+            : this.serverUpdatedAt,
+      );
+  WarrantyClaim copyWithCompanion(WarrantyClaimsCompanion data) {
+    return WarrantyClaim(
+      id: data.id.present ? data.id.value : this.id,
+      claimNumber:
+          data.claimNumber.present ? data.claimNumber.value : this.claimNumber,
+      serialNumberId: data.serialNumberId.present
+          ? data.serialNumberId.value
+          : this.serialNumberId,
+      supplierId:
+          data.supplierId.present ? data.supplierId.value : this.supplierId,
+      claimReason:
+          data.claimReason.present ? data.claimReason.value : this.claimReason,
+      status: data.status.present ? data.status.value : this.status,
+      dateSentToSupplier: data.dateSentToSupplier.present
+          ? data.dateSentToSupplier.value
+          : this.dateSentToSupplier,
+      expectedReturnDate: data.expectedReturnDate.present
+          ? data.expectedReturnDate.value
+          : this.expectedReturnDate,
+      actualReturnDate: data.actualReturnDate.present
+          ? data.actualReturnDate.value
+          : this.actualReturnDate,
+      supplierResponse: data.supplierResponse.present
+          ? data.supplierResponse.value
+          : this.supplierResponse,
+      resolutionNotes: data.resolutionNotes.present
+          ? data.resolutionNotes.value
+          : this.resolutionNotes,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+      localUpdatedAt: data.localUpdatedAt.present
+          ? data.localUpdatedAt.value
+          : this.localUpdatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WarrantyClaim(')
+          ..write('id: $id, ')
+          ..write('claimNumber: $claimNumber, ')
+          ..write('serialNumberId: $serialNumberId, ')
+          ..write('supplierId: $supplierId, ')
+          ..write('claimReason: $claimReason, ')
+          ..write('status: $status, ')
+          ..write('dateSentToSupplier: $dateSentToSupplier, ')
+          ..write('expectedReturnDate: $expectedReturnDate, ')
+          ..write('actualReturnDate: $actualReturnDate, ')
+          ..write('supplierResponse: $supplierResponse, ')
+          ..write('resolutionNotes: $resolutionNotes, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      claimNumber,
+      serialNumberId,
+      supplierId,
+      claimReason,
+      status,
+      dateSentToSupplier,
+      expectedReturnDate,
+      actualReturnDate,
+      supplierResponse,
+      resolutionNotes,
+      createdBy,
+      createdAt,
+      updatedAt,
+      syncStatus,
+      localUpdatedAt,
+      serverUpdatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WarrantyClaim &&
+          other.id == this.id &&
+          other.claimNumber == this.claimNumber &&
+          other.serialNumberId == this.serialNumberId &&
+          other.supplierId == this.supplierId &&
+          other.claimReason == this.claimReason &&
+          other.status == this.status &&
+          other.dateSentToSupplier == this.dateSentToSupplier &&
+          other.expectedReturnDate == this.expectedReturnDate &&
+          other.actualReturnDate == this.actualReturnDate &&
+          other.supplierResponse == this.supplierResponse &&
+          other.resolutionNotes == this.resolutionNotes &&
+          other.createdBy == this.createdBy &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.localUpdatedAt == this.localUpdatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt);
+}
+
+class WarrantyClaimsCompanion extends UpdateCompanion<WarrantyClaim> {
+  final Value<String> id;
+  final Value<String> claimNumber;
+  final Value<String> serialNumberId;
+  final Value<String> supplierId;
+  final Value<String> claimReason;
+  final Value<String> status;
+  final Value<DateTime?> dateSentToSupplier;
+  final Value<DateTime?> expectedReturnDate;
+  final Value<DateTime?> actualReturnDate;
+  final Value<String?> supplierResponse;
+  final Value<String?> resolutionNotes;
+  final Value<String?> createdBy;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> updatedAt;
+  final Value<String> syncStatus;
+  final Value<DateTime?> localUpdatedAt;
+  final Value<DateTime?> serverUpdatedAt;
+  final Value<int> rowid;
+  const WarrantyClaimsCompanion({
+    this.id = const Value.absent(),
+    this.claimNumber = const Value.absent(),
+    this.serialNumberId = const Value.absent(),
+    this.supplierId = const Value.absent(),
+    this.claimReason = const Value.absent(),
+    this.status = const Value.absent(),
+    this.dateSentToSupplier = const Value.absent(),
+    this.expectedReturnDate = const Value.absent(),
+    this.actualReturnDate = const Value.absent(),
+    this.supplierResponse = const Value.absent(),
+    this.resolutionNotes = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WarrantyClaimsCompanion.insert({
+    required String id,
+    required String claimNumber,
+    required String serialNumberId,
+    required String supplierId,
+    required String claimReason,
+    this.status = const Value.absent(),
+    this.dateSentToSupplier = const Value.absent(),
+    this.expectedReturnDate = const Value.absent(),
+    this.actualReturnDate = const Value.absent(),
+    this.supplierResponse = const Value.absent(),
+    this.resolutionNotes = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        claimNumber = Value(claimNumber),
+        serialNumberId = Value(serialNumberId),
+        supplierId = Value(supplierId),
+        claimReason = Value(claimReason);
+  static Insertable<WarrantyClaim> custom({
+    Expression<String>? id,
+    Expression<String>? claimNumber,
+    Expression<String>? serialNumberId,
+    Expression<String>? supplierId,
+    Expression<String>? claimReason,
+    Expression<String>? status,
+    Expression<DateTime>? dateSentToSupplier,
+    Expression<DateTime>? expectedReturnDate,
+    Expression<DateTime>? actualReturnDate,
+    Expression<String>? supplierResponse,
+    Expression<String>? resolutionNotes,
+    Expression<String>? createdBy,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
+    Expression<DateTime>? localUpdatedAt,
+    Expression<DateTime>? serverUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (claimNumber != null) 'claim_number': claimNumber,
+      if (serialNumberId != null) 'serial_number_id': serialNumberId,
+      if (supplierId != null) 'supplier_id': supplierId,
+      if (claimReason != null) 'claim_reason': claimReason,
+      if (status != null) 'status': status,
+      if (dateSentToSupplier != null)
+        'date_sent_to_supplier': dateSentToSupplier,
+      if (expectedReturnDate != null)
+        'expected_return_date': expectedReturnDate,
+      if (actualReturnDate != null) 'actual_return_date': actualReturnDate,
+      if (supplierResponse != null) 'supplier_response': supplierResponse,
+      if (resolutionNotes != null) 'resolution_notes': resolutionNotes,
+      if (createdBy != null) 'created_by': createdBy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WarrantyClaimsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? claimNumber,
+      Value<String>? serialNumberId,
+      Value<String>? supplierId,
+      Value<String>? claimReason,
+      Value<String>? status,
+      Value<DateTime?>? dateSentToSupplier,
+      Value<DateTime?>? expectedReturnDate,
+      Value<DateTime?>? actualReturnDate,
+      Value<String?>? supplierResponse,
+      Value<String?>? resolutionNotes,
+      Value<String?>? createdBy,
+      Value<DateTime>? createdAt,
+      Value<DateTime?>? updatedAt,
+      Value<String>? syncStatus,
+      Value<DateTime?>? localUpdatedAt,
+      Value<DateTime?>? serverUpdatedAt,
+      Value<int>? rowid}) {
+    return WarrantyClaimsCompanion(
+      id: id ?? this.id,
+      claimNumber: claimNumber ?? this.claimNumber,
+      serialNumberId: serialNumberId ?? this.serialNumberId,
+      supplierId: supplierId ?? this.supplierId,
+      claimReason: claimReason ?? this.claimReason,
+      status: status ?? this.status,
+      dateSentToSupplier: dateSentToSupplier ?? this.dateSentToSupplier,
+      expectedReturnDate: expectedReturnDate ?? this.expectedReturnDate,
+      actualReturnDate: actualReturnDate ?? this.actualReturnDate,
+      supplierResponse: supplierResponse ?? this.supplierResponse,
+      resolutionNotes: resolutionNotes ?? this.resolutionNotes,
+      createdBy: createdBy ?? this.createdBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (claimNumber.present) {
+      map['claim_number'] = Variable<String>(claimNumber.value);
+    }
+    if (serialNumberId.present) {
+      map['serial_number_id'] = Variable<String>(serialNumberId.value);
+    }
+    if (supplierId.present) {
+      map['supplier_id'] = Variable<String>(supplierId.value);
+    }
+    if (claimReason.present) {
+      map['claim_reason'] = Variable<String>(claimReason.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (dateSentToSupplier.present) {
+      map['date_sent_to_supplier'] =
+          Variable<DateTime>(dateSentToSupplier.value);
+    }
+    if (expectedReturnDate.present) {
+      map['expected_return_date'] =
+          Variable<DateTime>(expectedReturnDate.value);
+    }
+    if (actualReturnDate.present) {
+      map['actual_return_date'] = Variable<DateTime>(actualReturnDate.value);
+    }
+    if (supplierResponse.present) {
+      map['supplier_response'] = Variable<String>(supplierResponse.value);
+    }
+    if (resolutionNotes.present) {
+      map['resolution_notes'] = Variable<String>(resolutionNotes.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (localUpdatedAt.present) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WarrantyClaimsCompanion(')
+          ..write('id: $id, ')
+          ..write('claimNumber: $claimNumber, ')
+          ..write('serialNumberId: $serialNumberId, ')
+          ..write('supplierId: $supplierId, ')
+          ..write('claimReason: $claimReason, ')
+          ..write('status: $status, ')
+          ..write('dateSentToSupplier: $dateSentToSupplier, ')
+          ..write('expectedReturnDate: $expectedReturnDate, ')
+          ..write('actualReturnDate: $actualReturnDate, ')
+          ..write('supplierResponse: $supplierResponse, ')
+          ..write('resolutionNotes: $resolutionNotes, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WarrantyClaimHistoryTable extends WarrantyClaimHistory
+    with TableInfo<$WarrantyClaimHistoryTable, WarrantyClaimHistoryData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WarrantyClaimHistoryTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _warrantyClaimIdMeta =
+      const VerificationMeta('warrantyClaimId');
+  @override
+  late final GeneratedColumn<String> warrantyClaimId = GeneratedColumn<String>(
+      'warranty_claim_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES warranty_claims (id)'));
+  static const VerificationMeta _fromStatusMeta =
+      const VerificationMeta('fromStatus');
+  @override
+  late final GeneratedColumn<String> fromStatus = GeneratedColumn<String>(
+      'from_status', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _toStatusMeta =
+      const VerificationMeta('toStatus');
+  @override
+  late final GeneratedColumn<String> toStatus = GeneratedColumn<String>(
+      'to_status', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+      'notes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _changedByMeta =
+      const VerificationMeta('changedBy');
+  @override
+  late final GeneratedColumn<String> changedBy = GeneratedColumn<String>(
+      'changed_by', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _changedAtMeta =
+      const VerificationMeta('changedAt');
+  @override
+  late final GeneratedColumn<DateTime> changedAt = GeneratedColumn<DateTime>(
+      'changed_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('SYNCED'));
+  static const VerificationMeta _localUpdatedAtMeta =
+      const VerificationMeta('localUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> localUpdatedAt =
+      GeneratedColumn<DateTime>('local_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _serverUpdatedAtMeta =
+      const VerificationMeta('serverUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> serverUpdatedAt =
+      GeneratedColumn<DateTime>('server_updated_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        warrantyClaimId,
+        fromStatus,
+        toStatus,
+        notes,
+        changedBy,
+        changedAt,
+        syncStatus,
+        localUpdatedAt,
+        serverUpdatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'warranty_claim_history';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<WarrantyClaimHistoryData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('warranty_claim_id')) {
+      context.handle(
+          _warrantyClaimIdMeta,
+          warrantyClaimId.isAcceptableOrUnknown(
+              data['warranty_claim_id']!, _warrantyClaimIdMeta));
+    } else if (isInserting) {
+      context.missing(_warrantyClaimIdMeta);
+    }
+    if (data.containsKey('from_status')) {
+      context.handle(
+          _fromStatusMeta,
+          fromStatus.isAcceptableOrUnknown(
+              data['from_status']!, _fromStatusMeta));
+    }
+    if (data.containsKey('to_status')) {
+      context.handle(_toStatusMeta,
+          toStatus.isAcceptableOrUnknown(data['to_status']!, _toStatusMeta));
+    } else if (isInserting) {
+      context.missing(_toStatusMeta);
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+    }
+    if (data.containsKey('changed_by')) {
+      context.handle(_changedByMeta,
+          changedBy.isAcceptableOrUnknown(data['changed_by']!, _changedByMeta));
+    }
+    if (data.containsKey('changed_at')) {
+      context.handle(_changedAtMeta,
+          changedAt.isAcceptableOrUnknown(data['changed_at']!, _changedAtMeta));
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
+    if (data.containsKey('local_updated_at')) {
+      context.handle(
+          _localUpdatedAtMeta,
+          localUpdatedAt.isAcceptableOrUnknown(
+              data['local_updated_at']!, _localUpdatedAtMeta));
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+          _serverUpdatedAtMeta,
+          serverUpdatedAt.isAcceptableOrUnknown(
+              data['server_updated_at']!, _serverUpdatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WarrantyClaimHistoryData map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WarrantyClaimHistoryData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      warrantyClaimId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}warranty_claim_id'])!,
+      fromStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}from_status']),
+      toStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}to_status'])!,
+      notes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      changedBy: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}changed_by']),
+      changedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}changed_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+      localUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}local_updated_at']),
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}server_updated_at']),
+    );
+  }
+
+  @override
+  $WarrantyClaimHistoryTable createAlias(String alias) {
+    return $WarrantyClaimHistoryTable(attachedDatabase, alias);
+  }
+}
+
+class WarrantyClaimHistoryData extends DataClass
+    implements Insertable<WarrantyClaimHistoryData> {
+  final String id;
+  final String warrantyClaimId;
+  final String? fromStatus;
+  final String toStatus;
+  final String? notes;
+  final String? changedBy;
+  final DateTime changedAt;
+  final String syncStatus;
+  final DateTime? localUpdatedAt;
+  final DateTime? serverUpdatedAt;
+  const WarrantyClaimHistoryData(
+      {required this.id,
+      required this.warrantyClaimId,
+      this.fromStatus,
+      required this.toStatus,
+      this.notes,
+      this.changedBy,
+      required this.changedAt,
+      required this.syncStatus,
+      this.localUpdatedAt,
+      this.serverUpdatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['warranty_claim_id'] = Variable<String>(warrantyClaimId);
+    if (!nullToAbsent || fromStatus != null) {
+      map['from_status'] = Variable<String>(fromStatus);
+    }
+    map['to_status'] = Variable<String>(toStatus);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || changedBy != null) {
+      map['changed_by'] = Variable<String>(changedBy);
+    }
+    map['changed_at'] = Variable<DateTime>(changedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
+    if (!nullToAbsent || localUpdatedAt != null) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt);
+    }
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt);
+    }
+    return map;
+  }
+
+  WarrantyClaimHistoryCompanion toCompanion(bool nullToAbsent) {
+    return WarrantyClaimHistoryCompanion(
+      id: Value(id),
+      warrantyClaimId: Value(warrantyClaimId),
+      fromStatus: fromStatus == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fromStatus),
+      toStatus: Value(toStatus),
+      notes:
+          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      changedBy: changedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(changedBy),
+      changedAt: Value(changedAt),
+      syncStatus: Value(syncStatus),
+      localUpdatedAt: localUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localUpdatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+    );
+  }
+
+  factory WarrantyClaimHistoryData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WarrantyClaimHistoryData(
+      id: serializer.fromJson<String>(json['id']),
+      warrantyClaimId: serializer.fromJson<String>(json['warrantyClaimId']),
+      fromStatus: serializer.fromJson<String?>(json['fromStatus']),
+      toStatus: serializer.fromJson<String>(json['toStatus']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      changedBy: serializer.fromJson<String?>(json['changedBy']),
+      changedAt: serializer.fromJson<DateTime>(json['changedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localUpdatedAt: serializer.fromJson<DateTime?>(json['localUpdatedAt']),
+      serverUpdatedAt: serializer.fromJson<DateTime?>(json['serverUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'warrantyClaimId': serializer.toJson<String>(warrantyClaimId),
+      'fromStatus': serializer.toJson<String?>(fromStatus),
+      'toStatus': serializer.toJson<String>(toStatus),
+      'notes': serializer.toJson<String?>(notes),
+      'changedBy': serializer.toJson<String?>(changedBy),
+      'changedAt': serializer.toJson<DateTime>(changedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'localUpdatedAt': serializer.toJson<DateTime?>(localUpdatedAt),
+      'serverUpdatedAt': serializer.toJson<DateTime?>(serverUpdatedAt),
+    };
+  }
+
+  WarrantyClaimHistoryData copyWith(
+          {String? id,
+          String? warrantyClaimId,
+          Value<String?> fromStatus = const Value.absent(),
+          String? toStatus,
+          Value<String?> notes = const Value.absent(),
+          Value<String?> changedBy = const Value.absent(),
+          DateTime? changedAt,
+          String? syncStatus,
+          Value<DateTime?> localUpdatedAt = const Value.absent(),
+          Value<DateTime?> serverUpdatedAt = const Value.absent()}) =>
+      WarrantyClaimHistoryData(
+        id: id ?? this.id,
+        warrantyClaimId: warrantyClaimId ?? this.warrantyClaimId,
+        fromStatus: fromStatus.present ? fromStatus.value : this.fromStatus,
+        toStatus: toStatus ?? this.toStatus,
+        notes: notes.present ? notes.value : this.notes,
+        changedBy: changedBy.present ? changedBy.value : this.changedBy,
+        changedAt: changedAt ?? this.changedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
+        localUpdatedAt:
+            localUpdatedAt.present ? localUpdatedAt.value : this.localUpdatedAt,
+        serverUpdatedAt: serverUpdatedAt.present
+            ? serverUpdatedAt.value
+            : this.serverUpdatedAt,
+      );
+  WarrantyClaimHistoryData copyWithCompanion(
+      WarrantyClaimHistoryCompanion data) {
+    return WarrantyClaimHistoryData(
+      id: data.id.present ? data.id.value : this.id,
+      warrantyClaimId: data.warrantyClaimId.present
+          ? data.warrantyClaimId.value
+          : this.warrantyClaimId,
+      fromStatus:
+          data.fromStatus.present ? data.fromStatus.value : this.fromStatus,
+      toStatus: data.toStatus.present ? data.toStatus.value : this.toStatus,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      changedBy: data.changedBy.present ? data.changedBy.value : this.changedBy,
+      changedAt: data.changedAt.present ? data.changedAt.value : this.changedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+      localUpdatedAt: data.localUpdatedAt.present
+          ? data.localUpdatedAt.value
+          : this.localUpdatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WarrantyClaimHistoryData(')
+          ..write('id: $id, ')
+          ..write('warrantyClaimId: $warrantyClaimId, ')
+          ..write('fromStatus: $fromStatus, ')
+          ..write('toStatus: $toStatus, ')
+          ..write('notes: $notes, ')
+          ..write('changedBy: $changedBy, ')
+          ..write('changedAt: $changedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localUpdatedAt: $localUpdatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, warrantyClaimId, fromStatus, toStatus,
+      notes, changedBy, changedAt, syncStatus, localUpdatedAt, serverUpdatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WarrantyClaimHistoryData &&
+          other.id == this.id &&
+          other.warrantyClaimId == this.warrantyClaimId &&
+          other.fromStatus == this.fromStatus &&
+          other.toStatus == this.toStatus &&
+          other.notes == this.notes &&
+          other.changedBy == this.changedBy &&
+          other.changedAt == this.changedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.localUpdatedAt == this.localUpdatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt);
+}
+
+class WarrantyClaimHistoryCompanion
+    extends UpdateCompanion<WarrantyClaimHistoryData> {
+  final Value<String> id;
+  final Value<String> warrantyClaimId;
+  final Value<String?> fromStatus;
+  final Value<String> toStatus;
+  final Value<String?> notes;
+  final Value<String?> changedBy;
+  final Value<DateTime> changedAt;
+  final Value<String> syncStatus;
+  final Value<DateTime?> localUpdatedAt;
+  final Value<DateTime?> serverUpdatedAt;
+  final Value<int> rowid;
+  const WarrantyClaimHistoryCompanion({
+    this.id = const Value.absent(),
+    this.warrantyClaimId = const Value.absent(),
+    this.fromStatus = const Value.absent(),
+    this.toStatus = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.changedBy = const Value.absent(),
+    this.changedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WarrantyClaimHistoryCompanion.insert({
+    required String id,
+    required String warrantyClaimId,
+    this.fromStatus = const Value.absent(),
+    required String toStatus,
+    this.notes = const Value.absent(),
+    this.changedBy = const Value.absent(),
+    this.changedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localUpdatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        warrantyClaimId = Value(warrantyClaimId),
+        toStatus = Value(toStatus);
+  static Insertable<WarrantyClaimHistoryData> custom({
+    Expression<String>? id,
+    Expression<String>? warrantyClaimId,
+    Expression<String>? fromStatus,
+    Expression<String>? toStatus,
+    Expression<String>? notes,
+    Expression<String>? changedBy,
+    Expression<DateTime>? changedAt,
+    Expression<String>? syncStatus,
+    Expression<DateTime>? localUpdatedAt,
+    Expression<DateTime>? serverUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (warrantyClaimId != null) 'warranty_claim_id': warrantyClaimId,
+      if (fromStatus != null) 'from_status': fromStatus,
+      if (toStatus != null) 'to_status': toStatus,
+      if (notes != null) 'notes': notes,
+      if (changedBy != null) 'changed_by': changedBy,
+      if (changedAt != null) 'changed_at': changedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (localUpdatedAt != null) 'local_updated_at': localUpdatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WarrantyClaimHistoryCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? warrantyClaimId,
+      Value<String?>? fromStatus,
+      Value<String>? toStatus,
+      Value<String?>? notes,
+      Value<String?>? changedBy,
+      Value<DateTime>? changedAt,
+      Value<String>? syncStatus,
+      Value<DateTime?>? localUpdatedAt,
+      Value<DateTime?>? serverUpdatedAt,
+      Value<int>? rowid}) {
+    return WarrantyClaimHistoryCompanion(
+      id: id ?? this.id,
+      warrantyClaimId: warrantyClaimId ?? this.warrantyClaimId,
+      fromStatus: fromStatus ?? this.fromStatus,
+      toStatus: toStatus ?? this.toStatus,
+      notes: notes ?? this.notes,
+      changedBy: changedBy ?? this.changedBy,
+      changedAt: changedAt ?? this.changedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      localUpdatedAt: localUpdatedAt ?? this.localUpdatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (warrantyClaimId.present) {
+      map['warranty_claim_id'] = Variable<String>(warrantyClaimId.value);
+    }
+    if (fromStatus.present) {
+      map['from_status'] = Variable<String>(fromStatus.value);
+    }
+    if (toStatus.present) {
+      map['to_status'] = Variable<String>(toStatus.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (changedBy.present) {
+      map['changed_by'] = Variable<String>(changedBy.value);
+    }
+    if (changedAt.present) {
+      map['changed_at'] = Variable<DateTime>(changedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (localUpdatedAt.present) {
+      map['local_updated_at'] = Variable<DateTime>(localUpdatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<DateTime>(serverUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WarrantyClaimHistoryCompanion(')
+          ..write('id: $id, ')
+          ..write('warrantyClaimId: $warrantyClaimId, ')
+          ..write('fromStatus: $fromStatus, ')
+          ..write('toStatus: $toStatus, ')
+          ..write('notes: $notes, ')
+          ..write('changedBy: $changedBy, ')
+          ..write('changedAt: $changedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('localUpdatedAt: $localUpdatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -19878,6 +22145,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RepairStatusHistoryTable repairStatusHistory =
       $RepairStatusHistoryTable(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
+  late final $StockLossesTable stockLosses = $StockLossesTable(this);
+  late final $WarrantyClaimsTable warrantyClaims = $WarrantyClaimsTable(this);
+  late final $WarrantyClaimHistoryTable warrantyClaimHistory =
+      $WarrantyClaimHistoryTable(this);
   late final $AuditLogsTable auditLogs = $AuditLogsTable(this);
   late final $NumberSequencesTable numberSequences =
       $NumberSequencesTable(this);
@@ -19897,6 +22168,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final SalesDao salesDao = SalesDao(this as AppDatabase);
   late final QuotationDao quotationDao = QuotationDao(this as AppDatabase);
   late final ExpenseDao expenseDao = ExpenseDao(this as AppDatabase);
+  late final StockLossDao stockLossDao = StockLossDao(this as AppDatabase);
+  late final WarrantyClaimDao warrantyClaimDao =
+      WarrantyClaimDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -19926,6 +22200,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         repairParts,
         repairStatusHistory,
         expenses,
+        stockLosses,
+        warrantyClaims,
+        warrantyClaimHistory,
         auditLogs,
         numberSequences,
         syncMetadata,
@@ -20727,6 +23004,21 @@ final class $$ProductsTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$StockLossesTable, List<StockLossesData>>
+      _stockLossesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.stockLosses,
+          aliasName:
+              $_aliasNameGenerator(db.products.id, db.stockLosses.productId));
+
+  $$StockLossesTableProcessedTableManager get stockLossesRefs {
+    final manager = $$StockLossesTableTableManager($_db, $_db.stockLosses)
+        .filter((f) => f.productId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_stockLossesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$ProductsTableFilterComposer
@@ -20858,6 +23150,27 @@ class $$ProductsTableFilterComposer
             $$SerialNumbersTableFilterComposer(
               $db: $db,
               $table: $db.serialNumbers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> stockLossesRefs(
+      Expression<bool> Function($$StockLossesTableFilterComposer f) f) {
+    final $$StockLossesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.stockLosses,
+        getReferencedColumn: (t) => t.productId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$StockLossesTableFilterComposer(
+              $db: $db,
+              $table: $db.stockLosses,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -21095,6 +23408,27 @@ class $$ProductsTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> stockLossesRefs<T extends Object>(
+      Expression<T> Function($$StockLossesTableAnnotationComposer a) f) {
+    final $$StockLossesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.stockLosses,
+        getReferencedColumn: (t) => t.productId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$StockLossesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.stockLosses,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$ProductsTableTableManager extends RootTableManager<
@@ -21109,7 +23443,10 @@ class $$ProductsTableTableManager extends RootTableManager<
     (Product, $$ProductsTableReferences),
     Product,
     PrefetchHooks Function(
-        {bool categoryId, bool inventoryRefs, bool serialNumbersRefs})> {
+        {bool categoryId,
+        bool inventoryRefs,
+        bool serialNumbersRefs,
+        bool stockLossesRefs})> {
   $$ProductsTableTableManager(_$AppDatabase db, $ProductsTable table)
       : super(TableManagerState(
           db: db,
@@ -21223,12 +23560,14 @@ class $$ProductsTableTableManager extends RootTableManager<
           prefetchHooksCallback: (
               {categoryId = false,
               inventoryRefs = false,
-              serialNumbersRefs = false}) {
+              serialNumbersRefs = false,
+              stockLossesRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (inventoryRefs) db.inventory,
-                if (serialNumbersRefs) db.serialNumbers
+                if (serialNumbersRefs) db.serialNumbers,
+                if (stockLossesRefs) db.stockLosses
               ],
               addJoins: <
                   T extends TableManagerState<
@@ -21283,6 +23622,19 @@ class $$ProductsTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.productId == item.id),
+                        typedResults: items),
+                  if (stockLossesRefs)
+                    await $_getPrefetchedData<Product, $ProductsTable,
+                            StockLossesData>(
+                        currentTable: table,
+                        referencedTable:
+                            $$ProductsTableReferences._stockLossesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ProductsTableReferences(db, table, p0)
+                                .stockLossesRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.productId == item.id),
                         typedResults: items)
                 ];
               },
@@ -21303,7 +23655,10 @@ typedef $$ProductsTableProcessedTableManager = ProcessedTableManager<
     (Product, $$ProductsTableReferences),
     Product,
     PrefetchHooks Function(
-        {bool categoryId, bool inventoryRefs, bool serialNumbersRefs})>;
+        {bool categoryId,
+        bool inventoryRefs,
+        bool serialNumbersRefs,
+        bool stockLossesRefs})>;
 typedef $$CustomersTableCreateCompanionBuilder = CustomersCompanion Function({
   required String id,
   required String code,
@@ -22116,6 +24471,21 @@ final class $$SuppliersTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$WarrantyClaimsTable, List<WarrantyClaim>>
+      _warrantyClaimsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.warrantyClaims,
+              aliasName: $_aliasNameGenerator(
+                  db.suppliers.id, db.warrantyClaims.supplierId));
+
+  $$WarrantyClaimsTableProcessedTableManager get warrantyClaimsRefs {
+    final manager = $$WarrantyClaimsTableTableManager($_db, $_db.warrantyClaims)
+        .filter((f) => f.supplierId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_warrantyClaimsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$SuppliersTableFilterComposer
@@ -22212,6 +24582,27 @@ class $$SuppliersTableFilterComposer
             $$GrnTableFilterComposer(
               $db: $db,
               $table: $db.grn,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> warrantyClaimsRefs(
+      Expression<bool> Function($$WarrantyClaimsTableFilterComposer f) f) {
+    final $$WarrantyClaimsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.warrantyClaims,
+        getReferencedColumn: (t) => t.supplierId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WarrantyClaimsTableFilterComposer(
+              $db: $db,
+              $table: $db.warrantyClaims,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -22381,6 +24772,27 @@ class $$SuppliersTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> warrantyClaimsRefs<T extends Object>(
+      Expression<T> Function($$WarrantyClaimsTableAnnotationComposer a) f) {
+    final $$WarrantyClaimsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.warrantyClaims,
+        getReferencedColumn: (t) => t.supplierId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WarrantyClaimsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.warrantyClaims,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$SuppliersTableTableManager extends RootTableManager<
@@ -22394,7 +24806,8 @@ class $$SuppliersTableTableManager extends RootTableManager<
     $$SuppliersTableUpdateCompanionBuilder,
     (Supplier, $$SuppliersTableReferences),
     Supplier,
-    PrefetchHooks Function({bool purchaseOrdersRefs, bool grnRefs})> {
+    PrefetchHooks Function(
+        {bool purchaseOrdersRefs, bool grnRefs, bool warrantyClaimsRefs})> {
   $$SuppliersTableTableManager(_$AppDatabase db, $SuppliersTable table)
       : super(TableManagerState(
           db: db,
@@ -22488,12 +24901,15 @@ class $$SuppliersTableTableManager extends RootTableManager<
                   ))
               .toList(),
           prefetchHooksCallback: (
-              {purchaseOrdersRefs = false, grnRefs = false}) {
+              {purchaseOrdersRefs = false,
+              grnRefs = false,
+              warrantyClaimsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (purchaseOrdersRefs) db.purchaseOrders,
-                if (grnRefs) db.grn
+                if (grnRefs) db.grn,
+                if (warrantyClaimsRefs) db.warrantyClaims
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -22522,6 +24938,19 @@ class $$SuppliersTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.supplierId == item.id),
+                        typedResults: items),
+                  if (warrantyClaimsRefs)
+                    await $_getPrefetchedData<Supplier, $SuppliersTable,
+                            WarrantyClaim>(
+                        currentTable: table,
+                        referencedTable: $$SuppliersTableReferences
+                            ._warrantyClaimsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$SuppliersTableReferences(db, table, p0)
+                                .warrantyClaimsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.supplierId == item.id),
                         typedResults: items)
                 ];
               },
@@ -22541,7 +24970,8 @@ typedef $$SuppliersTableProcessedTableManager = ProcessedTableManager<
     $$SuppliersTableUpdateCompanionBuilder,
     (Supplier, $$SuppliersTableReferences),
     Supplier,
-    PrefetchHooks Function({bool purchaseOrdersRefs, bool grnRefs})>;
+    PrefetchHooks Function(
+        {bool purchaseOrdersRefs, bool grnRefs, bool warrantyClaimsRefs})>;
 typedef $$InventoryTableCreateCompanionBuilder = InventoryCompanion Function({
   required String id,
   required String productId,
@@ -23010,6 +25440,38 @@ final class $$SerialNumbersTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$StockLossesTable, List<StockLossesData>>
+      _stockLossesRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.stockLosses,
+              aliasName: $_aliasNameGenerator(
+                  db.serialNumbers.id, db.stockLosses.serialNumberId));
+
+  $$StockLossesTableProcessedTableManager get stockLossesRefs {
+    final manager = $$StockLossesTableTableManager($_db, $_db.stockLosses)
+        .filter(
+            (f) => f.serialNumberId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_stockLossesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$WarrantyClaimsTable, List<WarrantyClaim>>
+      _warrantyClaimsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.warrantyClaims,
+              aliasName: $_aliasNameGenerator(
+                  db.serialNumbers.id, db.warrantyClaims.serialNumberId));
+
+  $$WarrantyClaimsTableProcessedTableManager get warrantyClaimsRefs {
+    final manager = $$WarrantyClaimsTableTableManager($_db, $_db.warrantyClaims)
+        .filter(
+            (f) => f.serialNumberId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_warrantyClaimsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$SerialNumbersTableFilterComposer
@@ -23123,6 +25585,48 @@ class $$SerialNumbersTableFilterComposer
             $$SerialNumberHistoryTableFilterComposer(
               $db: $db,
               $table: $db.serialNumberHistory,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> stockLossesRefs(
+      Expression<bool> Function($$StockLossesTableFilterComposer f) f) {
+    final $$StockLossesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.stockLosses,
+        getReferencedColumn: (t) => t.serialNumberId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$StockLossesTableFilterComposer(
+              $db: $db,
+              $table: $db.stockLosses,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> warrantyClaimsRefs(
+      Expression<bool> Function($$WarrantyClaimsTableFilterComposer f) f) {
+    final $$WarrantyClaimsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.warrantyClaims,
+        getReferencedColumn: (t) => t.serialNumberId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WarrantyClaimsTableFilterComposer(
+              $db: $db,
+              $table: $db.warrantyClaims,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -23348,6 +25852,48 @@ class $$SerialNumbersTableAnnotationComposer
                 ));
     return f(composer);
   }
+
+  Expression<T> stockLossesRefs<T extends Object>(
+      Expression<T> Function($$StockLossesTableAnnotationComposer a) f) {
+    final $$StockLossesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.stockLosses,
+        getReferencedColumn: (t) => t.serialNumberId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$StockLossesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.stockLosses,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> warrantyClaimsRefs<T extends Object>(
+      Expression<T> Function($$WarrantyClaimsTableAnnotationComposer a) f) {
+    final $$WarrantyClaimsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.warrantyClaims,
+        getReferencedColumn: (t) => t.serialNumberId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WarrantyClaimsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.warrantyClaims,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$SerialNumbersTableTableManager extends RootTableManager<
@@ -23362,7 +25908,11 @@ class $$SerialNumbersTableTableManager extends RootTableManager<
     (SerialNumber, $$SerialNumbersTableReferences),
     SerialNumber,
     PrefetchHooks Function(
-        {bool productId, bool customerId, bool serialNumberHistoryRefs})> {
+        {bool productId,
+        bool customerId,
+        bool serialNumberHistoryRefs,
+        bool stockLossesRefs,
+        bool warrantyClaimsRefs})> {
   $$SerialNumbersTableTableManager(_$AppDatabase db, $SerialNumbersTable table)
       : super(TableManagerState(
           db: db,
@@ -23462,11 +26012,15 @@ class $$SerialNumbersTableTableManager extends RootTableManager<
           prefetchHooksCallback: (
               {productId = false,
               customerId = false,
-              serialNumberHistoryRefs = false}) {
+              serialNumberHistoryRefs = false,
+              stockLossesRefs = false,
+              warrantyClaimsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
-                if (serialNumberHistoryRefs) db.serialNumberHistory
+                if (serialNumberHistoryRefs) db.serialNumberHistory,
+                if (stockLossesRefs) db.stockLosses,
+                if (warrantyClaimsRefs) db.warrantyClaims
               ],
               addJoins: <
                   T extends TableManagerState<
@@ -23518,6 +26072,32 @@ class $$SerialNumbersTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.serialNumberId == item.id),
+                        typedResults: items),
+                  if (stockLossesRefs)
+                    await $_getPrefetchedData<SerialNumber, $SerialNumbersTable,
+                            StockLossesData>(
+                        currentTable: table,
+                        referencedTable: $$SerialNumbersTableReferences
+                            ._stockLossesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$SerialNumbersTableReferences(db, table, p0)
+                                .stockLossesRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.serialNumberId == item.id),
+                        typedResults: items),
+                  if (warrantyClaimsRefs)
+                    await $_getPrefetchedData<SerialNumber, $SerialNumbersTable,
+                            WarrantyClaim>(
+                        currentTable: table,
+                        referencedTable: $$SerialNumbersTableReferences
+                            ._warrantyClaimsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$SerialNumbersTableReferences(db, table, p0)
+                                .warrantyClaimsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.serialNumberId == item.id),
                         typedResults: items)
                 ];
               },
@@ -23538,7 +26118,11 @@ typedef $$SerialNumbersTableProcessedTableManager = ProcessedTableManager<
     (SerialNumber, $$SerialNumbersTableReferences),
     SerialNumber,
     PrefetchHooks Function(
-        {bool productId, bool customerId, bool serialNumberHistoryRefs})>;
+        {bool productId,
+        bool customerId,
+        bool serialNumberHistoryRefs,
+        bool stockLossesRefs,
+        bool warrantyClaimsRefs})>;
 typedef $$SerialNumberHistoryTableCreateCompanionBuilder
     = SerialNumberHistoryCompanion Function({
   required String id,
@@ -29386,6 +31970,7 @@ typedef $$RepairJobsTableCreateCompanionBuilder = RepairJobsCompanion Function({
   Value<String?> receivedBy,
   Value<String?> assignedTo,
   Value<String?> notes,
+  Value<String?> invoiceId,
   Value<DateTime> createdAt,
   Value<DateTime?> updatedAt,
   Value<String> syncStatus,
@@ -29421,6 +32006,7 @@ typedef $$RepairJobsTableUpdateCompanionBuilder = RepairJobsCompanion Function({
   Value<String?> receivedBy,
   Value<String?> assignedTo,
   Value<String?> notes,
+  Value<String?> invoiceId,
   Value<DateTime> createdAt,
   Value<DateTime?> updatedAt,
   Value<String> syncStatus,
@@ -29573,6 +32159,9 @@ class $$RepairJobsTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get invoiceId => $composableBuilder(
+      column: $table.invoiceId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -29753,6 +32342,9 @@ class $$RepairJobsTableOrderingComposer
   ColumnOrderings<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get invoiceId => $composableBuilder(
+      column: $table.invoiceId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -29877,6 +32469,9 @@ class $$RepairJobsTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get invoiceId =>
+      $composableBuilder(column: $table.invoiceId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -30011,6 +32606,7 @@ class $$RepairJobsTableTableManager extends RootTableManager<
             Value<String?> receivedBy = const Value.absent(),
             Value<String?> assignedTo = const Value.absent(),
             Value<String?> notes = const Value.absent(),
+            Value<String?> invoiceId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -30046,6 +32642,7 @@ class $$RepairJobsTableTableManager extends RootTableManager<
             receivedBy: receivedBy,
             assignedTo: assignedTo,
             notes: notes,
+            invoiceId: invoiceId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             syncStatus: syncStatus,
@@ -30081,6 +32678,7 @@ class $$RepairJobsTableTableManager extends RootTableManager<
             Value<String?> receivedBy = const Value.absent(),
             Value<String?> assignedTo = const Value.absent(),
             Value<String?> notes = const Value.absent(),
+            Value<String?> invoiceId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -30116,6 +32714,7 @@ class $$RepairJobsTableTableManager extends RootTableManager<
             receivedBy: receivedBy,
             assignedTo: assignedTo,
             notes: notes,
+            invoiceId: invoiceId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             syncStatus: syncStatus,
@@ -31326,6 +33925,1540 @@ typedef $$ExpensesTableProcessedTableManager = ProcessedTableManager<
     (Expense, BaseReferences<_$AppDatabase, $ExpensesTable, Expense>),
     Expense,
     PrefetchHooks Function()>;
+typedef $$StockLossesTableCreateCompanionBuilder = StockLossesCompanion
+    Function({
+  required String id,
+  required String lossNumber,
+  required String productId,
+  required int quantity,
+  Value<String?> serialNumberId,
+  required String lossType,
+  required String lossReason,
+  required double unitCost,
+  required double totalLossAmount,
+  required DateTime lossDate,
+  Value<String?> notes,
+  Value<String?> createdBy,
+  Value<DateTime> createdAt,
+  Value<DateTime?> updatedAt,
+  Value<String> syncStatus,
+  Value<DateTime?> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<int> rowid,
+});
+typedef $$StockLossesTableUpdateCompanionBuilder = StockLossesCompanion
+    Function({
+  Value<String> id,
+  Value<String> lossNumber,
+  Value<String> productId,
+  Value<int> quantity,
+  Value<String?> serialNumberId,
+  Value<String> lossType,
+  Value<String> lossReason,
+  Value<double> unitCost,
+  Value<double> totalLossAmount,
+  Value<DateTime> lossDate,
+  Value<String?> notes,
+  Value<String?> createdBy,
+  Value<DateTime> createdAt,
+  Value<DateTime?> updatedAt,
+  Value<String> syncStatus,
+  Value<DateTime?> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<int> rowid,
+});
+
+final class $$StockLossesTableReferences
+    extends BaseReferences<_$AppDatabase, $StockLossesTable, StockLossesData> {
+  $$StockLossesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ProductsTable _productIdTable(_$AppDatabase db) =>
+      db.products.createAlias(
+          $_aliasNameGenerator(db.stockLosses.productId, db.products.id));
+
+  $$ProductsTableProcessedTableManager get productId {
+    final $_column = $_itemColumn<String>('product_id')!;
+
+    final manager = $$ProductsTableTableManager($_db, $_db.products)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_productIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $SerialNumbersTable _serialNumberIdTable(_$AppDatabase db) =>
+      db.serialNumbers.createAlias($_aliasNameGenerator(
+          db.stockLosses.serialNumberId, db.serialNumbers.id));
+
+  $$SerialNumbersTableProcessedTableManager? get serialNumberId {
+    final $_column = $_itemColumn<String>('serial_number_id');
+    if ($_column == null) return null;
+    final manager = $$SerialNumbersTableTableManager($_db, $_db.serialNumbers)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_serialNumberIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$StockLossesTableFilterComposer
+    extends Composer<_$AppDatabase, $StockLossesTable> {
+  $$StockLossesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lossNumber => $composableBuilder(
+      column: $table.lossNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get quantity => $composableBuilder(
+      column: $table.quantity, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lossType => $composableBuilder(
+      column: $table.lossType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lossReason => $composableBuilder(
+      column: $table.lossReason, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get unitCost => $composableBuilder(
+      column: $table.unitCost, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get totalLossAmount => $composableBuilder(
+      column: $table.totalLossAmount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lossDate => $composableBuilder(
+      column: $table.lossDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdBy => $composableBuilder(
+      column: $table.createdBy, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  $$ProductsTableFilterComposer get productId {
+    final $$ProductsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.productId,
+        referencedTable: $db.products,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProductsTableFilterComposer(
+              $db: $db,
+              $table: $db.products,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$SerialNumbersTableFilterComposer get serialNumberId {
+    final $$SerialNumbersTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.serialNumberId,
+        referencedTable: $db.serialNumbers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SerialNumbersTableFilterComposer(
+              $db: $db,
+              $table: $db.serialNumbers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$StockLossesTableOrderingComposer
+    extends Composer<_$AppDatabase, $StockLossesTable> {
+  $$StockLossesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lossNumber => $composableBuilder(
+      column: $table.lossNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get quantity => $composableBuilder(
+      column: $table.quantity, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lossType => $composableBuilder(
+      column: $table.lossType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lossReason => $composableBuilder(
+      column: $table.lossReason, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get unitCost => $composableBuilder(
+      column: $table.unitCost, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get totalLossAmount => $composableBuilder(
+      column: $table.totalLossAmount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lossDate => $composableBuilder(
+      column: $table.lossDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+      column: $table.createdBy, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  $$ProductsTableOrderingComposer get productId {
+    final $$ProductsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.productId,
+        referencedTable: $db.products,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProductsTableOrderingComposer(
+              $db: $db,
+              $table: $db.products,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$SerialNumbersTableOrderingComposer get serialNumberId {
+    final $$SerialNumbersTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.serialNumberId,
+        referencedTable: $db.serialNumbers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SerialNumbersTableOrderingComposer(
+              $db: $db,
+              $table: $db.serialNumbers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$StockLossesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StockLossesTable> {
+  $$StockLossesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get lossNumber => $composableBuilder(
+      column: $table.lossNumber, builder: (column) => column);
+
+  GeneratedColumn<int> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<String> get lossType =>
+      $composableBuilder(column: $table.lossType, builder: (column) => column);
+
+  GeneratedColumn<String> get lossReason => $composableBuilder(
+      column: $table.lossReason, builder: (column) => column);
+
+  GeneratedColumn<double> get unitCost =>
+      $composableBuilder(column: $table.unitCost, builder: (column) => column);
+
+  GeneratedColumn<double> get totalLossAmount => $composableBuilder(
+      column: $table.totalLossAmount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lossDate =>
+      $composableBuilder(column: $table.lossDate, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt, builder: (column) => column);
+
+  $$ProductsTableAnnotationComposer get productId {
+    final $$ProductsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.productId,
+        referencedTable: $db.products,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProductsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.products,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$SerialNumbersTableAnnotationComposer get serialNumberId {
+    final $$SerialNumbersTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.serialNumberId,
+        referencedTable: $db.serialNumbers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SerialNumbersTableAnnotationComposer(
+              $db: $db,
+              $table: $db.serialNumbers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$StockLossesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $StockLossesTable,
+    StockLossesData,
+    $$StockLossesTableFilterComposer,
+    $$StockLossesTableOrderingComposer,
+    $$StockLossesTableAnnotationComposer,
+    $$StockLossesTableCreateCompanionBuilder,
+    $$StockLossesTableUpdateCompanionBuilder,
+    (StockLossesData, $$StockLossesTableReferences),
+    StockLossesData,
+    PrefetchHooks Function({bool productId, bool serialNumberId})> {
+  $$StockLossesTableTableManager(_$AppDatabase db, $StockLossesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StockLossesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StockLossesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StockLossesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> lossNumber = const Value.absent(),
+            Value<String> productId = const Value.absent(),
+            Value<int> quantity = const Value.absent(),
+            Value<String?> serialNumberId = const Value.absent(),
+            Value<String> lossType = const Value.absent(),
+            Value<String> lossReason = const Value.absent(),
+            Value<double> unitCost = const Value.absent(),
+            Value<double> totalLossAmount = const Value.absent(),
+            Value<DateTime> lossDate = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+            Value<String?> createdBy = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime?> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              StockLossesCompanion(
+            id: id,
+            lossNumber: lossNumber,
+            productId: productId,
+            quantity: quantity,
+            serialNumberId: serialNumberId,
+            lossType: lossType,
+            lossReason: lossReason,
+            unitCost: unitCost,
+            totalLossAmount: totalLossAmount,
+            lossDate: lossDate,
+            notes: notes,
+            createdBy: createdBy,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String lossNumber,
+            required String productId,
+            required int quantity,
+            Value<String?> serialNumberId = const Value.absent(),
+            required String lossType,
+            required String lossReason,
+            required double unitCost,
+            required double totalLossAmount,
+            required DateTime lossDate,
+            Value<String?> notes = const Value.absent(),
+            Value<String?> createdBy = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime?> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              StockLossesCompanion.insert(
+            id: id,
+            lossNumber: lossNumber,
+            productId: productId,
+            quantity: quantity,
+            serialNumberId: serialNumberId,
+            lossType: lossType,
+            lossReason: lossReason,
+            unitCost: unitCost,
+            totalLossAmount: totalLossAmount,
+            lossDate: lossDate,
+            notes: notes,
+            createdBy: createdBy,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$StockLossesTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({productId = false, serialNumberId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (productId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.productId,
+                    referencedTable:
+                        $$StockLossesTableReferences._productIdTable(db),
+                    referencedColumn:
+                        $$StockLossesTableReferences._productIdTable(db).id,
+                  ) as T;
+                }
+                if (serialNumberId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.serialNumberId,
+                    referencedTable:
+                        $$StockLossesTableReferences._serialNumberIdTable(db),
+                    referencedColumn: $$StockLossesTableReferences
+                        ._serialNumberIdTable(db)
+                        .id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$StockLossesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $StockLossesTable,
+    StockLossesData,
+    $$StockLossesTableFilterComposer,
+    $$StockLossesTableOrderingComposer,
+    $$StockLossesTableAnnotationComposer,
+    $$StockLossesTableCreateCompanionBuilder,
+    $$StockLossesTableUpdateCompanionBuilder,
+    (StockLossesData, $$StockLossesTableReferences),
+    StockLossesData,
+    PrefetchHooks Function({bool productId, bool serialNumberId})>;
+typedef $$WarrantyClaimsTableCreateCompanionBuilder = WarrantyClaimsCompanion
+    Function({
+  required String id,
+  required String claimNumber,
+  required String serialNumberId,
+  required String supplierId,
+  required String claimReason,
+  Value<String> status,
+  Value<DateTime?> dateSentToSupplier,
+  Value<DateTime?> expectedReturnDate,
+  Value<DateTime?> actualReturnDate,
+  Value<String?> supplierResponse,
+  Value<String?> resolutionNotes,
+  Value<String?> createdBy,
+  Value<DateTime> createdAt,
+  Value<DateTime?> updatedAt,
+  Value<String> syncStatus,
+  Value<DateTime?> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<int> rowid,
+});
+typedef $$WarrantyClaimsTableUpdateCompanionBuilder = WarrantyClaimsCompanion
+    Function({
+  Value<String> id,
+  Value<String> claimNumber,
+  Value<String> serialNumberId,
+  Value<String> supplierId,
+  Value<String> claimReason,
+  Value<String> status,
+  Value<DateTime?> dateSentToSupplier,
+  Value<DateTime?> expectedReturnDate,
+  Value<DateTime?> actualReturnDate,
+  Value<String?> supplierResponse,
+  Value<String?> resolutionNotes,
+  Value<String?> createdBy,
+  Value<DateTime> createdAt,
+  Value<DateTime?> updatedAt,
+  Value<String> syncStatus,
+  Value<DateTime?> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<int> rowid,
+});
+
+final class $$WarrantyClaimsTableReferences
+    extends BaseReferences<_$AppDatabase, $WarrantyClaimsTable, WarrantyClaim> {
+  $$WarrantyClaimsTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $SerialNumbersTable _serialNumberIdTable(_$AppDatabase db) =>
+      db.serialNumbers.createAlias($_aliasNameGenerator(
+          db.warrantyClaims.serialNumberId, db.serialNumbers.id));
+
+  $$SerialNumbersTableProcessedTableManager get serialNumberId {
+    final $_column = $_itemColumn<String>('serial_number_id')!;
+
+    final manager = $$SerialNumbersTableTableManager($_db, $_db.serialNumbers)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_serialNumberIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $SuppliersTable _supplierIdTable(_$AppDatabase db) =>
+      db.suppliers.createAlias(
+          $_aliasNameGenerator(db.warrantyClaims.supplierId, db.suppliers.id));
+
+  $$SuppliersTableProcessedTableManager get supplierId {
+    final $_column = $_itemColumn<String>('supplier_id')!;
+
+    final manager = $$SuppliersTableTableManager($_db, $_db.suppliers)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_supplierIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static MultiTypedResultKey<$WarrantyClaimHistoryTable,
+      List<WarrantyClaimHistoryData>> _warrantyClaimHistoryRefsTable(
+          _$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.warrantyClaimHistory,
+          aliasName: $_aliasNameGenerator(
+              db.warrantyClaims.id, db.warrantyClaimHistory.warrantyClaimId));
+
+  $$WarrantyClaimHistoryTableProcessedTableManager
+      get warrantyClaimHistoryRefs {
+    final manager = $$WarrantyClaimHistoryTableTableManager(
+            $_db, $_db.warrantyClaimHistory)
+        .filter(
+            (f) => f.warrantyClaimId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache =
+        $_typedResult.readTableOrNull(_warrantyClaimHistoryRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
+class $$WarrantyClaimsTableFilterComposer
+    extends Composer<_$AppDatabase, $WarrantyClaimsTable> {
+  $$WarrantyClaimsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get claimNumber => $composableBuilder(
+      column: $table.claimNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get claimReason => $composableBuilder(
+      column: $table.claimReason, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get dateSentToSupplier => $composableBuilder(
+      column: $table.dateSentToSupplier,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get expectedReturnDate => $composableBuilder(
+      column: $table.expectedReturnDate,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get actualReturnDate => $composableBuilder(
+      column: $table.actualReturnDate,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get supplierResponse => $composableBuilder(
+      column: $table.supplierResponse,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resolutionNotes => $composableBuilder(
+      column: $table.resolutionNotes,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdBy => $composableBuilder(
+      column: $table.createdBy, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  $$SerialNumbersTableFilterComposer get serialNumberId {
+    final $$SerialNumbersTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.serialNumberId,
+        referencedTable: $db.serialNumbers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SerialNumbersTableFilterComposer(
+              $db: $db,
+              $table: $db.serialNumbers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$SuppliersTableFilterComposer get supplierId {
+    final $$SuppliersTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.supplierId,
+        referencedTable: $db.suppliers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SuppliersTableFilterComposer(
+              $db: $db,
+              $table: $db.suppliers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  Expression<bool> warrantyClaimHistoryRefs(
+      Expression<bool> Function($$WarrantyClaimHistoryTableFilterComposer f)
+          f) {
+    final $$WarrantyClaimHistoryTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.warrantyClaimHistory,
+        getReferencedColumn: (t) => t.warrantyClaimId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WarrantyClaimHistoryTableFilterComposer(
+              $db: $db,
+              $table: $db.warrantyClaimHistory,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$WarrantyClaimsTableOrderingComposer
+    extends Composer<_$AppDatabase, $WarrantyClaimsTable> {
+  $$WarrantyClaimsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get claimNumber => $composableBuilder(
+      column: $table.claimNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get claimReason => $composableBuilder(
+      column: $table.claimReason, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get dateSentToSupplier => $composableBuilder(
+      column: $table.dateSentToSupplier,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get expectedReturnDate => $composableBuilder(
+      column: $table.expectedReturnDate,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get actualReturnDate => $composableBuilder(
+      column: $table.actualReturnDate,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get supplierResponse => $composableBuilder(
+      column: $table.supplierResponse,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resolutionNotes => $composableBuilder(
+      column: $table.resolutionNotes,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+      column: $table.createdBy, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  $$SerialNumbersTableOrderingComposer get serialNumberId {
+    final $$SerialNumbersTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.serialNumberId,
+        referencedTable: $db.serialNumbers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SerialNumbersTableOrderingComposer(
+              $db: $db,
+              $table: $db.serialNumbers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$SuppliersTableOrderingComposer get supplierId {
+    final $$SuppliersTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.supplierId,
+        referencedTable: $db.suppliers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SuppliersTableOrderingComposer(
+              $db: $db,
+              $table: $db.suppliers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$WarrantyClaimsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WarrantyClaimsTable> {
+  $$WarrantyClaimsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get claimNumber => $composableBuilder(
+      column: $table.claimNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get claimReason => $composableBuilder(
+      column: $table.claimReason, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dateSentToSupplier => $composableBuilder(
+      column: $table.dateSentToSupplier, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get expectedReturnDate => $composableBuilder(
+      column: $table.expectedReturnDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get actualReturnDate => $composableBuilder(
+      column: $table.actualReturnDate, builder: (column) => column);
+
+  GeneratedColumn<String> get supplierResponse => $composableBuilder(
+      column: $table.supplierResponse, builder: (column) => column);
+
+  GeneratedColumn<String> get resolutionNotes => $composableBuilder(
+      column: $table.resolutionNotes, builder: (column) => column);
+
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt, builder: (column) => column);
+
+  $$SerialNumbersTableAnnotationComposer get serialNumberId {
+    final $$SerialNumbersTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.serialNumberId,
+        referencedTable: $db.serialNumbers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SerialNumbersTableAnnotationComposer(
+              $db: $db,
+              $table: $db.serialNumbers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$SuppliersTableAnnotationComposer get supplierId {
+    final $$SuppliersTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.supplierId,
+        referencedTable: $db.suppliers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SuppliersTableAnnotationComposer(
+              $db: $db,
+              $table: $db.suppliers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  Expression<T> warrantyClaimHistoryRefs<T extends Object>(
+      Expression<T> Function($$WarrantyClaimHistoryTableAnnotationComposer a)
+          f) {
+    final $$WarrantyClaimHistoryTableAnnotationComposer composer =
+        $composerBuilder(
+            composer: this,
+            getCurrentColumn: (t) => t.id,
+            referencedTable: $db.warrantyClaimHistory,
+            getReferencedColumn: (t) => t.warrantyClaimId,
+            builder: (joinBuilder,
+                    {$addJoinBuilderToRootComposer,
+                    $removeJoinBuilderFromRootComposer}) =>
+                $$WarrantyClaimHistoryTableAnnotationComposer(
+                  $db: $db,
+                  $table: $db.warrantyClaimHistory,
+                  $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                  joinBuilder: joinBuilder,
+                  $removeJoinBuilderFromRootComposer:
+                      $removeJoinBuilderFromRootComposer,
+                ));
+    return f(composer);
+  }
+}
+
+class $$WarrantyClaimsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $WarrantyClaimsTable,
+    WarrantyClaim,
+    $$WarrantyClaimsTableFilterComposer,
+    $$WarrantyClaimsTableOrderingComposer,
+    $$WarrantyClaimsTableAnnotationComposer,
+    $$WarrantyClaimsTableCreateCompanionBuilder,
+    $$WarrantyClaimsTableUpdateCompanionBuilder,
+    (WarrantyClaim, $$WarrantyClaimsTableReferences),
+    WarrantyClaim,
+    PrefetchHooks Function(
+        {bool serialNumberId,
+        bool supplierId,
+        bool warrantyClaimHistoryRefs})> {
+  $$WarrantyClaimsTableTableManager(
+      _$AppDatabase db, $WarrantyClaimsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WarrantyClaimsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WarrantyClaimsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WarrantyClaimsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> claimNumber = const Value.absent(),
+            Value<String> serialNumberId = const Value.absent(),
+            Value<String> supplierId = const Value.absent(),
+            Value<String> claimReason = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime?> dateSentToSupplier = const Value.absent(),
+            Value<DateTime?> expectedReturnDate = const Value.absent(),
+            Value<DateTime?> actualReturnDate = const Value.absent(),
+            Value<String?> supplierResponse = const Value.absent(),
+            Value<String?> resolutionNotes = const Value.absent(),
+            Value<String?> createdBy = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime?> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WarrantyClaimsCompanion(
+            id: id,
+            claimNumber: claimNumber,
+            serialNumberId: serialNumberId,
+            supplierId: supplierId,
+            claimReason: claimReason,
+            status: status,
+            dateSentToSupplier: dateSentToSupplier,
+            expectedReturnDate: expectedReturnDate,
+            actualReturnDate: actualReturnDate,
+            supplierResponse: supplierResponse,
+            resolutionNotes: resolutionNotes,
+            createdBy: createdBy,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String claimNumber,
+            required String serialNumberId,
+            required String supplierId,
+            required String claimReason,
+            Value<String> status = const Value.absent(),
+            Value<DateTime?> dateSentToSupplier = const Value.absent(),
+            Value<DateTime?> expectedReturnDate = const Value.absent(),
+            Value<DateTime?> actualReturnDate = const Value.absent(),
+            Value<String?> supplierResponse = const Value.absent(),
+            Value<String?> resolutionNotes = const Value.absent(),
+            Value<String?> createdBy = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime?> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WarrantyClaimsCompanion.insert(
+            id: id,
+            claimNumber: claimNumber,
+            serialNumberId: serialNumberId,
+            supplierId: supplierId,
+            claimReason: claimReason,
+            status: status,
+            dateSentToSupplier: dateSentToSupplier,
+            expectedReturnDate: expectedReturnDate,
+            actualReturnDate: actualReturnDate,
+            supplierResponse: supplierResponse,
+            resolutionNotes: resolutionNotes,
+            createdBy: createdBy,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$WarrantyClaimsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: (
+              {serialNumberId = false,
+              supplierId = false,
+              warrantyClaimHistoryRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (warrantyClaimHistoryRefs) db.warrantyClaimHistory
+              ],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (serialNumberId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.serialNumberId,
+                    referencedTable: $$WarrantyClaimsTableReferences
+                        ._serialNumberIdTable(db),
+                    referencedColumn: $$WarrantyClaimsTableReferences
+                        ._serialNumberIdTable(db)
+                        .id,
+                  ) as T;
+                }
+                if (supplierId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.supplierId,
+                    referencedTable:
+                        $$WarrantyClaimsTableReferences._supplierIdTable(db),
+                    referencedColumn:
+                        $$WarrantyClaimsTableReferences._supplierIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (warrantyClaimHistoryRefs)
+                    await $_getPrefetchedData<WarrantyClaim,
+                            $WarrantyClaimsTable, WarrantyClaimHistoryData>(
+                        currentTable: table,
+                        referencedTable: $$WarrantyClaimsTableReferences
+                            ._warrantyClaimHistoryRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$WarrantyClaimsTableReferences(db, table, p0)
+                                .warrantyClaimHistoryRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.warrantyClaimId == item.id),
+                        typedResults: items)
+                ];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$WarrantyClaimsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $WarrantyClaimsTable,
+    WarrantyClaim,
+    $$WarrantyClaimsTableFilterComposer,
+    $$WarrantyClaimsTableOrderingComposer,
+    $$WarrantyClaimsTableAnnotationComposer,
+    $$WarrantyClaimsTableCreateCompanionBuilder,
+    $$WarrantyClaimsTableUpdateCompanionBuilder,
+    (WarrantyClaim, $$WarrantyClaimsTableReferences),
+    WarrantyClaim,
+    PrefetchHooks Function(
+        {bool serialNumberId, bool supplierId, bool warrantyClaimHistoryRefs})>;
+typedef $$WarrantyClaimHistoryTableCreateCompanionBuilder
+    = WarrantyClaimHistoryCompanion Function({
+  required String id,
+  required String warrantyClaimId,
+  Value<String?> fromStatus,
+  required String toStatus,
+  Value<String?> notes,
+  Value<String?> changedBy,
+  Value<DateTime> changedAt,
+  Value<String> syncStatus,
+  Value<DateTime?> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<int> rowid,
+});
+typedef $$WarrantyClaimHistoryTableUpdateCompanionBuilder
+    = WarrantyClaimHistoryCompanion Function({
+  Value<String> id,
+  Value<String> warrantyClaimId,
+  Value<String?> fromStatus,
+  Value<String> toStatus,
+  Value<String?> notes,
+  Value<String?> changedBy,
+  Value<DateTime> changedAt,
+  Value<String> syncStatus,
+  Value<DateTime?> localUpdatedAt,
+  Value<DateTime?> serverUpdatedAt,
+  Value<int> rowid,
+});
+
+final class $$WarrantyClaimHistoryTableReferences extends BaseReferences<
+    _$AppDatabase, $WarrantyClaimHistoryTable, WarrantyClaimHistoryData> {
+  $$WarrantyClaimHistoryTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $WarrantyClaimsTable _warrantyClaimIdTable(_$AppDatabase db) =>
+      db.warrantyClaims.createAlias($_aliasNameGenerator(
+          db.warrantyClaimHistory.warrantyClaimId, db.warrantyClaims.id));
+
+  $$WarrantyClaimsTableProcessedTableManager get warrantyClaimId {
+    final $_column = $_itemColumn<String>('warranty_claim_id')!;
+
+    final manager = $$WarrantyClaimsTableTableManager($_db, $_db.warrantyClaims)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_warrantyClaimIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$WarrantyClaimHistoryTableFilterComposer
+    extends Composer<_$AppDatabase, $WarrantyClaimHistoryTable> {
+  $$WarrantyClaimHistoryTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fromStatus => $composableBuilder(
+      column: $table.fromStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toStatus => $composableBuilder(
+      column: $table.toStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get changedBy => $composableBuilder(
+      column: $table.changedBy, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get changedAt => $composableBuilder(
+      column: $table.changedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnFilters(column));
+
+  $$WarrantyClaimsTableFilterComposer get warrantyClaimId {
+    final $$WarrantyClaimsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.warrantyClaimId,
+        referencedTable: $db.warrantyClaims,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WarrantyClaimsTableFilterComposer(
+              $db: $db,
+              $table: $db.warrantyClaims,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$WarrantyClaimHistoryTableOrderingComposer
+    extends Composer<_$AppDatabase, $WarrantyClaimHistoryTable> {
+  $$WarrantyClaimHistoryTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fromStatus => $composableBuilder(
+      column: $table.fromStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toStatus => $composableBuilder(
+      column: $table.toStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get changedBy => $composableBuilder(
+      column: $table.changedBy, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get changedAt => $composableBuilder(
+      column: $table.changedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  $$WarrantyClaimsTableOrderingComposer get warrantyClaimId {
+    final $$WarrantyClaimsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.warrantyClaimId,
+        referencedTable: $db.warrantyClaims,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WarrantyClaimsTableOrderingComposer(
+              $db: $db,
+              $table: $db.warrantyClaims,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$WarrantyClaimHistoryTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WarrantyClaimHistoryTable> {
+  $$WarrantyClaimHistoryTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get fromStatus => $composableBuilder(
+      column: $table.fromStatus, builder: (column) => column);
+
+  GeneratedColumn<String> get toStatus =>
+      $composableBuilder(column: $table.toStatus, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get changedBy =>
+      $composableBuilder(column: $table.changedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get changedAt =>
+      $composableBuilder(column: $table.changedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get localUpdatedAt => $composableBuilder(
+      column: $table.localUpdatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get serverUpdatedAt => $composableBuilder(
+      column: $table.serverUpdatedAt, builder: (column) => column);
+
+  $$WarrantyClaimsTableAnnotationComposer get warrantyClaimId {
+    final $$WarrantyClaimsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.warrantyClaimId,
+        referencedTable: $db.warrantyClaims,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WarrantyClaimsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.warrantyClaims,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$WarrantyClaimHistoryTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $WarrantyClaimHistoryTable,
+    WarrantyClaimHistoryData,
+    $$WarrantyClaimHistoryTableFilterComposer,
+    $$WarrantyClaimHistoryTableOrderingComposer,
+    $$WarrantyClaimHistoryTableAnnotationComposer,
+    $$WarrantyClaimHistoryTableCreateCompanionBuilder,
+    $$WarrantyClaimHistoryTableUpdateCompanionBuilder,
+    (WarrantyClaimHistoryData, $$WarrantyClaimHistoryTableReferences),
+    WarrantyClaimHistoryData,
+    PrefetchHooks Function({bool warrantyClaimId})> {
+  $$WarrantyClaimHistoryTableTableManager(
+      _$AppDatabase db, $WarrantyClaimHistoryTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WarrantyClaimHistoryTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WarrantyClaimHistoryTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WarrantyClaimHistoryTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> warrantyClaimId = const Value.absent(),
+            Value<String?> fromStatus = const Value.absent(),
+            Value<String> toStatus = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+            Value<String?> changedBy = const Value.absent(),
+            Value<DateTime> changedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime?> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WarrantyClaimHistoryCompanion(
+            id: id,
+            warrantyClaimId: warrantyClaimId,
+            fromStatus: fromStatus,
+            toStatus: toStatus,
+            notes: notes,
+            changedBy: changedBy,
+            changedAt: changedAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String warrantyClaimId,
+            Value<String?> fromStatus = const Value.absent(),
+            required String toStatus,
+            Value<String?> notes = const Value.absent(),
+            Value<String?> changedBy = const Value.absent(),
+            Value<DateTime> changedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<DateTime?> localUpdatedAt = const Value.absent(),
+            Value<DateTime?> serverUpdatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              WarrantyClaimHistoryCompanion.insert(
+            id: id,
+            warrantyClaimId: warrantyClaimId,
+            fromStatus: fromStatus,
+            toStatus: toStatus,
+            notes: notes,
+            changedBy: changedBy,
+            changedAt: changedAt,
+            syncStatus: syncStatus,
+            localUpdatedAt: localUpdatedAt,
+            serverUpdatedAt: serverUpdatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$WarrantyClaimHistoryTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({warrantyClaimId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (warrantyClaimId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.warrantyClaimId,
+                    referencedTable: $$WarrantyClaimHistoryTableReferences
+                        ._warrantyClaimIdTable(db),
+                    referencedColumn: $$WarrantyClaimHistoryTableReferences
+                        ._warrantyClaimIdTable(db)
+                        .id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$WarrantyClaimHistoryTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $WarrantyClaimHistoryTable,
+        WarrantyClaimHistoryData,
+        $$WarrantyClaimHistoryTableFilterComposer,
+        $$WarrantyClaimHistoryTableOrderingComposer,
+        $$WarrantyClaimHistoryTableAnnotationComposer,
+        $$WarrantyClaimHistoryTableCreateCompanionBuilder,
+        $$WarrantyClaimHistoryTableUpdateCompanionBuilder,
+        (WarrantyClaimHistoryData, $$WarrantyClaimHistoryTableReferences),
+        WarrantyClaimHistoryData,
+        PrefetchHooks Function({bool warrantyClaimId})>;
 typedef $$AuditLogsTableCreateCompanionBuilder = AuditLogsCompanion Function({
   required String id,
   required String auditTableName,
@@ -32512,6 +36645,12 @@ class $AppDatabaseManager {
       $$RepairStatusHistoryTableTableManager(_db, _db.repairStatusHistory);
   $$ExpensesTableTableManager get expenses =>
       $$ExpensesTableTableManager(_db, _db.expenses);
+  $$StockLossesTableTableManager get stockLosses =>
+      $$StockLossesTableTableManager(_db, _db.stockLosses);
+  $$WarrantyClaimsTableTableManager get warrantyClaims =>
+      $$WarrantyClaimsTableTableManager(_db, _db.warrantyClaims);
+  $$WarrantyClaimHistoryTableTableManager get warrantyClaimHistory =>
+      $$WarrantyClaimHistoryTableTableManager(_db, _db.warrantyClaimHistory);
   $$AuditLogsTableTableManager get auditLogs =>
       $$AuditLogsTableTableManager(_db, _db.auditLogs);
   $$NumberSequencesTableTableManager get numberSequences =>

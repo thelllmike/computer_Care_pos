@@ -4,7 +4,10 @@
       "Bash(find:*)",
       "Bash(flutter analyze:*)",
       "Bash(flutter build:*)",
-      "Bash(flutter pub run:*)"
+      "Bash(flutter pub run:*)",
+      "Bash(cd:*)",
+      "Bash(ls:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

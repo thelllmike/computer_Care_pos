@@ -11,6 +11,8 @@ export 'quotations_table.dart';
 export 'repairs_table.dart';
 export 'sales_table.dart';
 export 'serial_numbers_table.dart';
+export 'stock_losses_table.dart';
 export 'suppliers_table.dart';
 export 'system_tables.dart';
 export 'users_table.dart';
+export 'warranty_claims_table.dart';

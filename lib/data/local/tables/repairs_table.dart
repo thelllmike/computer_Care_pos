@@ -29,6 +29,7 @@ class RepairJobs extends Table {
   TextColumn get receivedBy => text().nullable()();
   TextColumn get assignedTo => text().nullable()();
   TextColumn get notes => text().nullable()();
+  TextColumn get invoiceId => text().nullable()(); // Links to generated invoice to prevent duplicates
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().nullable()();
 

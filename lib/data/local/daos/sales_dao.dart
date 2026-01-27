@@ -102,6 +102,7 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
     double taxAmount = 0,
     bool isCredit = false,
     List<PaymentEntry>? payments,
+    double creditAmount = 0, // Amount to be added as credit
     String? notes,
     String? createdBy,
   }) async {
@@ -124,9 +125,9 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
 
       // Determine paid amount
       double paidAmount = 0;
-      if (!isCredit && payments != null) {
+      if (payments != null && payments.isNotEmpty) {
         paidAmount = payments.fold(0, (sum, p) => sum + p.amount);
-      } else if (!isCredit) {
+      } else if (!isCredit && creditAmount <= 0) {
         paidAmount = totalAmount;
       }
 
@@ -143,7 +144,7 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
         paidAmount: Value(paidAmount),
         totalCost: Value(totalCost),
         grossProfit: Value(grossProfit),
-        isCredit: Value(isCredit),
+        isCredit: Value(isCredit || creditAmount > 0), // Mark as credit if any credit portion
         status: const Value('COMPLETED'),
         notes: Value(notes),
         createdBy: Value(createdBy),
@@ -160,8 +161,8 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
         );
       }
 
-      // Create payments if not credit sale
-      if (!isCredit && payments != null) {
+      // Create payments if any
+      if (payments != null && payments.isNotEmpty) {
         for (final payment in payments) {
           await _createPayment(
             saleId: id,
@@ -173,12 +174,12 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
         }
       }
 
-      // Create credit transaction if credit sale
-      if (isCredit && customerId != null) {
+      // Create credit transaction only for the credit portion
+      if (creditAmount > 0 && customerId != null) {
         await _createCreditTransaction(
           customerId: customerId,
           saleId: id,
-          amount: totalAmount,
+          amount: creditAmount,
           createdBy: createdBy,
         );
       }
@@ -400,6 +401,74 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
         .get();
   }
 
+  // ==================== Sales History ====================
+
+  // Get sales history with filters
+  Future<List<SaleWithDetails>> getSalesHistory({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? customerId,
+    String? searchQuery, // Invoice number search
+  }) async {
+    var query = select(sales).join([
+      leftOuterJoin(customers, customers.id.equalsExp(sales.customerId)),
+    ]);
+
+    Expression<bool>? whereClause;
+
+    // Date range filter
+    if (startDate != null && endDate != null) {
+      final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+      whereClause = sales.saleDate.isBiggerOrEqualValue(startDate) &
+          sales.saleDate.isSmallerOrEqualValue(endOfDay);
+    } else if (startDate != null) {
+      whereClause = sales.saleDate.isBiggerOrEqualValue(startDate);
+    } else if (endDate != null) {
+      final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+      whereClause = sales.saleDate.isSmallerOrEqualValue(endOfDay);
+    }
+
+    // Customer filter
+    if (customerId != null) {
+      final customerFilter = sales.customerId.equals(customerId);
+      whereClause = whereClause != null
+          ? whereClause & customerFilter
+          : customerFilter;
+    }
+
+    // Invoice number search
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final searchTerm = '%$searchQuery%';
+      final searchFilter = sales.invoiceNumber.like(searchTerm);
+      whereClause = whereClause != null
+          ? whereClause & searchFilter
+          : searchFilter;
+    }
+
+    if (whereClause != null) {
+      query = query..where(whereClause);
+    }
+
+    query = query..orderBy([OrderingTerm.desc(sales.saleDate)]);
+
+    final results = await query.get();
+
+    final salesWithDetails = <SaleWithDetails>[];
+    for (final row in results) {
+      final sale = row.readTable(sales);
+      final customer = row.readTableOrNull(customers);
+      final paymentList = await getSalePayments(sale.id);
+
+      salesWithDetails.add(SaleWithDetails(
+        sale: sale,
+        customer: customer,
+        payments: paymentList,
+      ));
+    }
+
+    return salesWithDetails;
+  }
+
   // ==================== Reports ====================
 
   // Get sales summary for date range
@@ -555,4 +624,32 @@ class SalesSummary {
   });
 
   double get profitMargin => totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+}
+
+class SaleWithDetails {
+  final Sale sale;
+  final Customer? customer;
+  final List<Payment> payments;
+
+  SaleWithDetails({
+    required this.sale,
+    this.customer,
+    required this.payments,
+  });
+
+  String get invoiceNumber => sale.invoiceNumber;
+  String? get customerName => customer?.name;
+  double get totalAmount => sale.totalAmount;
+  double get paidAmount => sale.paidAmount;
+  double get balanceDue => sale.totalAmount - sale.paidAmount;
+  bool get isCredit => sale.isCredit;
+  bool get isFullyPaid => balanceDue <= 0;
+  DateTime get saleDate => sale.saleDate;
+  String get status => sale.status;
+
+  String get paymentStatus {
+    if (isFullyPaid) return 'Paid';
+    if (paidAmount > 0) return 'Partial';
+    return 'Pending';
+  }
 }

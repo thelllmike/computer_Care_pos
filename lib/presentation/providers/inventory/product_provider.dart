@@ -222,3 +222,32 @@ final productFormProvider = StateNotifierProvider<ProductFormNotifier, ProductFo
   final db = ref.watch(databaseProvider);
   return ProductFormNotifier(dao, db);
 });
+
+// Products with inventory - for stock losses screen
+class ProductWithInventory {
+  final Product product;
+  final int quantityOnHand;
+  final double totalCost;
+
+  ProductWithInventory({
+    required this.product,
+    required this.quantityOnHand,
+    required this.totalCost,
+  });
+
+  double get wac => quantityOnHand > 0 ? totalCost / quantityOnHand : 0;
+}
+
+final productsWithInventoryProvider = FutureProvider<List<ProductWithInventory>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final inventoryList = await db.inventoryDao.getAllInventoryWithProducts();
+
+  return inventoryList
+      .where((item) => item.quantityOnHand > 0)
+      .map((item) => ProductWithInventory(
+            product: item.product,
+            quantityOnHand: item.quantityOnHand,
+            totalCost: item.totalCost,
+          ))
+      .toList();
+});

@@ -19,6 +19,9 @@ import '../repairs/repairs_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 import '../expenses/expenses_screen.dart';
+import '../losses/stock_losses_screen.dart';
+import '../warranty/warranty_claims_screen.dart';
+import '../sales/sales_history_screen.dart';
 import '../../../core/constants/app_constants.dart';
 
 final selectedIndexProvider = StateProvider<int>((ref) => 0);
@@ -136,6 +139,11 @@ class NavigationShell extends ConsumerWidget {
         title: const Text('POS'),
         body: const PosScreen(),
       ),
+      PaneItem(
+        icon: const Icon(FluentIcons.history),
+        title: const Text('Sales History'),
+        body: const SalesHistoryScreen(),
+      ),
     ];
 
     if (role?.canManageProducts ?? false) {
@@ -179,6 +187,16 @@ class NavigationShell extends ConsumerWidget {
         icon: const Icon(FluentIcons.archive),
         title: const Text('Inventory'),
         body: const InventoryScreen(),
+      ),
+      PaneItem(
+        icon: const Icon(FluentIcons.warning),
+        title: const Text('Stock Losses'),
+        body: const StockLossesScreen(),
+      ),
+      PaneItem(
+        icon: const Icon(FluentIcons.certificate),
+        title: const Text('Warranty Claims'),
+        body: const WarrantyClaimsScreen(),
       ),
       PaneItem(
         icon: const Icon(FluentIcons.document),

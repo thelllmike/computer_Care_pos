@@ -575,9 +575,16 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       builder: (context) => _PaymentDialog(
         totalAmount: cart.total,
         isCredit: cart.isCredit,
+        hasCustomer: cart.customerId != null,
         onComplete: (payments) {
           ref.read(checkoutProvider.notifier).completeSale(
                 payments: payments,
+              );
+        },
+        onCompleteWithCredit: (payments, creditAmount) {
+          ref.read(checkoutProvider.notifier).completeSaleWithCredit(
+                payments: payments,
+                creditAmount: creditAmount,
               );
         },
       ),
@@ -1033,12 +1040,16 @@ class _SerialSelectionDialog extends ConsumerWidget {
 class _PaymentDialog extends StatefulWidget {
   final double totalAmount;
   final bool isCredit;
+  final bool hasCustomer;
   final ValueChanged<List<PaymentEntry>> onComplete;
+  final void Function(List<PaymentEntry> payments, double creditAmount) onCompleteWithCredit;
 
   const _PaymentDialog({
     required this.totalAmount,
     required this.isCredit,
+    required this.hasCustomer,
     required this.onComplete,
+    required this.onCompleteWithCredit,
   });
 
   @override
@@ -1093,7 +1104,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
             child: const Text('Confirm Credit Sale'),
             onPressed: () {
               Navigator.pop(context);
-              widget.onComplete([]);
+              widget.onCompleteWithCredit([], widget.totalAmount);
             },
           ),
         ],
@@ -1206,6 +1217,15 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               },
             ),
           ),
+          // Show credit option when there's remaining balance and customer is selected
+          if (remaining > 0.01 && widget.hasCustomer && _payments.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            InfoBar(
+              title: const Text('Remaining as Credit'),
+              content: Text('${Formatters.currency(remaining)} will be added as credit'),
+              severity: InfoBarSeverity.warning,
+            ),
+          ],
         ],
       ),
       actions: [
@@ -1213,13 +1233,26 @@ class _PaymentDialogState extends State<_PaymentDialog> {
           child: const Text('Cancel'),
           onPressed: () => Navigator.pop(context),
         ),
-        FilledButton(
-          onPressed: _payments.isEmpty || remaining > 0.01 ? null : () {
-            Navigator.pop(context);
-            widget.onComplete(_payments);
-          },
-          child: const Text('Complete Sale'),
-        ),
+        // Allow completing with credit if customer is selected
+        if (remaining > 0.01 && widget.hasCustomer && _payments.isNotEmpty)
+          FilledButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.all(AppTheme.warningColor),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onCompleteWithCredit(_payments, remaining);
+            },
+            child: Text('Complete (${Formatters.currency(remaining)} Credit)'),
+          )
+        else
+          FilledButton(
+            onPressed: _payments.isEmpty || remaining > 0.01 ? null : () {
+              Navigator.pop(context);
+              widget.onComplete(_payments);
+            },
+            child: const Text('Complete Sale'),
+          ),
       ],
     );
   }

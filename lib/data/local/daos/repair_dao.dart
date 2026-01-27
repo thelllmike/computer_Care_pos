@@ -673,6 +673,7 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
 
   /// Generate a service invoice for a completed repair job
   /// Supports partial payments - remaining balance goes to customer credit
+  /// Returns existing invoice if already generated (prevents duplicates)
   Future<ServiceInvoiceResult> generateServiceInvoice({
     required String repairJobId,
     bool isCredit = false,
@@ -681,13 +682,27 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
     String? notes,
     String? createdBy,
   }) async {
-    return transaction(() async {
-      // Get repair job details
-      final job = await getRepairJobById(repairJobId);
-      if (job == null) {
-        throw Exception('Repair job not found');
-      }
+    // Get repair job details first (outside transaction to check for existing invoice)
+    final job = await getRepairJobById(repairJobId);
+    if (job == null) {
+      throw Exception('Repair job not found');
+    }
 
+    // Check if invoice already exists for this repair job
+    if (job.invoiceId != null && job.invoiceId!.isNotEmpty) {
+      // Return existing invoice instead of creating duplicate
+      final existingSale = await (select(sales)..where((s) => s.id.equals(job.invoiceId!))).getSingleOrNull();
+      if (existingSale != null) {
+        return ServiceInvoiceResult(
+          sale: existingSale,
+          invoiceNumber: existingSale.invoiceNumber,
+          repairJobNumber: job.jobNumber,
+          wasExisting: true,
+        );
+      }
+    }
+
+    return transaction(() async {
       final status = RepairStatusExtension.fromString(job.status);
       if (status != RepairStatus.completed &&
           status != RepairStatus.readyForPickup &&
@@ -831,9 +846,10 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
         }
       }
 
-      // Update repair job with sale reference (store in notes for now)
+      // Update repair job with invoiceId to prevent duplicates
       await (update(repairJobs)..where((j) => j.id.equals(repairJobId))).write(
         RepairJobsCompanion(
+          invoiceId: Value(saleId),
           notes: Value('${job.notes ?? ''}${job.notes != null ? '\n' : ''}Invoice Generated: $invoiceNumber'),
           updatedAt: Value(now),
         ),
@@ -846,6 +862,7 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
         sale: sale,
         invoiceNumber: invoiceNumber,
         repairJobNumber: job.jobNumber,
+        wasExisting: false,
       );
     });
   }
@@ -950,10 +967,12 @@ class ServiceInvoiceResult {
   final Sale sale;
   final String invoiceNumber;
   final String repairJobNumber;
+  final bool wasExisting; // True if invoice already existed (not newly created)
 
   ServiceInvoiceResult({
     required this.sale,
     required this.invoiceNumber,
     required this.repairJobNumber,
+    this.wasExisting = false,
   });
 }

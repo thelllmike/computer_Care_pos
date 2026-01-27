@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/local/daos/sales_dao.dart';
 import '../../../data/local/database/app_database.dart';
 import '../core/database_provider.dart';
+import '../credits/credit_provider.dart';
 
 // Provider for all sales
 final salesProvider = StreamProvider<List<SaleWithCustomer>>((ref) {
@@ -27,6 +28,144 @@ final salesSummaryProvider = FutureProvider.family<SalesSummary, DateRange>((ref
   final db = ref.watch(databaseProvider);
   return db.salesDao.getSalesSummary(range.start, range.end);
 });
+
+// ==================== Sales History ====================
+
+// Sales history filter state
+class SalesHistoryFilterState {
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String? customerId;
+  final String? searchQuery;
+
+  SalesHistoryFilterState({
+    this.startDate,
+    this.endDate,
+    this.customerId,
+    this.searchQuery,
+  });
+
+  SalesHistoryFilterState copyWith({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? customerId,
+    String? searchQuery,
+    bool clearStartDate = false,
+    bool clearEndDate = false,
+    bool clearCustomer = false,
+    bool clearSearch = false,
+  }) {
+    return SalesHistoryFilterState(
+      startDate: clearStartDate ? null : (startDate ?? this.startDate),
+      endDate: clearEndDate ? null : (endDate ?? this.endDate),
+      customerId: clearCustomer ? null : (customerId ?? this.customerId),
+      searchQuery: clearSearch ? null : (searchQuery ?? this.searchQuery),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is SalesHistoryFilterState &&
+        other.startDate?.year == startDate?.year &&
+        other.startDate?.month == startDate?.month &&
+        other.startDate?.day == startDate?.day &&
+        other.endDate?.year == endDate?.year &&
+        other.endDate?.month == endDate?.month &&
+        other.endDate?.day == endDate?.day &&
+        other.customerId == customerId &&
+        other.searchQuery == searchQuery;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        startDate?.year,
+        startDate?.month,
+        startDate?.day,
+        endDate?.year,
+        endDate?.month,
+        endDate?.day,
+        customerId,
+        searchQuery,
+      );
+}
+
+// Sales history filter provider
+final salesHistoryFilterProvider =
+    StateProvider<SalesHistoryFilterState>((ref) {
+  final now = DateTime.now();
+  return SalesHistoryFilterState(
+    startDate: DateTime(now.year, now.month, 1),
+    endDate: now,
+  );
+});
+
+// Sales history provider
+final salesHistoryProvider =
+    FutureProvider<List<SaleWithDetails>>((ref) {
+  final db = ref.watch(databaseProvider);
+  final filter = ref.watch(salesHistoryFilterProvider);
+  return db.salesDao.getSalesHistory(
+    startDate: filter.startDate,
+    endDate: filter.endDate,
+    customerId: filter.customerId,
+    searchQuery: filter.searchQuery,
+  );
+});
+
+// Sales history summary provider
+final salesHistorySummaryProvider = FutureProvider<SalesHistorySummary>((ref) async {
+  final sales = await ref.watch(salesHistoryProvider.future);
+
+  double totalAmount = 0;
+  double totalPaid = 0;
+  int paidCount = 0;
+  int partialCount = 0;
+  int pendingCount = 0;
+
+  for (final sale in sales) {
+    totalAmount += sale.totalAmount;
+    totalPaid += sale.paidAmount;
+
+    if (sale.isFullyPaid) {
+      paidCount++;
+    } else if (sale.paidAmount > 0) {
+      partialCount++;
+    } else {
+      pendingCount++;
+    }
+  }
+
+  return SalesHistorySummary(
+    totalSales: sales.length,
+    totalAmount: totalAmount,
+    totalPaid: totalPaid,
+    totalOutstanding: totalAmount - totalPaid,
+    paidCount: paidCount,
+    partialCount: partialCount,
+    pendingCount: pendingCount,
+  );
+});
+
+class SalesHistorySummary {
+  final int totalSales;
+  final double totalAmount;
+  final double totalPaid;
+  final double totalOutstanding;
+  final int paidCount;
+  final int partialCount;
+  final int pendingCount;
+
+  SalesHistorySummary({
+    required this.totalSales,
+    required this.totalAmount,
+    required this.totalPaid,
+    required this.totalOutstanding,
+    required this.paidCount,
+    required this.partialCount,
+    required this.pendingCount,
+  });
+}
 
 // Date range helper
 class DateRange {
@@ -463,6 +602,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         taxAmount: cart.taxAmount,
         isCredit: cart.isCredit,
         payments: cart.isCredit ? null : payments,
+        creditAmount: cart.isCredit ? cart.total : 0,
         notes: cart.notes,
         createdBy: createdBy,
       );
@@ -473,7 +613,110 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       // Invalidate providers
       _ref.invalidate(salesProvider);
       _ref.invalidate(todaysSalesProvider);
+      _ref.invalidate(salesHistoryProvider);
       _ref.invalidate(salesSummaryProvider(DateRange.today()));
+
+      // If credit sale, invalidate credit providers
+      if (cart.isCredit) {
+        _ref.invalidate(creditSummaryProvider);
+        _ref.invalidate(outstandingCustomersProvider);
+      }
+
+      state = state.copyWith(
+        isProcessing: false,
+        isSuccess: true,
+        completedSale: sale,
+      );
+    } catch (e) {
+      state = state.copyWith(isProcessing: false, error: e.toString());
+    }
+  }
+
+  // Complete sale with mixed payment (partial cash + partial credit)
+  Future<void> completeSaleWithCredit({
+    required List<PaymentEntry> payments,
+    required double creditAmount,
+    String? createdBy,
+  }) async {
+    state = state.copyWith(isProcessing: true, error: null);
+
+    try {
+      final cart = _ref.read(cartProvider);
+
+      if (cart.isEmpty) {
+        state = state.copyWith(isProcessing: false, error: 'Cart is empty');
+        return;
+      }
+
+      // Validate serialized items have serials selected
+      for (final item in cart.items) {
+        if (item.trackSerials && item.selectedSerials.isEmpty) {
+          state = state.copyWith(
+            isProcessing: false,
+            error: 'Please select serial numbers for ${item.productName}',
+          );
+          return;
+        }
+      }
+
+      // Mixed payments require a customer for the credit portion
+      if (creditAmount > 0 && cart.customerId == null) {
+        state = state.copyWith(
+          isProcessing: false,
+          error: 'Credit sales require a customer',
+        );
+        return;
+      }
+
+      // Convert cart items to DAO format
+      final cartItems = cart.items.map((item) {
+        double actualUnitCost = item.unitCost;
+        if (item.trackSerials && item.selectedSerials.isNotEmpty) {
+          actualUnitCost = item.selectedSerials.fold(0.0, (sum, s) => sum + s.unitCost) /
+              item.selectedSerials.length;
+        }
+
+        return CartItem(
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          unitCost: actualUnitCost,
+          discountAmount: item.discountAmount,
+          serialNumbers: item.trackSerials
+              ? item.selectedSerials.map((s) => s.id).toList()
+              : null,
+          customerId: cart.customerId,
+        );
+      }).toList();
+
+      // Create sale with credit amount
+      final sale = await _db.salesDao.createSale(
+        cartItems: cartItems,
+        customerId: cart.customerId,
+        discountAmount: cart.discountAmount,
+        taxAmount: cart.taxAmount,
+        isCredit: creditAmount > 0, // Mark as credit if there's any credit portion
+        payments: payments.isNotEmpty ? payments : null,
+        creditAmount: creditAmount,
+        notes: cart.notes,
+        createdBy: createdBy,
+      );
+
+      // Clear cart
+      _ref.read(cartProvider.notifier).clear();
+
+      // Invalidate providers
+      _ref.invalidate(salesProvider);
+      _ref.invalidate(todaysSalesProvider);
+      _ref.invalidate(salesHistoryProvider);
+      _ref.invalidate(salesSummaryProvider(DateRange.today()));
+
+      // Invalidate credit providers since this has a credit component
+      if (creditAmount > 0) {
+        _ref.invalidate(creditSummaryProvider);
+        _ref.invalidate(outstandingCustomersProvider);
+      }
 
       state = state.copyWith(
         isProcessing: false,

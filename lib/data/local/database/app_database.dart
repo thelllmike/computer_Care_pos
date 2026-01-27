@@ -19,6 +19,8 @@ import '../daos/repair_dao.dart';
 import '../daos/sales_dao.dart';
 import '../daos/quotation_dao.dart';
 import '../daos/expense_dao.dart';
+import '../daos/stock_loss_dao.dart';
+import '../daos/warranty_claim_dao.dart';
 
 part 'app_database.g.dart';
 
@@ -54,6 +56,11 @@ part 'app_database.g.dart';
     RepairStatusHistory,
     // Expenses
     Expenses,
+    // Stock Losses
+    StockLosses,
+    // Warranty
+    WarrantyClaims,
+    WarrantyClaimHistory,
     // System
     AuditLogs,
     NumberSequences,
@@ -74,6 +81,8 @@ part 'app_database.g.dart';
     SalesDao,
     QuotationDao,
     ExpenseDao,
+    StockLossDao,
+    WarrantyClaimDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -82,7 +91,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -114,6 +123,69 @@ class AppDatabase extends _$AppDatabase {
               currentYear: DateTime.now().year,
             ),
             mode: InsertMode.insertOrIgnore,
+          );
+        }
+
+        // Migration from version 2 to 3
+        if (from < 3) {
+          final year = DateTime.now().year;
+
+          // Create stock losses table
+          await m.createTable(stockLosses);
+
+          // Create warranty claims tables
+          await m.createTable(warrantyClaims);
+          await m.createTable(warrantyClaimHistory);
+
+          // Add stock loss sequence
+          await into(numberSequences).insert(
+            NumberSequencesCompanion.insert(
+              id: 'seq_stock_loss',
+              sequenceType: 'STOCK_LOSS',
+              prefix: 'LOSS',
+              currentYear: year,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+
+          // Add warranty claim sequence
+          await into(numberSequences).insert(
+            NumberSequencesCompanion.insert(
+              id: 'seq_warranty_claim',
+              sequenceType: 'WARRANTY_CLAIM',
+              prefix: 'WC',
+              currentYear: year,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+
+          // Add sync metadata for new tables
+          await batch((batch) {
+            batch.insertAll(
+              syncMetadata,
+              [
+                SyncMetadataCompanion.insert(
+                  id: 'sync_stock_losses',
+                  syncTableName: 'stock_losses',
+                ),
+                SyncMetadataCompanion.insert(
+                  id: 'sync_warranty_claims',
+                  syncTableName: 'warranty_claims',
+                ),
+                SyncMetadataCompanion.insert(
+                  id: 'sync_warranty_claim_history',
+                  syncTableName: 'warranty_claim_history',
+                ),
+              ],
+            );
+          });
+        }
+
+        // Migration from version 3 to 4
+        if (from < 4) {
+          // Add invoice_id column to repair_jobs to track generated invoices
+          await customStatement(
+            'ALTER TABLE repair_jobs ADD COLUMN invoice_id TEXT',
           );
         }
       },
@@ -179,6 +251,18 @@ class AppDatabase extends _$AppDatabase {
           prefix: 'EXP',
           currentYear: year,
         ),
+        NumberSequencesCompanion.insert(
+          id: 'seq_stock_loss',
+          sequenceType: 'STOCK_LOSS',
+          prefix: 'LOSS',
+          currentYear: year,
+        ),
+        NumberSequencesCompanion.insert(
+          id: 'seq_warranty_claim',
+          sequenceType: 'WARRANTY_CLAIM',
+          prefix: 'WC',
+          currentYear: year,
+        ),
       ]);
 
       // Seed sync metadata for each table
@@ -191,6 +275,7 @@ class AppDatabase extends _$AppDatabase {
         'quotations', 'quotation_items',
         'payments', 'credit_transactions',
         'repair_jobs', 'repair_parts', 'repair_status_history',
+        'stock_losses', 'warranty_claims', 'warranty_claim_history',
         'audit_logs', 'number_sequences',
       ];
 

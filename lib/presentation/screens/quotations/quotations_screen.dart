@@ -326,28 +326,61 @@ class _QuotationFormDialogState extends ConsumerState<_QuotationFormDialog> {
                     children: [
                       Expanded(
                         child: InfoLabel(
-                          label: 'Customer (Optional)',
+                          label: 'Customer (Optional) - Search by name or phone',
                           child: customersAsync.when(
-                            data: (customers) => ComboBox<String?>(
-                              placeholder: const Text('Walk-in Customer'),
-                              value: formState.customerId,
-                              items: [
-                                const ComboBoxItem(value: null, child: Text('Walk-in Customer')),
-                                ...customers.map((c) => ComboBoxItem(
-                                      value: c.id,
-                                      child: Text(c.name),
-                                    )),
+                            data: (customers) => Row(
+                              children: [
+                                Expanded(
+                                  child: AutoSuggestBox<String>(
+                                    placeholder: 'Search by name or phone...',
+                                    items: [
+                                      AutoSuggestBoxItem<String>(
+                                        value: '',
+                                        label: 'Walk-in Customer',
+                                      ),
+                                      ...customers.map((c) => AutoSuggestBoxItem<String>(
+                                            value: c.id,
+                                            label: '${c.name} - ${c.phone ?? ''} - ${c.code}',
+                                          )),
+                                    ],
+                                    onSelected: (item) {
+                                      if (item.value == null || item.value!.isEmpty) {
+                                        ref.read(quotationFormProvider.notifier).setCustomer(null, null);
+                                      } else {
+                                        final customer = customers.firstWhere((c) => c.id == item.value);
+                                        ref.read(quotationFormProvider.notifier).setCustomer(
+                                              customer.id,
+                                              customer.name,
+                                            );
+                                      }
+                                    },
+                                  ),
+                                ),
+                                if (formState.customerName != null) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          formState.customerName!,
+                                          style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        GestureDetector(
+                                          onTap: () => ref.read(quotationFormProvider.notifier).setCustomer(null, null),
+                                          child: Icon(FluentIcons.cancel, size: 12, color: AppTheme.primaryColor),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
-                              onChanged: (value) {
-                                final customer = value != null
-                                    ? customers.firstWhere((c) => c.id == value)
-                                    : null;
-                                ref.read(quotationFormProvider.notifier).setCustomer(
-                                      value,
-                                      customer?.name,
-                                    );
-                              },
-                              isExpanded: true,
                             ),
                             loading: () => const ProgressRing(),
                             error: (e, _) => Text('Error: $e'),

@@ -1,6 +1,7 @@
 export 'category_dao.dart';
 export 'credit_dao.dart';
 export 'customer_dao.dart';
+export 'expense_dao.dart';
 export 'grn_dao.dart';
 export 'inventory_dao.dart';
 export 'product_dao.dart';
@@ -8,4 +9,6 @@ export 'purchase_order_dao.dart';
 export 'quotation_dao.dart';
 export 'repair_dao.dart';
 export 'sales_dao.dart';
+export 'stock_loss_dao.dart';
 export 'supplier_dao.dart';
+export 'warranty_claim_dao.dart';

@@ -5,7 +5,6 @@ import '../../../core/enums/product_type.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/local/database/app_database.dart';
-import '../../providers/inventory/category_provider.dart';
 import '../../providers/inventory/product_provider.dart';
 
 final _searchQueryProvider = StateProvider<String>((ref) => '');
@@ -21,7 +20,6 @@ class ProductsScreen extends ConsumerWidget {
     final selectedType = ref.watch(_selectedTypeProvider);
     final selectedCategory = ref.watch(_selectedCategoryProvider);
     final productsAsync = ref.watch(productsProvider);
-    final categoriesAsync = ref.watch(categoriesProvider);
 
     return ScaffoldPage(
       header: PageHeader(
@@ -58,23 +56,15 @@ class ProductsScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                categoriesAsync.when(
-                  data: (categories) => ComboBox<String?>(
-                    value: selectedCategory,
-                    placeholder: const Text('All Categories'),
-                    items: [
-                      const ComboBoxItem(value: null, child: Text('All Categories')),
-                      ...categories.map((c) => ComboBoxItem(
-                            value: c.id,
-                            child: Text(c.name),
-                          )),
-                    ],
+                SizedBox(
+                  width: 180,
+                  child: TextBox(
+                    placeholder: 'Filter by category...',
                     onChanged: (value) {
-                      ref.read(_selectedCategoryProvider.notifier).state = value;
+                      ref.read(_selectedCategoryProvider.notifier).state =
+                          value.isEmpty ? null : value;
                     },
                   ),
-                  loading: () => const SizedBox(width: 150),
-                  error: (_, __) => const SizedBox(width: 150),
                 ),
                 const SizedBox(width: 16),
                 ComboBox<ProductType?>(
@@ -112,7 +102,9 @@ class ProductsScreen extends ConsumerWidget {
                     filtered = filtered.where((p) => p.productType == selectedType.code).toList();
                   }
                   if (selectedCategory != null) {
-                    filtered = filtered.where((p) => p.categoryId == selectedCategory).toList();
+                    final categoryQuery = selectedCategory.toLowerCase();
+                    filtered = filtered.where((p) =>
+                        p.categoryId?.toLowerCase().contains(categoryQuery) ?? false).toList();
                   }
 
                   if (filtered.isEmpty) {
@@ -266,10 +258,10 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
   late final TextEditingController _reorderLevelController;
   late final TextEditingController _brandController;
   late final TextEditingController _modelController;
+  late final TextEditingController _categoryController;
 
   ProductType _productType = ProductType.accessory;
   bool _requiresSerial = false;
-  String? _categoryId;
 
   bool get isEditing => widget.product != null;
 
@@ -285,11 +277,11 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     _reorderLevelController = TextEditingController(text: p?.reorderLevel.toString() ?? '5');
     _brandController = TextEditingController(text: p?.brand ?? '');
     _modelController = TextEditingController(text: p?.model ?? '');
+    _categoryController = TextEditingController(text: p?.categoryId ?? '');
 
     if (p != null) {
       _productType = ProductTypeExtension.fromString(p.productType);
       _requiresSerial = p.requiresSerial;
-      _categoryId = p.categoryId;
     }
   }
 
@@ -303,13 +295,13 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     _reorderLevelController.dispose();
     _brandController.dispose();
     _modelController.dispose();
+    _categoryController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final formState = ref.watch(productFormProvider);
-    final categoriesAsync = ref.watch(categoriesProvider);
 
     ref.listen<ProductFormState>(productFormProvider, (previous, next) {
       if (next.isSuccess) {
@@ -377,7 +369,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                           if (value != null) {
                             setState(() {
                               _productType = value;
-                              if (value == ProductType.laptop) {
+                              if (value.requiresSerial) {
                                 _requiresSerial = true;
                               }
                             });
@@ -390,24 +382,9 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                   Expanded(
                     child: InfoLabel(
                       label: 'Category',
-                      child: categoriesAsync.when(
-                        data: (categories) => ComboBox<String?>(
-                          value: _categoryId,
-                          isExpanded: true,
-                          placeholder: const Text('Select category'),
-                          items: [
-                            const ComboBoxItem(value: null, child: Text('None')),
-                            ...categories.map((c) => ComboBoxItem(
-                                  value: c.id,
-                                  child: Text(c.name),
-                                )),
-                          ],
-                          onChanged: (value) {
-                            setState(() => _categoryId = value);
-                          },
-                        ),
-                        loading: () => const ProgressRing(),
-                        error: (_, __) => const Text('Error loading categories'),
+                      child: TextBox(
+                        controller: _categoryController,
+                        placeholder: 'Enter category name',
                       ),
                     ),
                   ),
@@ -478,7 +455,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
               Checkbox(
                 checked: _requiresSerial,
                 content: const Text('Requires Serial Number'),
-                onChanged: _productType == ProductType.laptop
+                onChanged: _productType.requiresSerial
                     ? null
                     : (value) => setState(() => _requiresSerial = value ?? false),
               ),
@@ -530,13 +507,15 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     final warrantyMonths = int.tryParse(_warrantyController.text) ?? 0;
     final reorderLevel = int.tryParse(_reorderLevelController.text) ?? 5;
 
+    final categoryId = _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim();
+
     if (isEditing) {
       ref.read(productFormProvider.notifier).updateProduct(
             id: widget.product!.id,
             name: _nameController.text.trim(),
             barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
             description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-            categoryId: _categoryId,
+            categoryId: categoryId,
             productType: _productType,
             requiresSerial: _requiresSerial,
             sellingPrice: sellingPrice,
@@ -550,7 +529,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
             name: _nameController.text.trim(),
             barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
             description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-            categoryId: _categoryId,
+            categoryId: categoryId,
             productType: _productType,
             requiresSerial: _requiresSerial,
             sellingPrice: sellingPrice,
