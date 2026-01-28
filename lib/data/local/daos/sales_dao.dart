@@ -485,6 +485,7 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
     double totalCost = 0;
     double totalProfit = 0;
     double totalCredit = 0;
+    double laborIncome = 0;
 
     for (final sale in allSales) {
       totalRevenue += sale.totalAmount;
@@ -492,6 +493,14 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
       totalProfit += sale.grossProfit;
       if (sale.isCredit) {
         totalCredit += sale.totalAmount - sale.paidAmount;
+      }
+
+      // Get labor income from sale items (SERVICE_LABOR items from repairs)
+      final laborItems = await (select(saleItems)
+            ..where((i) => i.saleId.equals(sale.id) & i.productId.equals('SERVICE_LABOR')))
+          .get();
+      for (final item in laborItems) {
+        laborIncome += item.totalPrice;
       }
     }
 
@@ -501,6 +510,7 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
       totalCost: totalCost,
       totalProfit: totalProfit,
       totalCreditOutstanding: totalCredit,
+      laborIncome: laborIncome,
     );
   }
 }
@@ -614,6 +624,7 @@ class SalesSummary {
   final double totalCost;
   final double totalProfit;
   final double totalCreditOutstanding;
+  final double laborIncome; // Repair labor/service income
 
   SalesSummary({
     required this.totalSales,
@@ -621,9 +632,11 @@ class SalesSummary {
     required this.totalCost,
     required this.totalProfit,
     required this.totalCreditOutstanding,
+    this.laborIncome = 0,
   });
 
   double get profitMargin => totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+  double get productRevenue => totalRevenue - laborIncome; // Revenue from product sales only
 }
 
 class SaleWithDetails {

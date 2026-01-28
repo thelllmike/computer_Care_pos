@@ -389,7 +389,10 @@ class _ProfitReportContentState extends ConsumerState<_ProfitReportContent> {
                               // Revenue Section
                               Text('REVENUE', style: TextStyle(fontSize: 12, color: Colors.grey[100], fontWeight: FontWeight.w600)),
                               const SizedBox(height: 8),
-                              _ProfitRow(label: 'Sales Revenue', value: summary.totalRevenue, isPositive: true),
+                              _ProfitRow(label: 'Product Sales', value: summary.productRevenue, isPositive: true),
+                              if (summary.laborIncome > 0)
+                                _ProfitRow(label: 'Repair Labor/Service', value: summary.laborIncome, isPositive: true),
+                              _ProfitRow(label: 'Total Revenue', value: summary.totalRevenue, isPositive: true, isBold: true),
                               const Divider(),
 
                               // Cost of Goods Section
@@ -506,7 +509,10 @@ class _ProfitReportContentState extends ConsumerState<_ProfitReportContent> {
                       children: [
                         Text('Profit & Loss Summary', style: FluentTheme.of(context).typography.subtitle),
                         const SizedBox(height: 24),
-                        _ProfitRow(label: 'Revenue', value: summary.totalRevenue, isPositive: true),
+                        _ProfitRow(label: 'Product Sales', value: summary.productRevenue, isPositive: true),
+                        if (summary.laborIncome > 0)
+                          _ProfitRow(label: 'Repair Labor/Service', value: summary.laborIncome, isPositive: true),
+                        _ProfitRow(label: 'Total Revenue', value: summary.totalRevenue, isPositive: true, isBold: true),
                         const Divider(),
                         _ProfitRow(label: 'Cost of Goods Sold', value: summary.totalCost, isPositive: false),
                         const Divider(),
@@ -551,7 +557,10 @@ class _ProfitReportContentState extends ConsumerState<_ProfitReportContent> {
           children: [
             Text('Profit & Loss Summary', style: FluentTheme.of(context).typography.subtitle),
             const SizedBox(height: 24),
-            _ProfitRow(label: 'Sales Revenue', value: summary.totalRevenue, isPositive: true),
+            _ProfitRow(label: 'Product Sales', value: summary.productRevenue, isPositive: true),
+            if (summary.laborIncome > 0)
+              _ProfitRow(label: 'Repair Labor/Service', value: summary.laborIncome, isPositive: true),
+            _ProfitRow(label: 'Total Revenue', value: summary.totalRevenue, isPositive: true, isBold: true),
             const Divider(),
             _ProfitRow(label: 'Cost of Goods Sold', value: summary.totalCost, isPositive: false),
             const Divider(),
