@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/formatters.dart';
@@ -681,4 +686,356 @@ class ReceiptPrinter {
       ),
     );
   }
+
+  // ==================== WhatsApp Sharing ====================
+
+  /// Generates quotation PDF and shares directly to WhatsApp
+  /// Returns result with file path and status
+  static Future<WhatsAppShareResult> shareQuotationToWhatsApp({
+    required QuotationDetail detail,
+    required String companyName,
+    required String companyAddress,
+    required String companyPhone,
+    String? companyEmail,
+    String? customerPhone,
+  }) async {
+    try {
+      // Generate PDF bytes
+      final pdfBytes = await _generateQuotationPdfBytes(
+        detail: detail,
+        companyName: companyName,
+        companyAddress: companyAddress,
+        companyPhone: companyPhone,
+        companyEmail: companyEmail,
+      );
+
+      // Save to Documents folder for easy access
+      final docsDir = await getApplicationDocumentsDirectory();
+      final quotationsDir = Directory('${docsDir.path}/Quotations');
+      if (!await quotationsDir.exists()) {
+        await quotationsDir.create(recursive: true);
+      }
+
+      final fileName = 'Quotation_${detail.quotation.quotationNumber}.pdf';
+      final filePath = '${quotationsDir.path}/$fileName';
+      final file = File(filePath);
+      await file.writeAsBytes(pdfBytes);
+
+      // Format phone number for WhatsApp (remove spaces, dashes, and ensure country code)
+      String? formattedPhone;
+      if (customerPhone != null && customerPhone.isNotEmpty) {
+        formattedPhone = customerPhone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+        // If doesn't start with +, assume Sri Lanka (+94) and handle leading 0
+        if (!formattedPhone.startsWith('+')) {
+          if (formattedPhone.startsWith('0')) {
+            formattedPhone = '94${formattedPhone.substring(1)}';
+          } else if (!formattedPhone.startsWith('94')) {
+            formattedPhone = '94$formattedPhone';
+          }
+        } else {
+          formattedPhone = formattedPhone.substring(1); // Remove + for wa.me
+        }
+      }
+
+      // Create message text (use simple text without special currency symbols)
+      final totalFormatted = detail.quotation.totalAmount.toStringAsFixed(2);
+      final message = 'Hello! Please find attached the quotation '
+          '${detail.quotation.quotationNumber} for Rs. $totalFormatted. '
+          '${detail.quotation.validUntil != null ? 'Valid until ${Formatters.date(detail.quotation.validUntil!)}. ' : ''}'
+          'Thank you for your interest!';
+
+      // First open WhatsApp with the customer's number (so it's ready)
+      bool whatsAppOpened = false;
+      if (formattedPhone != null) {
+        final whatsappUrl = Uri.parse(
+          'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}',
+        );
+        if (await canLaunchUrl(whatsappUrl)) {
+          await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+          whatsAppOpened = true;
+        }
+      }
+
+      // Small delay to let WhatsApp open first
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Use native share dialog to share the PDF directly
+      // On Windows, this opens the Share UI where user can select WhatsApp
+      final xFile = XFile(filePath);
+      final shareResult = await Share.shareXFiles(
+        [xFile],
+        text: message,
+        subject: 'Quotation ${detail.quotation.quotationNumber}',
+      );
+
+      return WhatsAppShareResult(
+        success: true,
+        filePath: filePath,
+        whatsAppOpened: whatsAppOpened,
+        phoneNumber: formattedPhone,
+        shareStatus: shareResult.status.name,
+      );
+    } catch (e) {
+      return WhatsAppShareResult(
+        success: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  /// Generates quotation PDF bytes (A4 format) without showing print dialog
+  static Future<List<int>> _generateQuotationPdfBytes({
+    required QuotationDetail detail,
+    required String companyName,
+    required String companyAddress,
+    required String companyPhone,
+    String? companyEmail,
+  }) async {
+    final pdf = pw.Document();
+    final quotation = detail.quotation;
+    final customer = detail.customer;
+    final items = detail.items;
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        companyName,
+                        style: pw.TextStyle(
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(companyAddress),
+                      pw.Text('Tel: $companyPhone'),
+                      if (companyEmail != null) pw.Text('Email: $companyEmail'),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'QUOTATION',
+                        style: pw.TextStyle(
+                          fontSize: 28,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue700,
+                        ),
+                      ),
+                      pw.Text(
+                        quotation.quotationNumber,
+                        style: const pw.TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 30),
+
+              // Quotation details and customer info
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('To:',
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(height: 4),
+                        pw.Text(customer?.name ?? 'Valued Customer'),
+                        if (customer?.address != null) pw.Text(customer!.address!),
+                        if (customer?.phone != null) pw.Text('Tel: ${customer!.phone}'),
+                        if (customer?.email != null) pw.Text('Email: ${customer!.email}'),
+                      ],
+                    ),
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('Date: ${Formatters.date(quotation.createdAt)}'),
+                      pw.SizedBox(height: 4),
+                      if (quotation.validUntil != null)
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.blue50,
+                            borderRadius: pw.BorderRadius.circular(4),
+                          ),
+                          child: pw.Text(
+                            'Valid Until: ${Formatters.date(quotation.validUntil!)}',
+                            style: const pw.TextStyle(color: PdfColors.blue900),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 30),
+
+              // Items table
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(0.5),
+                  1: const pw.FlexColumnWidth(3),
+                  2: const pw.FlexColumnWidth(1),
+                  3: const pw.FlexColumnWidth(1.5),
+                  4: const pw.FlexColumnWidth(1),
+                  5: const pw.FlexColumnWidth(1.5),
+                },
+                children: [
+                  // Header row
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.blue50),
+                    children: [
+                      _tableCell('#', isHeader: true),
+                      _tableCell('Description', isHeader: true),
+                      _tableCell('Qty', isHeader: true),
+                      _tableCell('Unit Price', isHeader: true),
+                      _tableCell('Discount', isHeader: true),
+                      _tableCell('Total', isHeader: true),
+                    ],
+                  ),
+                  // Item rows
+                  ...items.asMap().entries.map((entry) {
+                    final idx = entry.key + 1;
+                    final item = entry.value;
+                    final lineTotal =
+                        (item.item.unitPrice * item.item.quantity) - item.item.discountAmount;
+                    return pw.TableRow(
+                      children: [
+                        _tableCell(idx.toString()),
+                        _tableCell('${item.product.name}\n${item.product.code}'),
+                        _tableCell(item.item.quantity.toString()),
+                        _tableCell(Formatters.currency(item.item.unitPrice)),
+                        _tableCell(item.item.discountAmount > 0
+                            ? Formatters.currency(item.item.discountAmount)
+                            : '-'),
+                        _tableCell(Formatters.currency(lineTotal)),
+                      ],
+                    );
+                  }),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+
+              // Totals
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.end,
+                children: [
+                  pw.SizedBox(
+                    width: 220,
+                    child: pw.Column(
+                      children: [
+                        _quotationTotalRow('Subtotal', quotation.subtotal),
+                        if (quotation.discountAmount > 0)
+                          _quotationTotalRow('Discount', -quotation.discountAmount),
+                        if (quotation.taxAmount > 0)
+                          _quotationTotalRow('Tax', quotation.taxAmount),
+                        pw.Divider(color: PdfColors.blue300),
+                        _quotationTotalRow('Total', quotation.totalAmount, isTotal: true),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              pw.SizedBox(height: 30),
+
+              // Notes
+              if (quotation.notes != null && quotation.notes!.isNotEmpty) ...[
+                pw.Text(
+                  'Notes:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.Text(quotation.notes!),
+                ),
+                pw.SizedBox(height: 20),
+              ],
+
+              // Terms and conditions
+              pw.Text(
+                'Terms & Conditions:',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                '1. Prices are valid until the date mentioned above.\n'
+                '2. Prices are subject to change without prior notice.\n'
+                '3. This quotation does not constitute a binding contract.',
+                style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+              ),
+
+              pw.Spacer(),
+
+              // Footer
+              pw.Divider(color: PdfColors.grey300),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  'Thank you for your interest in our products!',
+                  style: const pw.TextStyle(fontSize: 12),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Center(
+                child: pw.Text(
+                  AppConstants.poweredBy,
+                  style: const pw.TextStyle(
+                    fontSize: 8,
+                    color: PdfColors.grey500,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+}
+
+/// Result of WhatsApp sharing operation
+class WhatsAppShareResult {
+  final bool success;
+  final String? filePath;
+  final bool whatsAppOpened;
+  final String? phoneNumber;
+  final String? error;
+  final String? shareStatus;
+
+  WhatsAppShareResult({
+    required this.success,
+    this.filePath,
+    this.whatsAppOpened = false,
+    this.phoneNumber,
+    this.error,
+    this.shareStatus,
+  });
 }

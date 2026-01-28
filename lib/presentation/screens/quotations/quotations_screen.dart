@@ -809,7 +809,7 @@ class _QuotationDetailDialog extends ConsumerWidget {
           child: const Text('Close'),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        if (detailAsync.valueOrNull != null)
+        if (detailAsync.valueOrNull != null) ...[
           Button(
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -831,6 +831,73 @@ class _QuotationDetailDialog extends ConsumerWidget {
               );
             },
           ),
+          Tooltip(
+            message: 'Share to WhatsApp',
+            child: FilledButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all(const Color(0xFF25D366)), // WhatsApp green
+              ),
+              child: const Icon(FluentIcons.share, size: 16),
+              onPressed: () async {
+                final detail = detailAsync.valueOrNull!;
+                final companySettings = await ref.read(companySettingsProvider.future);
+
+                // Show loading
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (ctx) => const ContentDialog(
+                    constraints: BoxConstraints(maxWidth: 250),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ProgressRing(),
+                        SizedBox(height: 16),
+                        Text('Generating PDF & opening WhatsApp...'),
+                      ],
+                    ),
+                  ),
+                );
+
+                final result = await ReceiptPrinter.shareQuotationToWhatsApp(
+                  detail: detail,
+                  companyName: companySettings.name.isNotEmpty ? companySettings.name : 'Your Company',
+                  companyAddress: companySettings.address.isNotEmpty ? companySettings.address : '',
+                  companyPhone: companySettings.phone.isNotEmpty ? companySettings.phone : '',
+                  companyEmail: companySettings.email.isNotEmpty ? companySettings.email : '',
+                  customerPhone: detail.customer?.phone,
+                );
+
+                // Close loading dialog
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+
+                if (context.mounted) {
+                  if (result.success) {
+                    displayInfoBar(context, builder: (ctx, close) {
+                      return InfoBar(
+                        title: const Text('PDF Ready'),
+                        content: Text('PDF saved: ${result.filePath}\nWhatsApp opened with customer number.'),
+                        severity: InfoBarSeverity.success,
+                        action: IconButton(icon: const Icon(FluentIcons.clear), onPressed: close),
+                      );
+                    });
+                  } else {
+                    displayInfoBar(context, builder: (ctx, close) {
+                      return InfoBar(
+                        title: const Text('Error'),
+                        content: Text(result.error ?? 'Failed to share quotation'),
+                        severity: InfoBarSeverity.error,
+                        action: IconButton(icon: const Icon(FluentIcons.clear), onPressed: close),
+                      );
+                    });
+                  }
+                }
+              },
+            ),
+          ),
+        ],
         if (detailAsync.valueOrNull?.canConvert ?? false) ...[
           FilledButton(
             child: const Text('Convert to Invoice'),
