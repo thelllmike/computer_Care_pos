@@ -681,12 +681,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         )).toList(),
       );
 
-      await ReceiptPrinter.printThermalReceipt(
+      await ReceiptPrinter.printA4Invoice(
         sale: entitySale,
         companyName: companySettings.name.isNotEmpty ? companySettings.name : 'M-TRONIC',
         companyAddress: companySettings.address.isNotEmpty ? companySettings.address : '',
         companyPhone: companySettings.phone.isNotEmpty ? companySettings.phone : '',
         customerName: customerName ?? saleDetail.customer?.name,
+        customerPhone: saleDetail.customer?.phone,
+        customerAddress: saleDetail.customer?.address,
+        customerEmail: saleDetail.customer?.email,
       );
     } catch (e) {
       if (mounted) {

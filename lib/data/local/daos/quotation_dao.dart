@@ -380,14 +380,22 @@ class QuotationDao extends DatabaseAccessor<AppDatabase> with _$QuotationDaoMixi
         ));
       }
 
+      // Calculate credit amount for credit sales
+      final totalAmount = detail.quotation.totalAmount;
+      final paidViaPayments = (!isCredit && payments != null)
+          ? payments.fold(0.0, (double sum, PaymentEntry p) => sum + p.amount)
+          : 0.0;
+      final creditAmt = isCredit ? totalAmount : (totalAmount - paidViaPayments).clamp(0.0, totalAmount);
+
       // Create sale using SalesDao
       final sale = await db.salesDao.createSale(
         cartItems: cartItems,
         customerId: detail.quotation.customerId,
         discountAmount: detail.quotation.discountAmount,
         taxAmount: detail.quotation.taxAmount,
-        isCredit: isCredit,
+        isCredit: isCredit || creditAmt > 0,
         payments: isCredit ? null : payments,
+        creditAmount: creditAmt > 0 ? creditAmt : 0,
         notes: 'Converted from quotation ${detail.quotation.quotationNumber}',
         createdBy: createdBy,
       );
