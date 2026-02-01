@@ -6,8 +6,8 @@ import 'presentation/providers/auth/auth_provider.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/shell/navigation_shell.dart';
 
-class LaptopShopPosApp extends ConsumerWidget {
-  const LaptopShopPosApp({super.key});
+class CpPosApp extends ConsumerWidget {
+  const CpPosApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

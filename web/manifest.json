@@ -1,6 +1,6 @@
 {
-    "name": "laptop_shop_pos",
-    "short_name": "laptop_shop_pos",
+    "name": "CP POS",
+    "short_name": "CP POS",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

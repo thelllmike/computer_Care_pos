@@ -1,5 +1,5 @@
-name: laptop_shop_pos
-description: Laptop & Accessories Point of Sale System with offline-first architecture.
+name: cp_pos
+description: CP POS - Point of Sale System by Clever Project.
 publish_to: 'none'
 version: 1.0.0+1
 
