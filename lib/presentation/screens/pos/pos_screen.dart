@@ -943,7 +943,7 @@ class _CartSummaryRow extends StatelessWidget {
 }
 
 // Serial Selection Dialog
-class _SerialSelectionDialog extends ConsumerWidget {
+class _SerialSelectionDialog extends ConsumerStatefulWidget {
   final String productId;
   final String productName;
   final List<SelectedSerial> selectedSerials;
@@ -959,24 +959,38 @@ class _SerialSelectionDialog extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final availableSerialsAsync = ref.watch(availableSerialNumbersProvider(productId));
+  ConsumerState<_SerialSelectionDialog> createState() => _SerialSelectionDialogState();
+}
+
+class _SerialSelectionDialogState extends ConsumerState<_SerialSelectionDialog> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final availableSerialsAsync = ref.watch(availableSerialNumbersProvider(widget.productId));
 
     return ContentDialog(
-      title: Text('Select Serial Numbers - $productName'),
+      title: Text('Select Serial Numbers - ${widget.productName}'),
       constraints: const BoxConstraints(maxWidth: 500, maxHeight: 500),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (selectedSerials.isNotEmpty) ...[
-            Text('Selected (${selectedSerials.length}):',
+          if (widget.selectedSerials.isNotEmpty) ...[
+            Text('Selected (${widget.selectedSerials.length}):',
                  style: FluentTheme.of(context).typography.bodyStrong),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: selectedSerials.map((s) => Button(
+              children: widget.selectedSerials.map((s) => Button(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -985,28 +999,56 @@ class _SerialSelectionDialog extends ConsumerWidget {
                         const Icon(FluentIcons.chrome_close, size: 12),
                       ],
                     ),
-                    onPressed: () => onSerialRemoved(s.id),
+                    onPressed: () => widget.onSerialRemoved(s.id),
                   )).toList(),
             ),
             const Divider(),
           ],
           Text('Available:', style: FluentTheme.of(context).typography.bodyStrong),
           const SizedBox(height: 8),
+          TextBox(
+            controller: _searchController,
+            placeholder: 'Search serial numbers...',
+            prefix: const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Icon(FluentIcons.search, size: 16),
+            ),
+            suffix: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(FluentIcons.chrome_close, size: 12),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                  )
+                : null,
+            onChanged: (value) => setState(() => _searchQuery = value),
+          ),
+          const SizedBox(height: 8),
           Expanded(
             child: availableSerialsAsync.when(
               data: (serials) {
                 final available = serials.where((s) =>
-                    !selectedSerials.any((sel) => sel.id == s.id)).toList();
+                    !widget.selectedSerials.any((sel) => sel.id == s.id)).toList();
+
+                final filtered = _searchQuery.isEmpty
+                    ? available
+                    : available.where((s) =>
+                        s.serialNumber.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
 
                 if (available.isEmpty) {
                   return const Center(child: Text('No available serial numbers'));
                 }
 
+                if (filtered.isEmpty) {
+                  return const Center(child: Text('No serial numbers matching search'));
+                }
+
                 return ListView.builder(
                   shrinkWrap: true,
-                  itemCount: available.length,
+                  itemCount: filtered.length,
                   itemBuilder: (context, index) {
-                    final serial = available[index];
+                    final serial = filtered[index];
                     return ListTile(
                       title: Text(
                         serial.serialNumber,
@@ -1016,7 +1058,7 @@ class _SerialSelectionDialog extends ConsumerWidget {
                       trailing: FilledButton(
                         child: const Text('Add'),
                         onPressed: () {
-                          onSerialAdded(SelectedSerial(
+                          widget.onSerialAdded(SelectedSerial(
                             id: serial.id,
                             serialNumber: serial.serialNumber,
                             unitCost: serial.unitCost,
