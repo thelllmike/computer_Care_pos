@@ -201,7 +201,27 @@ class InvoiceScreen extends StatelessWidget {
                     _buildDataTable(),
                     const SizedBox(height: 28),
                     _buildTotals(),
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 32),
+                    // Authorized Signature — right-aligned
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(width: 180, height: 0.5, color: _grey),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Authorized Signature',
+                            style: TextStyle(
+                              color: _greyLight,
+                              fontSize: 10,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                     _buildFooter(),
                   ],
                 ),
@@ -226,8 +246,8 @@ class InvoiceScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: 74,
+              height: 74,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: _accentRed, width: 2.5),
@@ -238,7 +258,7 @@ class InvoiceScreen extends StatelessWidget {
                   data.companyShortName,
                   style: const TextStyle(
                     color: _accentRed,
-                    fontSize: 22,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
                   ),
@@ -254,7 +274,7 @@ class InvoiceScreen extends StatelessWidget {
                   data.companyName,
                   style: const TextStyle(
                     color: _white,
-                    fontSize: 20,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.5,
                   ),
@@ -262,12 +282,12 @@ class InvoiceScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   data.companyAddress,
-                  style: const TextStyle(color: _greyLight, fontSize: 11),
+                  style: const TextStyle(color: _greyLight, fontSize: 13),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   data.companyPhone,
-                  style: const TextStyle(color: _greyLight, fontSize: 11),
+                  style: const TextStyle(color: _white, fontSize: 13),
                 ),
               ],
             ),
@@ -325,7 +345,7 @@ class InvoiceScreen extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  data.customerName,
+                  data.customerName.toUpperCase(),
                   style: const TextStyle(
                     color: _white,
                     fontSize: 18,

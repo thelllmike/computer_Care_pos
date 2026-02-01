@@ -41,7 +41,7 @@ class ReceiptPrinter {
               pw.Text(
                 companyName,
                 style: pw.TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
@@ -596,7 +596,7 @@ class ReceiptPrinter {
         : (companyName.length > 3 ? companyName.substring(0, 3).toUpperCase() : companyName.toUpperCase());
 
     return pw.Container(
-      height: 140,
+      height: 150,
       padding: const pw.EdgeInsets.only(left: 40, top: 24, right: 40),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -608,8 +608,8 @@ class ReceiptPrinter {
             children: [
               // Circular logo
               pw.Container(
-                width: 55,
-                height: 55,
+                width: 65,
+                height: 65,
                 decoration: pw.BoxDecoration(
                   shape: pw.BoxShape.circle,
                   border: pw.Border.all(color: _primaryBlue, width: 2),
@@ -619,12 +619,12 @@ class ReceiptPrinter {
                   child: logoImage != null
                       ? pw.ClipOval(
                           child: pw.Image(logoImage,
-                              fit: pw.BoxFit.cover, width: 50, height: 50))
+                              fit: pw.BoxFit.cover, width: 60, height: 60))
                       : pw.Text(
                           shortName,
                           style: pw.TextStyle(
                             color: _primaryBlue,
-                            fontSize: 18,
+                            fontSize: 22,
                             fontWeight: pw.FontWeight.bold,
                           ),
                         ),
@@ -636,7 +636,7 @@ class ReceiptPrinter {
                 companyName.toUpperCase(),
                 style: pw.TextStyle(
                   color: _white,
-                  fontSize: 11,
+                  fontSize: 14,
                   fontWeight: pw.FontWeight.bold,
                   letterSpacing: 1.2,
                 ),
@@ -1411,7 +1411,7 @@ class ProfessionalInvoiceGenerator {
       companyEmail: companyEmail,
       companyWebsite: companyWebsite,
       companyWhatsApp: companyWhatsApp,
-      customerName: customerName ?? 'Walk-in Customer',
+      customerName: (customerName ?? 'Walk-in Customer').toUpperCase(),
       customerAddress: customerAddress,
       customerPhone: customerPhone,
       customerEmail: customerEmail,
@@ -1460,6 +1460,23 @@ class ProfessionalInvoiceGenerator {
           pw.SizedBox(height: 16),
           _totals(d),
           pw.Spacer(),
+          // Authorized Signature — right-aligned above footer
+          pw.Align(
+            alignment: pw.Alignment.bottomRight,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Container(width: 150, height: 0.5, color: _grey),
+                pw.SizedBox(height: 4),
+                pw.Text('Authorized Signature',
+                    style: pw.TextStyle(
+                        color: _greyLight,
+                        fontSize: 8,
+                        fontStyle: pw.FontStyle.italic)),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 14),
           _footer(d, images),
         ],
       ),
@@ -1476,16 +1493,16 @@ class ProfessionalInvoiceGenerator {
     if (images.logo != null) {
       logoContent = pw.ClipOval(
           child: pw.Image(images.logo!,
-              fit: pw.BoxFit.cover, width: 55, height: 55));
+              fit: pw.BoxFit.cover, width: 65, height: 65));
     } else if (d.logoBytes != null) {
       logoContent = pw.ClipOval(
           child: pw.Image(pw.MemoryImage(d.logoBytes!),
-              fit: pw.BoxFit.cover, width: 55, height: 55));
+              fit: pw.BoxFit.cover, width: 65, height: 65));
     } else {
       logoContent = pw.Text(d.companyShortName,
           style: pw.TextStyle(
               color: _accentBlue,
-              fontSize: 18,
+              fontSize: 22,
               fontWeight: pw.FontWeight.bold));
     }
 
@@ -1494,8 +1511,8 @@ class ProfessionalInvoiceGenerator {
       children: [
         // Circular logo
         pw.Container(
-          width: 60,
-          height: 60,
+          width: 70,
+          height: 70,
           decoration: pw.BoxDecoration(
             shape: pw.BoxShape.circle,
             border: pw.Border.all(color: _accentBlue, width: 2.5),
@@ -1503,24 +1520,24 @@ class ProfessionalInvoiceGenerator {
           ),
           child: pw.Center(child: logoContent),
         ),
-        pw.SizedBox(width: 12),
+        pw.SizedBox(width: 14),
         // Company name, address & phone
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.SizedBox(height: 8),
+            pw.SizedBox(height: 6),
             pw.Text(d.companyName.toUpperCase(),
                 style: pw.TextStyle(
                     color: _w,
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
                     letterSpacing: 1.5)),
-            pw.SizedBox(height: 2),
+            pw.SizedBox(height: 3),
             pw.Text(d.companyAddress,
-                style: pw.TextStyle(color: _grey, fontSize: 8)),
+                style: pw.TextStyle(color: _greyLight, fontSize: 10)),
             pw.SizedBox(height: 2),
             pw.Text(d.companyPhone,
-                style: pw.TextStyle(color: _grey, fontSize: 8)),
+                style: pw.TextStyle(color: _w, fontSize: 10)),
           ],
         ),
         pw.Spacer(),
