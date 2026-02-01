@@ -224,7 +224,10 @@ class _SalesReportContentState extends ConsumerState<_SalesReportContent> {
                     Text('Refresh'),
                   ],
                 ),
-                onPressed: () => ref.invalidate(salesSummaryProvider(_getDateRange())),
+                onPressed: () {
+                  ref.read(salesRefreshProvider.notifier).state++;
+                  ref.invalidate(salesSummaryProvider(_getDateRange()));
+                },
               ),
             ],
           ),
@@ -359,6 +362,24 @@ class _ProfitReportContentState extends ConsumerState<_ProfitReportContent> {
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _period = value);
+                },
+              ),
+              const SizedBox(width: 16),
+              Button(
+                child: const Row(
+                  children: [
+                    Icon(FluentIcons.refresh, size: 16),
+                    SizedBox(width: 8),
+                    Text('Refresh'),
+                  ],
+                ),
+                onPressed: () {
+                  ref.read(salesRefreshProvider.notifier).state++;
+                  ref.read(expenseRefreshProvider.notifier).state++;
+                  ref.read(stockLossRefreshProvider.notifier).state++;
+                  ref.invalidate(salesSummaryProvider(_getDateRange()));
+                  ref.invalidate(expenseSummaryProvider(_getExpenseDateRange()));
+                  ref.invalidate(stockLossSummaryProvider(_getExpenseDateRange()));
                 },
               ),
             ],
@@ -664,6 +685,25 @@ class _InventoryReportContent extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Button(
+                child: const Row(
+                  children: [
+                    Icon(FluentIcons.refresh, size: 16),
+                    SizedBox(width: 8),
+                    Text('Refresh'),
+                  ],
+                ),
+                onPressed: () {
+                  ref.read(inventoryRefreshProvider.notifier).state++;
+                  ref.invalidate(inventoryStatsProvider);
+                  ref.invalidate(inventoryProvider);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           // Summary
           statsAsync.when(
             data: (stats) => Row(
@@ -766,6 +806,23 @@ class _AgingReportContent extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Button(
+                child: const Row(
+                  children: [
+                    Icon(FluentIcons.refresh, size: 16),
+                    SizedBox(width: 8),
+                    Text('Refresh'),
+                  ],
+                ),
+                onPressed: () {
+                  ref.invalidate(creditSummaryProvider);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           summaryAsync.when(
             data: (summary) => Column(
               children: [
@@ -885,6 +942,24 @@ class _RepairReportContent extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Button(
+                child: const Row(
+                  children: [
+                    Icon(FluentIcons.refresh, size: 16),
+                    SizedBox(width: 8),
+                    Text('Refresh'),
+                  ],
+                ),
+                onPressed: () {
+                  ref.read(repairRefreshProvider.notifier).state++;
+                  ref.invalidate(repairSummaryProvider);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           summaryAsync.when(
             data: (summary) => Row(
               children: [

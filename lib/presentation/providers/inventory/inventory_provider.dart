@@ -5,6 +5,9 @@ import '../../../data/local/daos/inventory_dao.dart';
 import '../../../data/local/database/app_database.dart';
 import '../core/database_provider.dart';
 
+// Refresh trigger - bumped whenever inventory data changes
+final inventoryRefreshProvider = StateProvider<int>((ref) => 0);
+
 // Provider for all inventory with product details
 final inventoryProvider = StreamProvider<List<InventoryWithProduct>>((ref) {
   final db = ref.watch(databaseProvider);
@@ -109,6 +112,7 @@ class InventoryAdjustmentNotifier extends StateNotifier<InventoryAdjustmentState
       _ref.invalidate(inventoryProvider);
       _ref.invalidate(productInventoryProvider(productId));
       _ref.invalidate(lowStockProvider);
+      _ref.read(inventoryRefreshProvider.notifier).state++;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -131,6 +135,7 @@ class InventoryAdjustmentNotifier extends StateNotifier<InventoryAdjustmentState
       _ref.invalidate(inventoryProvider);
       _ref.invalidate(productInventoryProvider(productId));
       _ref.invalidate(lowStockProvider);
+      _ref.read(inventoryRefreshProvider.notifier).state++;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -166,6 +171,7 @@ class InventoryAdjustmentNotifier extends StateNotifier<InventoryAdjustmentState
       state = state.copyWith(isLoading: false, isSuccess: true);
       _ref.invalidate(inventoryProvider);
       _ref.invalidate(lowStockProvider);
+      _ref.read(inventoryRefreshProvider.notifier).state++;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -199,6 +205,7 @@ class InventoryStats {
 
 // Provider for inventory statistics
 final inventoryStatsProvider = FutureProvider<InventoryStats>((ref) async {
+  ref.watch(inventoryRefreshProvider);
   final db = ref.watch(databaseProvider);
   final allInventory = await db.inventoryDao.getAllInventoryWithProducts();
   final lowStock = await db.inventoryDao.getLowStockItems();

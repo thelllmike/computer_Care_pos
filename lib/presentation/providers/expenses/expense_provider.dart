@@ -5,6 +5,9 @@ import '../../../data/local/database/app_database.dart';
 import '../../../data/local/tables/expenses_table.dart';
 import '../core/database_provider.dart';
 
+// Refresh trigger - bumped whenever expense data changes
+final expenseRefreshProvider = StateProvider<int>((ref) => 0);
+
 // Provider for all expenses
 final expensesProvider = FutureProvider<List<Expense>>((ref) {
   final db = ref.watch(databaseProvider);
@@ -19,12 +22,14 @@ final expensesByDateRangeProvider = FutureProvider.family<List<Expense>, DateRan
 
 // Provider for expense summary
 final expenseSummaryProvider = FutureProvider.family<ExpenseSummary, DateRangeParams>((ref, params) {
+  ref.watch(expenseRefreshProvider);
   final db = ref.watch(databaseProvider);
   return db.expenseDao.getExpenseSummary(params.startDate, params.endDate);
 });
 
 // Provider for category summary
 final expenseCategorySummaryProvider = FutureProvider.family<List<ExpenseCategorySummary>, DateRangeParams>((ref, params) {
+  ref.watch(expenseRefreshProvider);
   final db = ref.watch(databaseProvider);
   return db.expenseDao.getExpenseSummaryByCategory(params.startDate, params.endDate);
 });
@@ -220,6 +225,7 @@ class ExpenseFormNotifier extends StateNotifier<ExpenseFormState> {
 
       // Invalidate providers
       _ref.invalidate(expensesProvider);
+      _ref.read(expenseRefreshProvider.notifier).state++;
 
       state = state.copyWith(isSaving: false);
       return expense;
@@ -265,4 +271,5 @@ final deleteExpenseProvider = FutureProvider.family<void, String>((ref, id) asyn
   final db = ref.watch(databaseProvider);
   await db.expenseDao.deleteExpense(id);
   ref.invalidate(expensesProvider);
+  ref.read(expenseRefreshProvider.notifier).state++;
 });
