@@ -19,6 +19,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _receiptFooterController = TextEditingController();
+  final _bankNameController = TextEditingController();
+  final _bankAccountNameController = TextEditingController();
+  final _bankAccountNumberController = TextEditingController();
+  final _bankBranchController = TextEditingController();
 
   bool _isLoading = false;
   bool _hasChanges = false;
@@ -36,6 +40,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _receiptFooterController.dispose();
+    _bankNameController.dispose();
+    _bankAccountNameController.dispose();
+    _bankAccountNumberController.dispose();
+    _bankBranchController.dispose();
     super.dispose();
   }
 
@@ -47,6 +55,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _phoneController.text = settings.phone;
       _emailController.text = settings.email;
       _receiptFooterController.text = settings.receiptFooter ?? '';
+      _bankNameController.text = settings.bankName ?? '';
+      _bankAccountNameController.text = settings.bankAccountName ?? '';
+      _bankAccountNumberController.text = settings.bankAccountNumber ?? '';
+      _bankBranchController.text = settings.bankBranch ?? '';
     });
   }
 
@@ -67,6 +79,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       receiptFooter: _receiptFooterController.text.trim().isEmpty
           ? null
           : _receiptFooterController.text.trim(),
+      bankName: _bankNameController.text.trim().isEmpty
+          ? null
+          : _bankNameController.text.trim(),
+      bankAccountName: _bankAccountNameController.text.trim().isEmpty
+          ? null
+          : _bankAccountNameController.text.trim(),
+      bankAccountNumber: _bankAccountNumberController.text.trim().isEmpty
+          ? null
+          : _bankAccountNumberController.text.trim(),
+      bankBranch: _bankBranchController.text.trim().isEmpty
+          ? null
+          : _bankBranchController.text.trim(),
     );
 
     final success = await ref.read(settingsNotifierProvider.notifier).saveCompanySettings(settings);
@@ -112,6 +136,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _phoneController.text = settings.phone;
           _emailController.text = settings.email;
           _receiptFooterController.text = settings.receiptFooter ?? '';
+          _bankNameController.text = settings.bankName ?? '';
+          _bankAccountNameController.text = settings.bankAccountName ?? '';
+          _bankAccountNumberController.text = settings.bankAccountNumber ?? '';
+          _bankBranchController.text = settings.bankBranch ?? '';
         }
       });
     });
@@ -212,6 +240,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                       child: ProgressRing(strokeWidth: 2),
                                     )
                                   : const Text('Save Settings'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    loading: () => const Center(child: ProgressRing()),
+                    error: (e, _) => Center(
+                      child: Text('Error loading settings: $e'),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text('Bank Account Information', style: FluentTheme.of(context).typography.subtitle),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: settingsAsync.when(
+                    data: (_) => Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: InfoLabel(
+                                label: 'Bank Name',
+                                child: TextBox(
+                                  controller: _bankNameController,
+                                  placeholder: 'e.g. Commercial Bank PLC',
+                                  onChanged: (_) => _onFieldChanged(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: InfoLabel(
+                                label: 'Branch',
+                                child: TextBox(
+                                  controller: _bankBranchController,
+                                  placeholder: 'e.g. Akuressa Branch',
+                                  onChanged: (_) => _onFieldChanged(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: InfoLabel(
+                                label: 'Account Name',
+                                child: TextBox(
+                                  controller: _bankAccountNameController,
+                                  placeholder: 'e.g. A P M Prasad',
+                                  onChanged: (_) => _onFieldChanged(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: InfoLabel(
+                                label: 'Account Number',
+                                child: TextBox(
+                                  controller: _bankAccountNumberController,
+                                  placeholder: 'e.g. 8013595841',
+                                  onChanged: (_) => _onFieldChanged(),
+                                ),
+                              ),
                             ),
                           ],
                         ),
