@@ -690,6 +690,9 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         customerPhone: saleDetail.customer?.phone,
         customerAddress: saleDetail.customer?.address,
         customerEmail: saleDetail.customer?.email,
+        bankName: companySettings.bankName,
+        accountName: companySettings.bankAccountName,
+        accountNumber: companySettings.bankAccountNumber,
       );
     } catch (e) {
       if (mounted) {

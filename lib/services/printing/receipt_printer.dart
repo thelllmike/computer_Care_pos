@@ -520,6 +520,9 @@ class ReceiptPrinter {
     required String companyAddress,
     required String companyPhone,
     String? companyEmail,
+    String? bankName,
+    String? accountName,
+    String? accountNumber,
   }) async {
     final pdf = pw.Document();
     final quotation = detail.quotation;
@@ -566,7 +569,8 @@ class ReceiptPrinter {
                         pw.Spacer(),
 
                         // Footer (includes its own top divider)
-                        _buildQuotationFooter(companyAddress, companyPhone, quotation.validUntil),
+                        _buildQuotationFooter(companyAddress, companyPhone, quotation.validUntil,
+                            bankName: bankName, accountName: accountName, accountNumber: accountNumber),
                       ],
                     ),
                   ),
@@ -889,17 +893,19 @@ class ReceiptPrinter {
     );
   }
 
-  static pw.Widget _buildQuotationFooter(String companyAddress, String companyPhone, DateTime? validUntil) {
+  static pw.Widget _buildQuotationFooter(String companyAddress, String companyPhone, DateTime? validUntil,
+      {String? bankName, String? accountName, String? accountNumber}) {
+    final hasBankDetails = bankName != null || accountName != null || accountNumber != null;
     return pw.Column(
       children: [
         // Horizontal divider above footer
         pw.Container(height: 0.5, color: PdfColor.fromInt(0xFF3A4550)),
         pw.SizedBox(height: 16),
-        // Two-column layout: Thank you / Terms left, Notes right
+        // Two-column layout: Thank you / Bank details left, Notes right
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Left — Thank you + Terms
+            // Left — Thank you + Terms + Bank details
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -928,6 +934,28 @@ class ReceiptPrinter {
                         fontSize: 7,
                         fontStyle: pw.FontStyle.italic),
                   ),
+                  if (hasBankDetails) ...[
+                    pw.SizedBox(height: 10),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      color: _primaryBlue,
+                      child: pw.Text('BANK DETAILS',
+                          style: pw.TextStyle(
+                              color: _white,
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 8)),
+                    ),
+                    pw.SizedBox(height: 4),
+                    if (bankName != null)
+                      pw.Text('Bank: $bankName',
+                          style: pw.TextStyle(color: PdfColor.fromInt(0xFFCED4DA), fontSize: 7.5)),
+                    if (accountName != null)
+                      pw.Text('A/C Name: $accountName',
+                          style: pw.TextStyle(color: PdfColor.fromInt(0xFFCED4DA), fontSize: 7.5)),
+                    if (accountNumber != null)
+                      pw.Text('A/C No: $accountNumber',
+                          style: pw.TextStyle(color: PdfColor.fromInt(0xFFCED4DA), fontSize: 7.5)),
+                  ],
                 ],
               ),
             ),
@@ -992,6 +1020,9 @@ class ReceiptPrinter {
     required String companyPhone,
     String? companyEmail,
     String? customerPhone,
+    String? bankName,
+    String? accountName,
+    String? accountNumber,
   }) async {
     try {
       // Generate PDF bytes
@@ -1001,6 +1032,9 @@ class ReceiptPrinter {
         companyAddress: companyAddress,
         companyPhone: companyPhone,
         companyEmail: companyEmail,
+        bankName: bankName,
+        accountName: accountName,
+        accountNumber: accountNumber,
       );
 
       // Save to Documents folder for easy access
@@ -1084,6 +1118,9 @@ class ReceiptPrinter {
     required String companyAddress,
     required String companyPhone,
     String? companyEmail,
+    String? bankName,
+    String? accountName,
+    String? accountNumber,
   }) async {
     final pdf = pw.Document();
     final quotation = detail.quotation;
@@ -1130,7 +1167,8 @@ class ReceiptPrinter {
                         pw.Spacer(),
 
                         // Footer (includes its own top divider)
-                        _buildQuotationFooter(companyAddress, companyPhone, quotation.validUntil),
+                        _buildQuotationFooter(companyAddress, companyPhone, quotation.validUntil,
+                            bankName: bankName, accountName: accountName, accountNumber: accountNumber),
                       ],
                     ),
                   ),
@@ -1879,16 +1917,19 @@ class ProfessionalInvoiceGenerator {
                             fontSize: 8)),
                   ),
                   pw.SizedBox(height: 6),
-                  if (d.bankName != null)
-                    pw.Text('Bank: ${d.bankName}',
-                        style: pw.TextStyle(color: _grey, fontSize: 7.5)),
-                  if (d.accountName != null)
-                    pw.Text('A/C Name: ${d.accountName}',
-                        style: pw.TextStyle(color: _grey, fontSize: 7.5)),
-                  if (d.accountNumber != null)
-                    pw.Text('A/C No: ${d.accountNumber}',
-                        style: pw.TextStyle(color: _grey, fontSize: 7.5)),
-                  pw.SizedBox(height: 4),
+                  // Show bank details only when there is an outstanding balance
+                  if (d.paidAmount < d.totalAmount) ...[
+                    if (d.bankName != null)
+                      pw.Text('Bank: ${d.bankName}',
+                          style: pw.TextStyle(color: _grey, fontSize: 7.5)),
+                    if (d.accountName != null)
+                      pw.Text('A/C Name: ${d.accountName}',
+                          style: pw.TextStyle(color: _grey, fontSize: 7.5)),
+                    if (d.accountNumber != null)
+                      pw.Text('A/C No: ${d.accountNumber}',
+                          style: pw.TextStyle(color: _grey, fontSize: 7.5)),
+                    pw.SizedBox(height: 4),
+                  ],
                   pw.Text(
                     d.paidAmount >= d.totalAmount ? 'Paid' : 'Not Paid',
                     style: pw.TextStyle(

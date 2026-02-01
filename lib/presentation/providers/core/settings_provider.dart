@@ -16,6 +16,10 @@ class SettingsKeys {
   static const companyTaxId = 'company_tax_id';
   static const companyLogo = 'company_logo';
   static const receiptFooter = 'receipt_footer';
+  static const bankName = 'bank_name';
+  static const bankAccountName = 'bank_account_name';
+  static const bankAccountNumber = 'bank_account_number';
+  static const bankBranch = 'bank_branch';
   static const thermalPrinterName = 'thermal_printer_name';
   static const a4PrinterName = 'a4_printer_name';
   static const defaultTaxRate = 'default_tax_rate';
@@ -31,6 +35,10 @@ class CompanySettings {
   final String? taxId;
   final String? logoPath;
   final String? receiptFooter;
+  final String? bankName;
+  final String? bankAccountName;
+  final String? bankAccountNumber;
+  final String? bankBranch;
 
   CompanySettings({
     this.name = '',
@@ -40,6 +48,10 @@ class CompanySettings {
     this.taxId,
     this.logoPath,
     this.receiptFooter,
+    this.bankName,
+    this.bankAccountName,
+    this.bankAccountNumber,
+    this.bankBranch,
   });
 
   CompanySettings copyWith({
@@ -50,6 +62,10 @@ class CompanySettings {
     String? taxId,
     String? logoPath,
     String? receiptFooter,
+    String? bankName,
+    String? bankAccountName,
+    String? bankAccountNumber,
+    String? bankBranch,
   }) {
     return CompanySettings(
       name: name ?? this.name,
@@ -59,6 +75,10 @@ class CompanySettings {
       taxId: taxId ?? this.taxId,
       logoPath: logoPath ?? this.logoPath,
       receiptFooter: receiptFooter ?? this.receiptFooter,
+      bankName: bankName ?? this.bankName,
+      bankAccountName: bankAccountName ?? this.bankAccountName,
+      bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
+      bankBranch: bankBranch ?? this.bankBranch,
     );
   }
 }
@@ -90,6 +110,10 @@ final companySettingsProvider = FutureProvider<CompanySettings>((ref) async {
     taxId: getValue(SettingsKeys.companyTaxId).isEmpty ? null : getValue(SettingsKeys.companyTaxId),
     logoPath: getValue(SettingsKeys.companyLogo).isEmpty ? null : getValue(SettingsKeys.companyLogo),
     receiptFooter: getValue(SettingsKeys.receiptFooter).isEmpty ? null : getValue(SettingsKeys.receiptFooter),
+    bankName: getValue(SettingsKeys.bankName).isEmpty ? null : getValue(SettingsKeys.bankName),
+    bankAccountName: getValue(SettingsKeys.bankAccountName).isEmpty ? null : getValue(SettingsKeys.bankAccountName),
+    bankAccountNumber: getValue(SettingsKeys.bankAccountNumber).isEmpty ? null : getValue(SettingsKeys.bankAccountNumber),
+    bankBranch: getValue(SettingsKeys.bankBranch).isEmpty ? null : getValue(SettingsKeys.bankBranch),
   );
 });
 
@@ -119,6 +143,10 @@ class SettingsNotifier extends StateNotifier<AsyncValue<CompanySettings>> {
         taxId: getValue(SettingsKeys.companyTaxId).isEmpty ? null : getValue(SettingsKeys.companyTaxId),
         logoPath: getValue(SettingsKeys.companyLogo).isEmpty ? null : getValue(SettingsKeys.companyLogo),
         receiptFooter: getValue(SettingsKeys.receiptFooter).isEmpty ? null : getValue(SettingsKeys.receiptFooter),
+        bankName: getValue(SettingsKeys.bankName).isEmpty ? null : getValue(SettingsKeys.bankName),
+        bankAccountName: getValue(SettingsKeys.bankAccountName).isEmpty ? null : getValue(SettingsKeys.bankAccountName),
+        bankAccountNumber: getValue(SettingsKeys.bankAccountNumber).isEmpty ? null : getValue(SettingsKeys.bankAccountNumber),
+        bankBranch: getValue(SettingsKeys.bankBranch).isEmpty ? null : getValue(SettingsKeys.bankBranch),
       ));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -157,6 +185,10 @@ class SettingsNotifier extends StateNotifier<AsyncValue<CompanySettings>> {
       await _saveSetting(SettingsKeys.companyTaxId, settings.taxId ?? '');
       await _saveSetting(SettingsKeys.companyLogo, settings.logoPath ?? '');
       await _saveSetting(SettingsKeys.receiptFooter, settings.receiptFooter ?? '');
+      await _saveSetting(SettingsKeys.bankName, settings.bankName ?? '');
+      await _saveSetting(SettingsKeys.bankAccountName, settings.bankAccountName ?? '');
+      await _saveSetting(SettingsKeys.bankAccountNumber, settings.bankAccountNumber ?? '');
+      await _saveSetting(SettingsKeys.bankBranch, settings.bankBranch ?? '');
 
       state = AsyncValue.data(settings);
       _ref.invalidate(companySettingsProvider);

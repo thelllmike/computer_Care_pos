@@ -828,6 +828,9 @@ class _QuotationDetailDialog extends ConsumerWidget {
                 companyAddress: companySettings.address.isNotEmpty ? companySettings.address : '',
                 companyPhone: companySettings.phone.isNotEmpty ? companySettings.phone : '',
                 companyEmail: companySettings.email.isNotEmpty ? companySettings.email : '',
+                bankName: companySettings.bankName,
+                accountName: companySettings.bankAccountName,
+                accountNumber: companySettings.bankAccountNumber,
               );
             },
           ),
@@ -866,6 +869,9 @@ class _QuotationDetailDialog extends ConsumerWidget {
                   companyPhone: companySettings.phone.isNotEmpty ? companySettings.phone : '',
                   companyEmail: companySettings.email.isNotEmpty ? companySettings.email : '',
                   customerPhone: detail.customer?.phone,
+                  bankName: companySettings.bankName,
+                  accountName: companySettings.bankAccountName,
+                  accountNumber: companySettings.bankAccountNumber,
                 );
 
                 // Close loading dialog
