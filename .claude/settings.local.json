@@ -11,7 +11,8 @@
       "Bash(flutter pub get:*)",
       "Bash(wc:*)",
       "Bash(taskkill:*)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(tree:*)"
     ]
   }
 }
