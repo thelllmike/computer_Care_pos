@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ============================================================
 //  STANDALONE INVOICE SCREEN
@@ -50,9 +51,10 @@ void main() {
     paidAmount: 18000,
     totalAmount: 23000,
     totalOutstanding: 5000,
-    bankName: 'Bank of Ceylon',
-    accountName: 'M Tronic',
-    accountNumber: '12345678',
+    bankName: 'Commercial Bank PLC',
+    accountName: 'A P M Prasad',
+    accountNumber: '8013595841',
+    bankBranch: 'Akuressa Branch',
     isPaid: false,
   );
 
@@ -122,6 +124,7 @@ class InvoiceScreenData {
   final String? bankName;
   final String? accountName;
   final String? accountNumber;
+  final String? bankBranch;
   final bool isPaid;
 
   const InvoiceScreenData({
@@ -142,6 +145,7 @@ class InvoiceScreenData {
     this.bankName,
     this.accountName,
     this.accountNumber,
+    this.bankBranch,
     this.isPaid = false,
   });
 }
@@ -201,27 +205,7 @@ class InvoiceScreen extends StatelessWidget {
                     _buildDataTable(),
                     const SizedBox(height: 28),
                     _buildTotals(),
-                    const SizedBox(height: 32),
-                    // Authorized Signature — right-aligned
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Container(width: 180, height: 0.5, color: _grey),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Authorized Signature',
-                            style: TextStyle(
-                              color: _greyLight,
-                              fontSize: 10,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 36),
                     _buildFooter(),
                   ],
                 ),
@@ -591,7 +575,7 @@ class InvoiceScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 24),
-            // Right: Payment Info
+            // Right: Payment Info + Authorized Signature
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -624,6 +608,11 @@ class InvoiceScreen extends StatelessWidget {
                     Text('A/C No: ${data.accountNumber}',
                         style: const TextStyle(color: _grey, fontSize: 10)),
                   ],
+                  if (data.bankBranch != null) ...[
+                    const SizedBox(height: 2),
+                    Text('Branch: ${data.bankBranch}',
+                        style: const TextStyle(color: _grey, fontSize: 10)),
+                  ],
                   const SizedBox(height: 8),
                   Text(
                     data.isPaid ? 'Paid' : 'Not Paid',
@@ -631,6 +620,26 @@ class InvoiceScreen extends StatelessWidget {
                       color: data.isPaid ? Colors.green : _accentRed,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  // Authorized Signature — aligned with bank details
+                  const SizedBox(height: 24),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(width: 180, height: 0.5, color: _grey),
+                        const SizedBox(height: 5),
+                        const Text(
+                          'Authorized Signature',
+                          style: TextStyle(
+                            color: _greyLight,
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -672,8 +681,15 @@ class InvoiceScreen extends StatelessWidget {
             Text(data.companyPhone,
                 style: const TextStyle(color: _greyLight, fontSize: 10)),
             const Spacer(),
-            const Text('Powered by cleverproject.lk',
-                style: TextStyle(color: _grey, fontSize: 8)),
+            GestureDetector(
+              onTap: () => launchUrl(Uri.parse('https://cleverproject.lk')),
+              child: const Text('Powered by cleverproject.lk',
+                  style: TextStyle(
+                      color: _accentRed,
+                      fontSize: 10,
+                      decoration: TextDecoration.underline,
+                      decorationColor: _accentRed)),
+            ),
           ],
         ),
       ],
