@@ -15,7 +15,7 @@ class AppConstants {
   static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5eG91cGpwa3lic3F2b3ppa2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNDAzNTEsImV4cCI6MjA4NDgxNjM1MX0.tgn1_sBuhBxy0t6ItMq-lyxMA4SpR2ylY65pKFYCW7Q';
 
   // Database
-  static const String databaseName = 'laptop_shop_pos.db';
+  static const String databaseName = 'cp_pos.db';
 
   // Sync Settings
   static const int syncIntervalMinutes = 5;
