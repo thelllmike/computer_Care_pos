@@ -608,8 +608,9 @@ class ReceiptPrinter {
           pw.Container(
             width: 65,
             height: 65,
-            decoration: const pw.BoxDecoration(
+            decoration: pw.BoxDecoration(
               shape: pw.BoxShape.circle,
+              border: pw.Border.all(color: _primaryBlue, width: 2.5),
               color: PdfColor.fromInt(0xFF222A35),
             ),
             child: pw.Center(
@@ -1090,7 +1091,7 @@ class ReceiptPrinter {
 
       // Create message text (use simple text without special currency symbols)
       final totalFormatted = detail.quotation.totalAmount.toStringAsFixed(2);
-      final message = 'Hello! Please find attached the quotation '
+      final message = 'Hello! This your quotation Number '
           '${detail.quotation.quotationNumber} for Rs. $totalFormatted. '
           '${detail.quotation.validUntil != null ? 'Valid until ${Formatters.date(detail.quotation.validUntil!)}. ' : ''}'
           'Thank you for your interest!';
