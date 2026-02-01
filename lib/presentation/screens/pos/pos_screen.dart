@@ -693,6 +693,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         bankName: companySettings.bankName,
         accountName: companySettings.bankAccountName,
         accountNumber: companySettings.bankAccountNumber,
+        bankBranch: companySettings.bankBranch,
       );
     } catch (e) {
       if (mounted) {

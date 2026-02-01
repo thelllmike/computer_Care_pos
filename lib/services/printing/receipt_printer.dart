@@ -204,6 +204,7 @@ class ReceiptPrinter {
     String? bankName,
     String? accountNumber,
     String? accountName,
+    String? bankBranch,
   }) async {
     final invoiceData = await ProfessionalInvoiceGenerator.fromSale(
       sale: sale,
@@ -220,6 +221,7 @@ class ReceiptPrinter {
       bankName: bankName,
       accountNumber: accountNumber,
       accountName: accountName,
+      bankBranch: bankBranch,
     );
 
     return await ProfessionalInvoiceGenerator.printInvoice(invoiceData);
@@ -247,7 +249,7 @@ class ReceiptPrinter {
             child: pw.Column(
               children: [
                 // Header with blue accent
-                _buildDocumentHeader(companyName, sale.invoiceNumber, sale.saleDate, 'INVOICE'),
+                _buildDocumentHeader(companyName, sale.invoiceNumber, sale.saleDate, 'INVOICE', companyAddress: companyAddress, companyPhone: companyPhone),
 
                 // Content
                 pw.Expanded(
@@ -523,6 +525,7 @@ class ReceiptPrinter {
     String? bankName,
     String? accountName,
     String? accountNumber,
+    String? bankBranch,
   }) async {
     final pdf = pw.Document();
     final quotation = detail.quotation;
@@ -546,7 +549,7 @@ class ReceiptPrinter {
             child: pw.Column(
               children: [
                 // Header with blue accent and logo
-                _buildDocumentHeader(companyName, quotation.quotationNumber, quotation.createdAt, 'QUOTATION', logoImage: logoImage),
+                _buildDocumentHeader(companyName, quotation.quotationNumber, quotation.createdAt, 'QUOTATION', logoImage: logoImage, companyAddress: companyAddress, companyPhone: companyPhone),
 
                 // Content
                 pw.Expanded(
@@ -570,7 +573,7 @@ class ReceiptPrinter {
 
                         // Footer (includes its own top divider)
                         _buildQuotationFooter(companyAddress, companyPhone, quotation.validUntil,
-                            bankName: bankName, accountName: accountName, accountNumber: accountNumber),
+                            bankName: bankName, accountName: accountName, accountNumber: accountNumber, bankBranch: bankBranch),
                       ],
                     ),
                   ),
@@ -588,7 +591,7 @@ class ReceiptPrinter {
     );
   }
 
-  static pw.Widget _buildDocumentHeader(String companyName, String documentNumber, DateTime date, String documentType, {pw.MemoryImage? logoImage}) {
+  static pw.Widget _buildDocumentHeader(String companyName, String documentNumber, DateTime date, String documentType, {pw.MemoryImage? logoImage, String companyAddress = '', String companyPhone = ''}) {
     // Extract company short name (first letters or abbreviation)
     final words = companyName.split(' ');
     final shortName = words.length > 1
@@ -596,54 +599,63 @@ class ReceiptPrinter {
         : (companyName.length > 3 ? companyName.substring(0, 3).toUpperCase() : companyName.toUpperCase());
 
     return pw.Container(
-      height: 150,
+      height: 140,
       padding: const pw.EdgeInsets.only(left: 40, top: 24, right: 40),
       child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          // Company logo + name — vertically stacked for tight alignment
+          // Logo (no border)
+          pw.Container(
+            width: 65,
+            height: 65,
+            decoration: const pw.BoxDecoration(
+              shape: pw.BoxShape.circle,
+              color: PdfColor.fromInt(0xFF222A35),
+            ),
+            child: pw.Center(
+              child: logoImage != null
+                  ? pw.ClipOval(
+                      child: pw.Image(logoImage,
+                          fit: pw.BoxFit.cover, width: 60, height: 60))
+                  : pw.Text(
+                      shortName,
+                      style: pw.TextStyle(
+                        color: _primaryBlue,
+                        fontSize: 22,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ),
+          pw.SizedBox(width: 14),
+          // Company name, address & phone (same layout as invoice)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Circular logo
-              pw.Container(
-                width: 65,
-                height: 65,
-                decoration: pw.BoxDecoration(
-                  shape: pw.BoxShape.circle,
-                  border: pw.Border.all(color: _primaryBlue, width: 2),
-                  color: PdfColor.fromInt(0xFF222A35),
-                ),
-                child: pw.Center(
-                  child: logoImage != null
-                      ? pw.ClipOval(
-                          child: pw.Image(logoImage,
-                              fit: pw.BoxFit.cover, width: 60, height: 60))
-                      : pw.Text(
-                          shortName,
-                          style: pw.TextStyle(
-                            color: _primaryBlue,
-                            fontSize: 22,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                ),
-              ),
               pw.SizedBox(height: 6),
-              // Company name left-aligned with logo edge
               pw.Text(
                 companyName.toUpperCase(),
                 style: pw.TextStyle(
                   color: _white,
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                   letterSpacing: 1.2,
                 ),
               ),
+              if (companyAddress.isNotEmpty) ...[
+                pw.SizedBox(height: 3),
+                pw.Text(companyAddress,
+                    style: pw.TextStyle(color: PdfColor.fromInt(0xFFCED4DA), fontSize: 10)),
+              ],
+              if (companyPhone.isNotEmpty) ...[
+                pw.SizedBox(height: 2),
+                pw.Text(companyPhone,
+                    style: pw.TextStyle(color: _white, fontSize: 10)),
+              ],
             ],
           ),
-          // Document title — right-aligned, clean on dark background
+          pw.Spacer(),
+          // Document title — right-aligned (slightly smaller for quotation)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
@@ -651,7 +663,7 @@ class ReceiptPrinter {
                 documentType,
                 style: pw.TextStyle(
                   color: _white,
-                  fontSize: 32,
+                  fontSize: 26,
                   fontWeight: pw.FontWeight.bold,
                   letterSpacing: 2,
                 ),
@@ -894,7 +906,7 @@ class ReceiptPrinter {
   }
 
   static pw.Widget _buildQuotationFooter(String companyAddress, String companyPhone, DateTime? validUntil,
-      {String? bankName, String? accountName, String? accountNumber}) {
+      {String? bankName, String? accountName, String? accountNumber, String? bankBranch}) {
     final hasBankDetails = bankName != null || accountName != null || accountNumber != null;
     return pw.Column(
       children: [
@@ -955,6 +967,9 @@ class ReceiptPrinter {
                     if (accountNumber != null)
                       pw.Text('A/C No: $accountNumber',
                           style: pw.TextStyle(color: PdfColor.fromInt(0xFFCED4DA), fontSize: 7.5)),
+                    if (bankBranch != null)
+                      pw.Text('Branch: $bankBranch',
+                          style: pw.TextStyle(color: PdfColor.fromInt(0xFFCED4DA), fontSize: 7.5)),
                   ],
                 ],
               ),
@@ -1001,8 +1016,14 @@ class ReceiptPrinter {
             pw.Text('Tel: $companyPhone',
                 style: pw.TextStyle(color: PdfColor.fromInt(0xFFCED4DA), fontSize: 7.5)),
             pw.Spacer(),
-            pw.Text(AppConstants.poweredBy,
-                style: pw.TextStyle(color: PdfColor.fromInt(0xFFADB5BD), fontSize: 6)),
+            pw.UrlLink(
+              destination: 'https://cleverproject.lk',
+              child: pw.Text(AppConstants.poweredBy,
+                  style: pw.TextStyle(
+                      color: _primaryBlue,
+                      fontSize: 8,
+                      decoration: pw.TextDecoration.underline)),
+            ),
           ],
         ),
       ],
@@ -1023,6 +1044,7 @@ class ReceiptPrinter {
     String? bankName,
     String? accountName,
     String? accountNumber,
+    String? bankBranch,
   }) async {
     try {
       // Generate PDF bytes
@@ -1035,6 +1057,7 @@ class ReceiptPrinter {
         bankName: bankName,
         accountName: accountName,
         accountNumber: accountNumber,
+        bankBranch: bankBranch,
       );
 
       // Save to Documents folder for easy access
@@ -1121,6 +1144,7 @@ class ReceiptPrinter {
     String? bankName,
     String? accountName,
     String? accountNumber,
+    String? bankBranch,
   }) async {
     final pdf = pw.Document();
     final quotation = detail.quotation;
@@ -1144,7 +1168,7 @@ class ReceiptPrinter {
             child: pw.Column(
               children: [
                 // Header with blue accent and logo
-                _buildDocumentHeader(companyName, quotation.quotationNumber, quotation.createdAt, 'QUOTATION', logoImage: logoImage),
+                _buildDocumentHeader(companyName, quotation.quotationNumber, quotation.createdAt, 'QUOTATION', logoImage: logoImage, companyAddress: companyAddress, companyPhone: companyPhone),
 
                 // Content
                 pw.Expanded(
@@ -1168,7 +1192,7 @@ class ReceiptPrinter {
 
                         // Footer (includes its own top divider)
                         _buildQuotationFooter(companyAddress, companyPhone, quotation.validUntil,
-                            bankName: bankName, accountName: accountName, accountNumber: accountNumber),
+                            bankName: bankName, accountName: accountName, accountNumber: accountNumber, bankBranch: bankBranch),
                       ],
                     ),
                   ),
@@ -1266,6 +1290,7 @@ class InvoiceData {
   final String? bankName;
   final String? accountNumber;
   final String? accountName;
+  final String? bankBranch;
 
   const InvoiceData({
     required this.invoiceNumber,
@@ -1296,6 +1321,7 @@ class InvoiceData {
     this.bankName,
     this.accountNumber,
     this.accountName,
+    this.bankBranch,
   });
 
   double get outstandingAmount => totalAmount - paidAmount;
@@ -1393,6 +1419,7 @@ class ProfessionalInvoiceGenerator {
     String? bankName,
     String? accountNumber,
     String? accountName,
+    String? bankBranch,
   }) async {
     final words = companyName.split(' ');
     final shortName = words.length > 1
@@ -1436,6 +1463,7 @@ class ProfessionalInvoiceGenerator {
       bankName: bankName,
       accountNumber: accountNumber,
       accountName: accountName,
+      bankBranch: bankBranch,
     );
   }
 
@@ -1460,23 +1488,6 @@ class ProfessionalInvoiceGenerator {
           pw.SizedBox(height: 16),
           _totals(d),
           pw.Spacer(),
-          // Authorized Signature — right-aligned above footer
-          pw.Align(
-            alignment: pw.Alignment.bottomRight,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: [
-                pw.Container(width: 150, height: 0.5, color: _grey),
-                pw.SizedBox(height: 4),
-                pw.Text('Authorized Signature',
-                    style: pw.TextStyle(
-                        color: _greyLight,
-                        fontSize: 8,
-                        fontStyle: pw.FontStyle.italic)),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 14),
           _footer(d, images),
         ],
       ),
@@ -1918,7 +1929,7 @@ class ProfessionalInvoiceGenerator {
               ),
             ),
             pw.SizedBox(width: 20),
-            // Right column
+            // Right column — Payment Info + Authorized Signature
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1945,6 +1956,9 @@ class ProfessionalInvoiceGenerator {
                     if (d.accountNumber != null)
                       pw.Text('A/C No: ${d.accountNumber}',
                           style: pw.TextStyle(color: _grey, fontSize: 7.5)),
+                    if (d.bankBranch != null)
+                      pw.Text('Branch: ${d.bankBranch}',
+                          style: pw.TextStyle(color: _grey, fontSize: 7.5)),
                     pw.SizedBox(height: 4),
                   ],
                   pw.Text(
@@ -1955,6 +1969,23 @@ class ProfessionalInvoiceGenerator {
                           : PdfColors.red300,
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  // Authorized Signature — aligned with bank details
+                  pw.SizedBox(height: 20),
+                  pw.Align(
+                    alignment: pw.Alignment.centerRight,
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Container(width: 150, height: 0.5, color: _grey),
+                        pw.SizedBox(height: 4),
+                        pw.Text('Authorized Signature',
+                            style: pw.TextStyle(
+                                color: _greyLight,
+                                fontSize: 8,
+                                fontStyle: pw.FontStyle.italic)),
+                      ],
                     ),
                   ),
                 ],
@@ -2003,10 +2034,16 @@ class ProfessionalInvoiceGenerator {
           ],
         ),
         pw.SizedBox(height: 10),
-        // ── Developer credit ──
+        // ── Developer credit (clickable link) ──
         pw.Center(
-          child: pw.Text(AppConstants.poweredBy,
-              style: pw.TextStyle(color: _grey, fontSize: 6)),
+          child: pw.UrlLink(
+            destination: 'https://cleverproject.lk',
+            child: pw.Text(AppConstants.poweredBy,
+                style: pw.TextStyle(
+                    color: _accentBlue,
+                    fontSize: 8,
+                    decoration: pw.TextDecoration.underline)),
+          ),
         ),
       ],
     );

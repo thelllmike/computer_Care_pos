@@ -831,6 +831,7 @@ class _QuotationDetailDialog extends ConsumerWidget {
                 bankName: companySettings.bankName,
                 accountName: companySettings.bankAccountName,
                 accountNumber: companySettings.bankAccountNumber,
+                bankBranch: companySettings.bankBranch,
               );
             },
           ),
@@ -872,6 +873,7 @@ class _QuotationDetailDialog extends ConsumerWidget {
                   bankName: companySettings.bankName,
                   accountName: companySettings.bankAccountName,
                   accountNumber: companySettings.bankAccountNumber,
+                  bankBranch: companySettings.bankBranch,
                 );
 
                 // Close loading dialog
@@ -904,12 +906,12 @@ class _QuotationDetailDialog extends ConsumerWidget {
             ),
           ),
         ],
-        if (detailAsync.valueOrNull?.canConvert ?? false) ...[
-          FilledButton(
-            child: const Text('Convert to Invoice'),
-            onPressed: () => _showConvertDialog(context, ref, quotationId),
-          ),
-        ],
+        // if (detailAsync.valueOrNull?.canConvert ?? false) ...[
+        //   FilledButton(
+        //     child: const Text('Convert to Invoice'),
+        //     onPressed: () => _showConvertDialog(context, ref, quotationId),
+        //   ),
+        // ],
         if (detailAsync.valueOrNull?.quotation.status == 'DRAFT') ...[
           Button(
             child: const Text('Edit'),
