@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -1723,8 +1726,18 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
         ),
       );
 
+      // Auto-save PDF to documents folder
+      final pdfBytes = await pdf.save();
+      try {
+        final dir = Directory(
+            '${(await getApplicationDocumentsDirectory()).path}/ServiceInvoices');
+        if (!await dir.exists()) await dir.create(recursive: true);
+        final path = '${dir.path}/ServiceInvoice_${invoiceState.invoiceNumber}.pdf';
+        await File(path).writeAsBytes(pdfBytes);
+      } catch (_) {}
+
       await Printing.layoutPdf(
-        onLayout: (format) async => pdf.save(),
+        onLayout: (format) async => pdfBytes,
         name: 'ServiceInvoice_${invoiceState.invoiceNumber}',
       );
     } catch (e) {

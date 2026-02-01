@@ -585,8 +585,18 @@ class ReceiptPrinter {
       ),
     );
 
+    // Auto-save PDF to documents folder
+    final pdfBytes = await pdf.save();
+    try {
+      final dir = Directory(
+          '${(await getApplicationDocumentsDirectory()).path}/Quotations');
+      if (!await dir.exists()) await dir.create(recursive: true);
+      final path = '${dir.path}/Quotation_${quotation.quotationNumber}.pdf';
+      await File(path).writeAsBytes(pdfBytes);
+    } catch (_) {}
+
     return await Printing.layoutPdf(
-      onLayout: (format) async => pdf.save(),
+      onLayout: (format) async => pdfBytes,
       name: 'Quotation_${quotation.quotationNumber}',
     );
   }
@@ -1381,6 +1391,9 @@ class ProfessionalInvoiceGenerator {
   }
 
   static Future<bool> printInvoice(InvoiceData data) async {
+    // Auto-save PDF to documents folder
+    await saveInvoice(data);
+
     final pdf = pw.Document();
     final images = await _loadImages();
     pdf.addPage(pw.Page(
