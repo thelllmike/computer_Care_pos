@@ -6,6 +6,9 @@ import '../../../data/local/tables/stock_losses_table.dart';
 import '../core/database_provider.dart';
 import '../expenses/expense_provider.dart';
 
+// Refresh trigger - bumped whenever stock loss data changes
+final stockLossRefreshProvider = StateProvider<int>((ref) => 0);
+
 // DAO provider
 final stockLossDaoProvider = Provider<StockLossDao>((ref) {
   final db = ref.watch(databaseProvider);
@@ -36,6 +39,7 @@ final stockLossesByTypeProvider =
 // Provider for stock loss summary (for P&L)
 final stockLossSummaryProvider =
     FutureProvider.family<StockLossSummary, DateRangeParams>((ref, params) {
+  ref.watch(stockLossRefreshProvider);
   final dao = ref.watch(stockLossDaoProvider);
   return dao.getLossSummary(params.startDate, params.endDate);
 });
@@ -183,6 +187,7 @@ class StockLossFormNotifier extends StateNotifier<StockLossFormState> {
 
       // Invalidate providers
       _ref.invalidate(stockLossesProvider);
+      _ref.read(stockLossRefreshProvider.notifier).state++;
 
       state = state.copyWith(isSaving: false);
       return stockLoss;
@@ -209,4 +214,5 @@ final deleteStockLossProvider =
   final dao = ref.watch(stockLossDaoProvider);
   await dao.deleteStockLoss(id);
   ref.invalidate(stockLossesProvider);
+  ref.read(stockLossRefreshProvider.notifier).state++;
 });

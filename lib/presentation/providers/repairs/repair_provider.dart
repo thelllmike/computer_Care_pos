@@ -6,8 +6,12 @@ import '../core/database_provider.dart';
 import '../sales/sales_provider.dart';
 import '../credits/credit_provider.dart';
 
+// Refresh trigger - bumped whenever repair data changes
+final repairRefreshProvider = StateProvider<int>((ref) => 0);
+
 // Provider for repair summary
 final repairSummaryProvider = FutureProvider<RepairSummary>((ref) {
+  ref.watch(repairRefreshProvider);
   final db = ref.watch(databaseProvider);
   return db.repairDao.getRepairSummary();
 });
@@ -321,6 +325,7 @@ class RepairFormNotifier extends StateNotifier<RepairFormState> {
       _ref.invalidate(repairJobsProvider);
       _ref.invalidate(activeRepairJobsProvider);
       _ref.invalidate(repairSummaryProvider);
+      _ref.read(repairRefreshProvider.notifier).state++;
 
       state = state.copyWith(isSaving: false);
       return job;
@@ -438,6 +443,7 @@ class StatusUpdateNotifier extends StateNotifier<StatusUpdateState> {
       _ref.invalidate(activeRepairJobsProvider);
       _ref.invalidate(repairSummaryProvider);
       _ref.invalidate(repairJobDetailProvider(jobId));
+      _ref.read(repairRefreshProvider.notifier).state++;
 
       state = state.copyWith(isProcessing: false, isSuccess: true);
     } catch (e) {
@@ -584,11 +590,13 @@ class ServiceInvoiceNotifier extends StateNotifier<ServiceInvoiceState> {
       _ref.invalidate(repairJobDetailProvider(repairJobId));
       _ref.invalidate(repairSummaryProvider);
       _ref.invalidate(repairJobsProvider);
+      _ref.read(repairRefreshProvider.notifier).state++;
 
       // Invalidate providers - sales (invoice was created)
       _ref.invalidate(salesProvider);
       _ref.invalidate(salesHistoryProvider);
       _ref.invalidate(todaysSalesProvider);
+      _ref.read(salesRefreshProvider.notifier).state++;
 
       // Invalidate credit providers if this was a credit sale
       if (isCredit) {

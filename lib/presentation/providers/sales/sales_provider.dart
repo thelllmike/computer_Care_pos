@@ -4,6 +4,10 @@ import '../../../data/local/daos/sales_dao.dart';
 import '../../../data/local/database/app_database.dart';
 import '../core/database_provider.dart';
 import '../credits/credit_provider.dart';
+import '../inventory/inventory_provider.dart';
+
+// Refresh trigger - bumped whenever sales data changes
+final salesRefreshProvider = StateProvider<int>((ref) => 0);
 
 // Provider for all sales
 final salesProvider = StreamProvider<List<SaleWithCustomer>>((ref) {
@@ -25,6 +29,7 @@ final saleDetailProvider = FutureProvider.family<SaleDetail?, String>((ref, id) 
 
 // Provider for sales summary
 final salesSummaryProvider = FutureProvider.family<SalesSummary, DateRange>((ref, range) {
+  ref.watch(salesRefreshProvider);
   final db = ref.watch(databaseProvider);
   return db.salesDao.getSalesSummary(range.start, range.end);
 });
@@ -614,7 +619,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       _ref.invalidate(salesProvider);
       _ref.invalidate(todaysSalesProvider);
       _ref.invalidate(salesHistoryProvider);
-      _ref.invalidate(salesSummaryProvider(DateRange.today()));
+      _ref.read(salesRefreshProvider.notifier).state++;
+      _ref.read(inventoryRefreshProvider.notifier).state++;
 
       // If credit sale, invalidate credit providers
       if (cart.isCredit) {
@@ -710,7 +716,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       _ref.invalidate(salesProvider);
       _ref.invalidate(todaysSalesProvider);
       _ref.invalidate(salesHistoryProvider);
-      _ref.invalidate(salesSummaryProvider(DateRange.today()));
+      _ref.read(salesRefreshProvider.notifier).state++;
+      _ref.read(inventoryRefreshProvider.notifier).state++;
 
       // Invalidate credit providers since this has a credit component
       if (creditAmount > 0) {
