@@ -1,0 +1,42 @@
+                                                                                                                                
+  -- 1. Add the missing auth_id column                                                                                           
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE;
+
+  -- 2. Link existing auth users to the users table and set role to ADMIN
+  INSERT INTO users (id, auth_id, email, name, role)
+  SELECT
+    gen_random_uuid()::TEXT,
+    au.id,
+    au.email,
+    COALESCE(au.raw_user_meta_data->>'name', au.email),
+    'ADMIN'
+  FROM auth.users au
+  WHERE NOT EXISTS (
+    SELECT 1 FROM users u WHERE u.auth_id = au.id
+  );
+
+  -- 3. Update any existing users to ADMIN
+  UPDATE users SET role = 'ADMIN', updated_at = NOW();
+
+  -- 4. Recreate the trigger so new signups get a user record automatically
+  CREATE OR REPLACE FUNCTION handle_new_user()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    INSERT INTO public.users (id, auth_id, email, name, role)
+    VALUES (
+      gen_random_uuid()::TEXT,
+      NEW.id,
+      NEW.email,
+      COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
+      COALESCE(NEW.raw_user_meta_data->>'role', 'CASHIER')
+    );
+    RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+  DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+  CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+  After running this, log out and log back in. It should show Administrator now.
