@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "Computer Care" "\0"
-            VALUE "FileDescription", "CP POS" "\0"
+            VALUE "CompanyName", "Clever Project" "\0"
+            VALUE "FileDescription", "CP POS - Point of Sale System" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "cp_pos" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 Computer Care. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Sachin / Clever Project (cleverproject.lk). All rights reserved." "\0"
             VALUE "OriginalFilename", "cp_pos.exe" "\0"
             VALUE "ProductName", "CP POS" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
