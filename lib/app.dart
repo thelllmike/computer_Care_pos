@@ -14,7 +14,7 @@ class LaptopShopPosApp extends ConsumerWidget {
     final authState = ref.watch(authNotifierProvider);
 
     return FluentApp(
-      title: 'Laptop Shop POS',
+      title: 'CP POS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

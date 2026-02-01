@@ -2,9 +2,13 @@ class AppConstants {
   AppConstants._();
 
   // App Info
-  static const String appName = 'M-TRONIC';
+  static const String appName = 'CP POS';
   static const String appVersion = '1.0.0';
   static const String poweredBy = 'Powered by cleverproject.lk';
+  static const String companyName = 'Clever Project';
+  static const String developerName = 'Sachin';
+  static const String website = 'https://cleverproject.lk';
+  static const String copyright = '\u00A9 2026 Sachin / Clever Project. All rights reserved.';
 
   // Supabase Configuration
   static const String supabaseUrl = 'https://lyxoupjpkybsqvozikdx.supabase.co';

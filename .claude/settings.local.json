@@ -12,7 +12,10 @@
       "Bash(wc:*)",
       "Bash(taskkill:*)",
       "Bash(cmd /c:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(dart pub add:*)",
+      "Bash(dart run:*)",
+      "Bash(flutter clean:*)"
     ]
   }
 }
