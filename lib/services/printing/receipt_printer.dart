@@ -508,7 +508,7 @@ class ReceiptPrinter {
   // ==================== Quotation Printing ====================
 
   // Design colors
-  static const _primaryBlue = PdfColor.fromInt(0xFF0081FF);
+  static const _primaryBlue = PdfColor.fromInt(0xFFFF0F10);
   static const _darkBackground = PdfColor.fromInt(0xFF1E252B);
   static const _white = PdfColors.white;
   static const _lightGrey = PdfColor.fromInt(0xFFF5F5F5);
@@ -593,113 +593,76 @@ class ReceiptPrinter {
 
     return pw.Container(
       height: 140,
-      child: pw.Stack(
+      padding: const pw.EdgeInsets.only(left: 40, top: 24, right: 40),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          // Clean blue accent bar at top right (no triangle tail)
-          pw.Positioned(
-            top: 0,
-            right: 0,
-            child: pw.Container(width: 240, height: 38, color: _primaryBlue),
-          ),
-          // Angled extension for a subtle geometric slash
-          pw.Positioned(
-            top: 0,
-            right: 205,
-            child: pw.Transform.rotate(
-              angle: -0.45,
-              child: pw.Container(width: 65, height: 38, color: _primaryBlue),
-            ),
-          ),
-          // Thin secondary accent line below
-          pw.Positioned(
-            top: 44,
-            right: 0,
-            child: pw.Container(width: 180, height: 4, color: _primaryBlue),
-          ),
-          pw.Positioned(
-            top: 44,
-            right: 155,
-            child: pw.Transform.rotate(
-              angle: -0.45,
-              child: pw.Container(width: 40, height: 4, color: _primaryBlue),
-            ),
-          ),
-          // Content (rendered ON TOP of decorative shapes)
-          pw.Padding(
-            padding: const pw.EdgeInsets.only(left: 40, top: 24, right: 40),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Company logo + name — vertically stacked for tight alignment
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    // Circular logo
-                    pw.Container(
-                      width: 55,
-                      height: 55,
-                      decoration: pw.BoxDecoration(
-                        shape: pw.BoxShape.circle,
-                        border: pw.Border.all(color: _primaryBlue, width: 2),
-                        color: PdfColor.fromInt(0xFF222A35),
-                      ),
-                      child: pw.Center(
-                        child: logoImage != null
-                            ? pw.ClipOval(
-                                child: pw.Image(logoImage,
-                                    fit: pw.BoxFit.cover, width: 50, height: 50))
-                            : pw.Text(
-                                shortName,
-                                style: pw.TextStyle(
-                                  color: _primaryBlue,
-                                  fontSize: 18,
-                                  fontWeight: pw.FontWeight.bold,
-                                ),
-                              ),
-                      ),
-                    ),
-                    pw.SizedBox(height: 6),
-                    // Company name left-aligned with logo edge
-                    pw.Text(
-                      companyName.toUpperCase(),
-                      style: pw.TextStyle(
-                        color: _white,
-                        fontSize: 11,
-                        fontWeight: pw.FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
+          // Company logo + name — vertically stacked for tight alignment
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Circular logo
+              pw.Container(
+                width: 55,
+                height: 55,
+                decoration: pw.BoxDecoration(
+                  shape: pw.BoxShape.circle,
+                  border: pw.Border.all(color: _primaryBlue, width: 2),
+                  color: PdfColor.fromInt(0xFF222A35),
                 ),
-                // Document title — right-aligned column (flex-end)
-                // No badge container — plain white text avoids overlap with blue bar
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      documentType,
-                      style: pw.TextStyle(
-                        color: _white,
-                        fontSize: 32,
-                        fontWeight: pw.FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    pw.SizedBox(height: 6),
-                    pw.Text(
-                      '# $documentNumber',
-                      style: pw.TextStyle(color: _white, fontSize: 10),
-                    ),
-                    pw.SizedBox(height: 2),
-                    pw.Text(
-                      'DATE : ${Formatters.date(date)}',
-                      style: pw.TextStyle(color: _white, fontSize: 10),
-                    ),
-                  ],
+                child: pw.Center(
+                  child: logoImage != null
+                      ? pw.ClipOval(
+                          child: pw.Image(logoImage,
+                              fit: pw.BoxFit.cover, width: 50, height: 50))
+                      : pw.Text(
+                          shortName,
+                          style: pw.TextStyle(
+                            color: _primaryBlue,
+                            fontSize: 18,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
                 ),
-              ],
-            ),
+              ),
+              pw.SizedBox(height: 6),
+              // Company name left-aligned with logo edge
+              pw.Text(
+                companyName.toUpperCase(),
+                style: pw.TextStyle(
+                  color: _white,
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          // Document title — right-aligned, clean on dark background
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text(
+                documentType,
+                style: pw.TextStyle(
+                  color: _white,
+                  fontSize: 32,
+                  fontWeight: pw.FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Text(
+                '# $documentNumber',
+                style: pw.TextStyle(color: _white, fontSize: 10),
+              ),
+              pw.SizedBox(height: 2),
+              pw.Text(
+                'DATE : ${Formatters.date(date)}',
+                style: pw.TextStyle(color: _white, fontSize: 10),
+              ),
+            ],
           ),
         ],
       ),
@@ -1312,7 +1275,7 @@ class _InvoiceImages {
 /// Professional Invoice Generator — high-fidelity dark-theme reference design
 class ProfessionalInvoiceGenerator {
   // ── Design Constants ──
-  static const _accentBlue = PdfColor.fromInt(0xFF007BFF);
+  static const _accentBlue = PdfColor.fromInt(0xFFFF0F10);
   static const _bg = PdfColor.fromInt(0xFF1A202C);
   static const _w = PdfColors.white;
   static const _rowAlt = PdfColor.fromInt(0xFFF7F8FA);
@@ -1445,56 +1408,21 @@ class ProfessionalInvoiceGenerator {
   static pw.Widget _page(InvoiceData d, _InvoiceImages images) {
     return pw.Container(
       color: _bg,
-      child: pw.Stack(
+      padding: const pw.EdgeInsets.fromLTRB(36, 36, 36, 28),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          // ── Top-right decorative polygon (background layer) ──
-          pw.Positioned(
-            top: 0,
-            right: 0,
-            child: pw.Container(width: 220, height: 48, color: _accentBlue),
-          ),
-          pw.Positioned(
-            top: 0,
-            right: 185,
-            child: pw.Transform.rotate(
-              angle: -0.45,
-              child: pw.Container(width: 70, height: 48, color: _accentBlue),
-            ),
-          ),
-          pw.Positioned(
-            top: 54,
-            right: 0,
-            child: pw.Container(width: 170, height: 5, color: _accentBlue),
-          ),
-          pw.Positioned(
-            top: 54,
-            right: 142,
-            child: pw.Transform.rotate(
-              angle: -0.45,
-              child: pw.Container(width: 45, height: 5, color: _accentBlue),
-            ),
-          ),
-
-          // ── Main content (rendered ON TOP of decorative shapes) ──
-          pw.Padding(
-            padding: const pw.EdgeInsets.fromLTRB(36, 36, 36, 28),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                _header(d, images),
-                pw.SizedBox(height: 10),
-                _slantedDivider(),
-                pw.SizedBox(height: 10),
-                _invoiceTo(d),
-                pw.SizedBox(height: 16),
-                _table(d),
-                pw.SizedBox(height: 16),
-                _totals(d),
-                pw.Spacer(),
-                _footer(d, images),
-              ],
-            ),
-          ),
+          _header(d, images),
+          pw.SizedBox(height: 10),
+          _slantedDivider(),
+          pw.SizedBox(height: 10),
+          _invoiceTo(d),
+          pw.SizedBox(height: 16),
+          _table(d),
+          pw.SizedBox(height: 16),
+          _totals(d),
+          pw.Spacer(),
+          _footer(d, images),
         ],
       ),
     );
@@ -1538,7 +1466,7 @@ class ProfessionalInvoiceGenerator {
           child: pw.Center(child: logoContent),
         ),
         pw.SizedBox(width: 12),
-        // Company name & address
+        // Company name, address & phone
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -1552,10 +1480,13 @@ class ProfessionalInvoiceGenerator {
             pw.SizedBox(height: 2),
             pw.Text(d.companyAddress,
                 style: pw.TextStyle(color: _grey, fontSize: 8)),
+            pw.SizedBox(height: 2),
+            pw.Text(d.companyPhone,
+                style: pw.TextStyle(color: _grey, fontSize: 8)),
           ],
         ),
         pw.Spacer(),
-        // INVOICE title + meta — white text visible over blue geometric shapes
+        // INVOICE title + meta — clean on dark background
         pw.Padding(
           padding: const pw.EdgeInsets.only(top: 8),
           child: pw.Column(
