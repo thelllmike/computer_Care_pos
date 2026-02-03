@@ -1078,6 +1078,23 @@ class _RepairJobDetailContent extends ConsumerWidget {
             ),
           const SizedBox(height: 16),
 
+          // Notes
+          if (job.notes != null && job.notes!.isNotEmpty) ...[
+            Text('Notes', style: FluentTheme.of(context).typography.bodyStrong),
+            const SizedBox(height: 8),
+            Card(
+              backgroundColor: Colors.grey.withValues(alpha: 0.1),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Text(job.notes!),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // Dates
           Text('Timeline', style: FluentTheme.of(context).typography.bodyStrong),
           const SizedBox(height: 8),
@@ -1220,6 +1237,14 @@ class _UpdateStatusDialogState extends ConsumerState<_UpdateStatusDialog> {
                     size: 48, color: AppTheme.successColor),
                 const SizedBox(height: 16),
                 const Text('Status updated successfully'),
+                if (updateState.needsInvoiceGeneration) ...[
+                  const SizedBox(height: 12),
+                  InfoBar(
+                    title: const Text('Invoice Required'),
+                    content: const Text('Please generate the service invoice to record this repair as a sale.'),
+                    severity: InfoBarSeverity.warning,
+                  ),
+                ],
               ],
             )
           : Column(
@@ -1264,11 +1289,37 @@ class _UpdateStatusDialogState extends ConsumerState<_UpdateStatusDialog> {
             ),
       actions: updateState.isSuccess
           ? [
+              if (updateState.needsInvoiceGeneration)
+                Button(
+                  child: const Text('Skip Invoice'),
+                  onPressed: () {
+                    ref.read(statusUpdateProvider.notifier).reset();
+                    Navigator.of(context).pop();
+                  },
+                ),
               FilledButton(
-                child: const Text('Done'),
+                child: Text(updateState.needsInvoiceGeneration
+                    ? 'Generate Invoice'
+                    : 'Done'),
                 onPressed: () {
-                  ref.read(statusUpdateProvider.notifier).reset();
-                  Navigator.of(context).pop();
+                  if (updateState.needsInvoiceGeneration) {
+                    final jobId = updateState.invoiceJobId!;
+                    final jobNumber = updateState.invoiceJobNumber ?? '';
+                    final totalCost = updateState.invoiceTotalCost;
+                    ref.read(statusUpdateProvider.notifier).reset();
+                    Navigator.of(context).pop();
+                    showDialog(
+                      context: context,
+                      builder: (context) => _GenerateInvoiceDialog(
+                        jobId: jobId,
+                        jobNumber: jobNumber,
+                        totalCost: totalCost,
+                      ),
+                    );
+                  } else {
+                    ref.read(statusUpdateProvider.notifier).reset();
+                    Navigator.of(context).pop();
+                  }
                 },
               ),
             ]

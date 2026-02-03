@@ -363,7 +363,7 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
   // Get sale items
   Future<List<SaleItemWithProduct>> getSaleItems(String saleId) async {
     final query = select(saleItems).join([
-      innerJoin(products, products.id.equalsExp(saleItems.productId)),
+      leftOuterJoin(products, products.id.equalsExp(saleItems.productId)),
     ])
       ..where(saleItems.saleId.equals(saleId))
       ..orderBy([OrderingTerm.asc(saleItems.createdAt)]);
@@ -373,7 +373,7 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
     final itemsWithSerials = <SaleItemWithProduct>[];
     for (final row in results) {
       final item = row.readTable(saleItems);
-      final product = row.readTable(products);
+      final product = row.readTableOrNull(products);
       final serials = await getSaleItemSerials(item.id);
 
       itemsWithSerials.add(SaleItemWithProduct(
@@ -573,17 +573,17 @@ class SaleWithCustomer {
 
 class SaleItemWithProduct {
   final SaleItem item;
-  final Product product;
+  final Product? product;
   final List<SaleSerial> serials;
 
   SaleItemWithProduct({
     required this.item,
-    required this.product,
+    this.product,
     this.serials = const [],
   });
 
-  String get productName => product.name;
-  String get productCode => product.code;
+  String get productName => product?.name ?? (item.productId == 'SERVICE_LABOR' ? 'Service Labor' : 'Unknown Product');
+  String get productCode => product?.code ?? '';
   int get quantity => item.quantity;
   double get unitPrice => item.unitPrice;
   double get totalPrice => item.totalPrice;

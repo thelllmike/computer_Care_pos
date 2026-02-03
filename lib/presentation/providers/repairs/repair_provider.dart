@@ -387,22 +387,38 @@ final repairFormProvider = StateNotifierProvider<RepairFormNotifier, RepairFormS
 class StatusUpdateState {
   final bool isProcessing;
   final bool isSuccess;
+  final bool needsInvoiceGeneration; // True when delivered without invoice
+  final String? invoiceJobId; // Job ID for invoice generation
+  final String? invoiceJobNumber; // Job number for invoice dialog
+  final double invoiceTotalCost; // Total cost for invoice dialog
   final String? error;
 
   StatusUpdateState({
     this.isProcessing = false,
     this.isSuccess = false,
+    this.needsInvoiceGeneration = false,
+    this.invoiceJobId,
+    this.invoiceJobNumber,
+    this.invoiceTotalCost = 0,
     this.error,
   });
 
   StatusUpdateState copyWith({
     bool? isProcessing,
     bool? isSuccess,
+    bool? needsInvoiceGeneration,
+    String? invoiceJobId,
+    String? invoiceJobNumber,
+    double? invoiceTotalCost,
     String? error,
   }) {
     return StatusUpdateState(
       isProcessing: isProcessing ?? this.isProcessing,
       isSuccess: isSuccess ?? this.isSuccess,
+      needsInvoiceGeneration: needsInvoiceGeneration ?? this.needsInvoiceGeneration,
+      invoiceJobId: invoiceJobId ?? this.invoiceJobId,
+      invoiceJobNumber: invoiceJobNumber ?? this.invoiceJobNumber,
+      invoiceTotalCost: invoiceTotalCost ?? this.invoiceTotalCost,
       error: error,
     );
   }
@@ -438,6 +454,23 @@ class StatusUpdateNotifier extends StateNotifier<StatusUpdateState> {
         return;
       }
 
+      // Check if invoice needs to be generated when delivered
+      bool needsInvoice = false;
+      String? invoiceJobNumber;
+      double invoiceTotalCost = 0;
+      if (newStatus == RepairStatus.delivered) {
+        try {
+          final job = await _db.repairDao.getRepairJobById(jobId);
+          if (job != null && (job.invoiceId == null || job.invoiceId!.isEmpty)) {
+            needsInvoice = true;
+            invoiceJobNumber = job.jobNumber;
+            invoiceTotalCost = job.totalCost;
+          }
+        } catch (_) {
+          // Don't block status update
+        }
+      }
+
       // Invalidate providers
       _ref.invalidate(repairJobsProvider);
       _ref.invalidate(activeRepairJobsProvider);
@@ -445,7 +478,14 @@ class StatusUpdateNotifier extends StateNotifier<StatusUpdateState> {
       _ref.invalidate(repairJobDetailProvider(jobId));
       _ref.read(repairRefreshProvider.notifier).state++;
 
-      state = state.copyWith(isProcessing: false, isSuccess: true);
+      state = state.copyWith(
+        isProcessing: false,
+        isSuccess: true,
+        needsInvoiceGeneration: needsInvoice,
+        invoiceJobId: needsInvoice ? jobId : null,
+        invoiceJobNumber: needsInvoice ? invoiceJobNumber : null,
+        invoiceTotalCost: needsInvoice ? invoiceTotalCost : 0,
+      );
     } catch (e) {
       state = state.copyWith(isProcessing: false, error: e.toString());
     }

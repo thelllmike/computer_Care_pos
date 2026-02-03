@@ -736,6 +736,23 @@ class _SaleDetailDialog extends ConsumerWidget {
                               .toList(),
                         ),
                 ),
+
+                // Notes
+                if (detail.sale.notes != null && detail.sale.notes!.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text('Notes',
+                      style: FluentTheme.of(context).typography.subtitle),
+                  const SizedBox(height: 8),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: Text(detail.sale.notes!),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             );
           },
