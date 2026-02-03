@@ -387,6 +387,9 @@ class _PosScreenState extends ConsumerState<PosScreen> {
           onSelectSerials: item.trackSerials
               ? () => _showSerialSelectionDialog(item)
               : null,
+          onDiscountChanged: (discount) {
+            ref.read(cartProvider.notifier).updateItemDiscount(item.productId, discount);
+          },
         );
       },
     );
@@ -799,12 +802,14 @@ class _CartItemTile extends StatelessWidget {
   final ValueChanged<int> onQuantityChanged;
   final VoidCallback onRemove;
   final VoidCallback? onSelectSerials;
+  final ValueChanged<double>? onDiscountChanged;
 
   const _CartItemTile({
     required this.item,
     required this.onQuantityChanged,
     required this.onRemove,
     this.onSelectSerials,
+    this.onDiscountChanged,
   });
 
   @override
@@ -832,6 +837,15 @@ class _CartItemTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onDiscountChanged != null)
+                IconButton(
+                  icon: Icon(
+                    FluentIcons.calculator_subtract,
+                    size: 16,
+                    color: item.discountAmount > 0 ? AppTheme.warningColor : null,
+                  ),
+                  onPressed: () => _showItemDiscountDialog(context),
+                ),
               IconButton(
                 icon: const Icon(FluentIcons.delete, size: 16),
                 onPressed: onRemove,
@@ -869,9 +883,22 @@ class _CartItemTile extends StatelessWidget {
                   ],
                 ),
               ],
-              Text(
-                Formatters.currency(item.lineTotal),
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    Formatters.currency(item.lineTotal),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  if (item.discountAmount > 0)
+                    Text(
+                      '-${Formatters.currency(item.discountAmount)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.warningColor,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -897,6 +924,44 @@ class _CartItemTile extends StatelessWidget {
                   )).toList(),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  void _showItemDiscountDialog(BuildContext context) {
+    final controller = TextEditingController(
+      text: item.discountAmount > 0 ? item.discountAmount.toString() : '',
+    );
+    showDialog(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: Text('Discount: ${item.productName}'),
+        content: InfoLabel(
+          label: 'Discount Amount',
+          child: TextBox(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            placeholder: '0.00',
+            autofocus: true,
+          ),
+        ),
+        actions: [
+          Button(
+            child: const Text('Clear'),
+            onPressed: () {
+              onDiscountChanged?.call(0);
+              Navigator.pop(context);
+            },
+          ),
+          FilledButton(
+            child: const Text('Apply'),
+            onPressed: () {
+              final discount = double.tryParse(controller.text) ?? 0;
+              onDiscountChanged?.call(discount);
+              Navigator.pop(context);
+            },
+          ),
         ],
       ),
     );
