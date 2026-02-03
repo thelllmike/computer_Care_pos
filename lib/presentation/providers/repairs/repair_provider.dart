@@ -438,6 +438,24 @@ class StatusUpdateNotifier extends StateNotifier<StatusUpdateState> {
         return;
       }
 
+      // Auto-generate service invoice when repair is delivered
+      if (newStatus == RepairStatus.delivered) {
+        try {
+          final job = await _db.repairDao.getRepairJobById(jobId);
+          if (job != null && (job.invoiceId == null || job.invoiceId!.isEmpty)) {
+            await _db.repairDao.generateServiceInvoice(repairJobId: jobId);
+          }
+        } catch (_) {
+          // Invoice generation might fail - don't block status update
+        }
+
+        // Invalidate sales providers so repair shows as sale/profit
+        _ref.invalidate(salesProvider);
+        _ref.invalidate(salesHistoryProvider);
+        _ref.invalidate(todaysSalesProvider);
+        _ref.read(salesRefreshProvider.notifier).state++;
+      }
+
       // Invalidate providers
       _ref.invalidate(repairJobsProvider);
       _ref.invalidate(activeRepairJobsProvider);
