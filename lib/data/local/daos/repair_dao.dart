@@ -770,6 +770,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
         status: const Value('COMPLETED'),
         notes: Value('Service Invoice for Repair Job: ${job.jobNumber}${notes != null ? '\n$notes' : ''}'),
         createdBy: Value(createdBy),
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       ));
 
       // Create sale item for labor (as a service item)
@@ -787,6 +789,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
           totalPrice: laborTotalPrice,
           totalCost: laborTotalCost,
           profit: laborProfit,
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ));
       }
 
@@ -805,6 +809,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
           totalPrice: partTotalPrice,
           totalCost: partTotalCost,
           profit: partProfit,
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ));
       }
 
@@ -834,6 +840,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
             referenceId: Value(saleId),
             notes: Value(paymentNote),
             createdBy: Value(createdBy),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
           ));
 
           // Update customer credit balance
@@ -841,6 +849,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
             CustomersCompanion(
               creditBalance: Value(newBalance),
               updatedAt: Value(now),
+              syncStatus: const Value('PENDING'),
+              localUpdatedAt: Value(now),
             ),
           );
         }
@@ -852,6 +862,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
           invoiceId: Value(saleId),
           notes: Value('${job.notes ?? ''}${job.notes != null ? '\n' : ''}Invoice Generated: $invoiceNumber'),
           updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ),
       );
 

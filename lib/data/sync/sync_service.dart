@@ -149,11 +149,11 @@ class SyncService {
         // Check if syncStatus is PENDING
         if (recordMap.syncStatus != 'PENDING') continue;
 
-        try {
-          // Convert to JSON for Supabase
-          final data = _recordToJson(tableName, record);
-          if (data == null) continue;
+        // Convert to JSON for Supabase
+        final data = _recordToJson(tableName, record);
+        if (data == null) continue;
 
+        try {
           // Upsert to Supabase
           await _supabaseClient
               .from(tableName)
@@ -163,6 +163,17 @@ class SyncService {
           await _markAsSynced(tableName, recordMap.id as String);
           count++;
         } catch (e) {
+          // Handle duplicate unique key errors (e.g. invoice_number on sales)
+          final errorStr = e.toString();
+          if (errorStr.contains('23505') || errorStr.contains('duplicate key')) {
+            final resolved = await _handleDuplicateKeyError(
+              tableName, recordMap.id as String, data, e,
+            );
+            if (resolved) {
+              count++;
+              continue;
+            }
+          }
           errors.add('Failed to push $tableName/${recordMap.id}: $e');
         }
       }
@@ -171,6 +182,58 @@ class SyncService {
     }
 
     return count;
+  }
+
+  /// Handle duplicate key errors during push
+  /// Returns true if the conflict was resolved
+  Future<bool> _handleDuplicateKeyError(
+    String tableName,
+    String recordId,
+    Map<String, dynamic> data,
+    Object error,
+  ) async {
+    try {
+      // Check if the same record (by id) already exists in Supabase
+      final existing = await _supabaseClient
+          .from(tableName)
+          .select('id')
+          .eq('id', recordId)
+          .maybeSingle();
+
+      if (existing != null) {
+        // The same record already exists in Supabase - it was pushed before
+        // but local syncStatus wasn't updated. Just mark as synced.
+        await _markAsSynced(tableName, recordId);
+        return true;
+      }
+
+      // A different record has the same unique value (e.g. invoice_number).
+      // For sales table, regenerate the invoice number and retry.
+      if (tableName == 'sales' && data.containsKey('invoice_number')) {
+        final newInvoiceNumber = await _database.getNextSequenceNumber('INVOICE');
+        data['invoice_number'] = newInvoiceNumber;
+
+        // Update local record with new invoice number
+        await (_database.update(_database.sales)
+              ..where((t) => t.id.equals(recordId)))
+            .write(SalesCompanion(
+          invoiceNumber: Value(newInvoiceNumber),
+          localUpdatedAt: Value(DateTime.now()),
+        ));
+
+        // Retry push with new invoice number
+        await _supabaseClient
+            .from(tableName)
+            .upsert(data, onConflict: 'id');
+
+        await _markAsSynced(tableName, recordId);
+        return true;
+      }
+
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Convert a record to JSON for Supabase
