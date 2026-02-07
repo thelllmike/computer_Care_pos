@@ -166,6 +166,44 @@ class GrnFormNotifier extends StateNotifier<GrnFormState> {
     }
   }
 
+  // Update GRN item
+  Future<void> updateItem({
+    required String grnId,
+    required String itemId,
+    int? quantity,
+    double? unitCost,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _db.grnDao.updateGrnItem(
+        itemId: itemId,
+        quantity: quantity,
+        unitCost: unitCost,
+      );
+      state = state.copyWith(isLoading: false, isSuccess: true);
+      _ref.invalidate(grnDetailProvider(grnId));
+      _ref.invalidate(grnsProvider);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  // Delete GRN item
+  Future<void> deleteItem({
+    required String grnId,
+    required String itemId,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _db.grnDao.deleteGrnItem(itemId);
+      state = state.copyWith(isLoading: false, isSuccess: true);
+      _ref.invalidate(grnDetailProvider(grnId));
+      _ref.invalidate(grnsProvider);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
   // Validate serial numbers before submission
   Future<List<String>> validateSerials(List<String> serialNumbers) async {
     return _db.grnDao.validateSerialNumbers(serialNumbers);

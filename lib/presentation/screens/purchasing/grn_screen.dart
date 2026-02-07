@@ -440,7 +440,7 @@ class _GrnDetailContent extends ConsumerWidget {
               child: Center(child: Text('No items received yet. Add items to this GRN.')),
             )
           else
-            ...detail.items.map((item) => _buildItemCard(context, item)),
+            ...detail.items.map((item) => _buildItemCard(context, ref, item)),
 
           const SizedBox(height: 16),
           const Divider(),
@@ -461,7 +461,7 @@ class _GrnDetailContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildItemCard(BuildContext context, GrnItemWithProduct item) {
+  Widget _buildItemCard(BuildContext context, WidgetRef ref, GrnItemWithProduct item) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -487,6 +487,19 @@ class _GrnDetailContent extends ConsumerWidget {
                     Text('Unit: ${Formatters.currency(item.unitCost)}'),
                     Text('Total: ${Formatters.currency(item.totalCost)}',
                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(FluentIcons.edit, size: 16),
+                      onPressed: () => _showEditItemDialog(context, ref, item),
+                    ),
+                    IconButton(
+                      icon: Icon(FluentIcons.delete, size: 16, color: Colors.red),
+                      onPressed: () => _confirmDeleteItem(context, ref, item),
+                    ),
                   ],
                 ),
               ],
@@ -519,6 +532,65 @@ class _GrnDetailContent extends ConsumerWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _showEditItemDialog(BuildContext context, WidgetRef ref, GrnItemWithProduct item) {
+    showDialog(
+      context: context,
+      builder: (context) => EditGrnItemDialog(grnId: grnId, item: item),
+    );
+  }
+
+  void _confirmDeleteItem(BuildContext context, WidgetRef ref, GrnItemWithProduct item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => ContentDialog(
+        title: const Text('Delete Item'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete this item?'),
+            const SizedBox(height: 8),
+            Text(
+              '${item.productName} - Qty: ${item.quantity}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            if (item.hasSerialized)
+              InfoBar(
+                title: const Text('Warning'),
+                content: const Text('This will also delete the associated serial numbers.'),
+                severity: InfoBarSeverity.warning,
+              ),
+            const SizedBox(height: 8),
+            Text(
+              'This action will reverse the inventory changes.',
+              style: TextStyle(color: Colors.grey[100], fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          Button(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          FilledButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStatePropertyAll(Colors.red),
+            ),
+            child: const Text('Delete'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              ref.read(grnFormProvider.notifier).deleteItem(
+                grnId: grnId,
+                itemId: item.item.id,
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -764,5 +836,226 @@ class _AddGrnItemDialogState extends ConsumerState<AddGrnItemDialog> {
             unitCost: unitCost,
           );
     }
+  }
+}
+
+// Edit GRN Item Dialog
+class EditGrnItemDialog extends ConsumerStatefulWidget {
+  final String grnId;
+  final GrnItemWithProduct item;
+
+  const EditGrnItemDialog({super.key, required this.grnId, required this.item});
+
+  @override
+  ConsumerState<EditGrnItemDialog> createState() => _EditGrnItemDialogState();
+}
+
+class _EditGrnItemDialogState extends ConsumerState<EditGrnItemDialog> {
+  late TextEditingController _quantityController;
+  late TextEditingController _unitCostController;
+  bool _isSerialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _quantityController = TextEditingController(text: widget.item.quantity.toString());
+    _unitCostController = TextEditingController(text: widget.item.unitCost.toString());
+    _isSerialized = widget.item.hasSerialized;
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _unitCostController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final formState = ref.watch(grnFormProvider);
+
+    ref.listen<GrnFormState>(grnFormProvider, (previous, next) {
+      if (next.isSuccess) {
+        Navigator.of(context).pop();
+        ref.invalidate(grnDetailProvider(widget.grnId));
+      }
+      if (next.error != null) {
+        displayInfoBar(context, builder: (context, close) {
+          return InfoBar(
+            title: const Text('Error'),
+            content: Text(next.error!),
+            severity: InfoBarSeverity.error,
+          );
+        });
+      }
+    });
+
+    return ContentDialog(
+      title: const Text('Edit GRN Item'),
+      constraints: const BoxConstraints(maxWidth: 400),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product info (read-only)
+            InfoLabel(
+              label: 'Product',
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: FluentTheme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.grey[100]),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.item.productName,
+                         style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text('Code: ${widget.item.productCode}',
+                         style: TextStyle(color: Colors.grey[100], fontSize: 12)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (_isSerialized) ...[
+              InfoBar(
+                title: const Text('Serialized Product'),
+                content: const Text('You can only edit the unit cost for serialized items. To change quantity, delete and re-add the item.'),
+                severity: InfoBarSeverity.info,
+              ),
+              const SizedBox(height: 16),
+              // Show serial numbers
+              Text('Serial Numbers:', style: FluentTheme.of(context).typography.caption),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: widget.item.serialNumberList.map((serial) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        serial,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontFamily: 'monospace',
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    )).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            Row(
+              children: [
+                Expanded(
+                  child: InfoLabel(
+                    label: 'Quantity',
+                    child: TextBox(
+                      controller: _quantityController,
+                      keyboardType: TextInputType.number,
+                      enabled: !_isSerialized, // Disable for serialized
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InfoLabel(
+                    label: 'Unit Cost *',
+                    child: TextBox(
+                      controller: _unitCostController,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Show current vs new total
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.successColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Original Total:', style: TextStyle(color: Colors.grey[100])),
+                  Text(Formatters.currency(widget.item.totalCost)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        Button(
+          child: const Text('Cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        FilledButton(
+          onPressed: formState.isLoading
+              ? null
+              : () => _submit(),
+          child: formState.isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: ProgressRing(strokeWidth: 2),
+                )
+              : const Text('Save Changes'),
+        ),
+      ],
+    );
+  }
+
+  void _submit() {
+    final unitCost = double.tryParse(_unitCostController.text) ?? 0;
+    final quantity = int.tryParse(_quantityController.text) ?? 0;
+
+    if (unitCost <= 0) {
+      displayInfoBar(context, builder: (context, close) {
+        return const InfoBar(
+          title: Text('Validation Error'),
+          content: Text('Unit cost must be greater than 0'),
+          severity: InfoBarSeverity.warning,
+        );
+      });
+      return;
+    }
+
+    if (!_isSerialized && quantity <= 0) {
+      displayInfoBar(context, builder: (context, close) {
+        return const InfoBar(
+          title: Text('Validation Error'),
+          content: Text('Quantity must be greater than 0'),
+          severity: InfoBarSeverity.warning,
+        );
+      });
+      return;
+    }
+
+    // Check if anything changed
+    if (quantity == widget.item.quantity && unitCost == widget.item.unitCost) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    ref.read(grnFormProvider.notifier).updateItem(
+      grnId: widget.grnId,
+      itemId: widget.item.item.id,
+      quantity: _isSerialized ? null : quantity,
+      unitCost: unitCost,
+    );
   }
 }

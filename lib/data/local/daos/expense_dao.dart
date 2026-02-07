@@ -54,25 +54,39 @@ class ExpenseDao extends DatabaseAccessor<AppDatabase> with _$ExpenseDaoMixin {
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
-    final expenseNumber = await db.getNextSequenceNumber('EXPENSE');
 
-    await into(expenses).insert(ExpensesCompanion.insert(
-      id: id,
-      expenseNumber: expenseNumber,
-      category: category,
-      description: description,
-      amount: amount,
-      expenseDate: expenseDate,
-      paymentMethod: Value(paymentMethod),
-      referenceNumber: Value(referenceNumber),
-      vendor: Value(vendor),
-      notes: Value(notes),
-      createdBy: Value(createdBy),
-      syncStatus: const Value('PENDING'),
-      localUpdatedAt: Value(now),
-    ));
+    // Retry up to 5 times in case of duplicate expense number
+    for (int attempt = 0; attempt < 5; attempt++) {
+      final expenseNumber = await db.getNextSequenceNumber('EXPENSE');
 
-    return (await getExpenseById(id))!;
+      try {
+        await into(expenses).insert(ExpensesCompanion.insert(
+          id: id,
+          expenseNumber: expenseNumber,
+          category: category,
+          description: description,
+          amount: amount,
+          expenseDate: expenseDate,
+          paymentMethod: Value(paymentMethod),
+          referenceNumber: Value(referenceNumber),
+          vendor: Value(vendor),
+          notes: Value(notes),
+          createdBy: Value(createdBy),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ));
+
+        return (await getExpenseById(id))!;
+      } catch (e) {
+        // If it's a UNIQUE constraint error on expense_number, retry with next number
+        if (e.toString().contains('UNIQUE') && e.toString().contains('expense_number')) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    throw Exception('Failed to create expense after 5 attempts. Please try again.');
   }
 
   // Update expense

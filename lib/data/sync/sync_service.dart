@@ -121,11 +121,11 @@ class SyncService {
     var count = 0;
 
     // Push in dependency order (parent tables first)
-    // Master data
+    // Master data (parents first)
     count += await _pushPendingTable('categories', _database.categories, errors);
-    count += await _pushPendingTable('products', _database.products, errors);
-    count += await _pushPendingTable('customers', _database.customers, errors);
     count += await _pushPendingTable('suppliers', _database.suppliers, errors);
+    count += await _pushPendingTable('customers', _database.customers, errors);
+    count += await _pushPendingTable('products', _database.products, errors);
     count += await _pushPendingTable('inventory', _database.inventory, errors);
     count += await _pushPendingTable('serial_numbers', _database.serialNumbers, errors);
     // Purchasing
@@ -166,14 +166,14 @@ class SyncService {
     var count = 0;
 
     try {
-      // Get records with PENDING sync status
+      // Get all records from the table
       final query = _database.select(table);
       final records = await query.get();
 
       for (final record in records) {
         final recordMap = (record as dynamic);
 
-        // Check if syncStatus is PENDING
+        // Only push records with PENDING sync status
         if (recordMap.syncStatus != 'PENDING') continue;
 
         // Convert to JSON for Supabase
@@ -190,8 +190,9 @@ class SyncService {
           await _markAsSynced(tableName, recordMap.id as String);
           count++;
         } catch (e) {
-          // Handle duplicate unique key errors (e.g. invoice_number on sales)
           final errorStr = e.toString();
+
+          // Handle duplicate unique key errors (e.g. invoice_number on sales)
           if (errorStr.contains('23505') || errorStr.contains('duplicate key')) {
             final resolved = await _handleDuplicateKeyError(
               tableName, recordMap.id as String, data, e, errors,
@@ -201,6 +202,18 @@ class SyncService {
               continue;
             }
           }
+
+          // Handle FK constraint errors - try to push with null FK if parent doesn't exist
+          if (errorStr.contains('23503') || errorStr.contains('foreign key')) {
+            final resolved = await _handleForeignKeyError(
+              tableName, recordMap.id as String, data, e, errors,
+            );
+            if (resolved) {
+              count++;
+              continue;
+            }
+          }
+
           errors.add('Failed to push $tableName/${recordMap.id}: $e');
         }
       }
@@ -280,6 +293,32 @@ class SyncService {
     }
   }
 
+  /// Handle foreign key constraint errors by setting nullable FKs to null
+  Future<bool> _handleForeignKeyError(
+    String tableName,
+    String recordId,
+    Map<String, dynamic> data,
+    Object error,
+    List<String> errors,
+  ) async {
+    try {
+      final errorStr = error.toString();
+
+      // For products with missing category, set category_id to null
+      if (tableName == 'products' && errorStr.contains('category_id')) {
+        data['category_id'] = null;
+        await _supabaseClient.from(tableName).upsert(data, onConflict: 'id');
+        await _markAsSynced(tableName, recordId);
+        return true;
+      }
+
+      // For other FK errors, we can't automatically resolve
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // ==================== SEQUENCE SYNC ====================
 
   /// Syncs all local sequence numbers with Supabase on startup
@@ -298,6 +337,42 @@ class SyncService {
         columnName: 'job_number',
         sequenceType: 'REPAIR_JOB',
         prefix: 'RJ',
+      ),
+      _syncSequenceFromSupabase(
+        tableName: 'purchase_orders',
+        columnName: 'order_number',
+        sequenceType: 'PURCHASE_ORDER',
+        prefix: 'PO',
+      ),
+      _syncSequenceFromSupabase(
+        tableName: 'grn',
+        columnName: 'grn_number',
+        sequenceType: 'GRN',
+        prefix: 'GRN',
+      ),
+      _syncSequenceFromSupabase(
+        tableName: 'quotations',
+        columnName: 'quotation_number',
+        sequenceType: 'QUOTATION',
+        prefix: 'QT',
+      ),
+      _syncSequenceFromSupabase(
+        tableName: 'expenses',
+        columnName: 'expense_number',
+        sequenceType: 'EXPENSE',
+        prefix: 'EXP',
+      ),
+      _syncSequenceFromSupabase(
+        tableName: 'warranty_claims',
+        columnName: 'claim_number',
+        sequenceType: 'WARRANTY_CLAIM',
+        prefix: 'WC',
+      ),
+      _syncSequenceFromSupabase(
+        tableName: 'stock_losses',
+        columnName: 'loss_number',
+        sequenceType: 'STOCK_LOSS',
+        prefix: 'LOSS',
       ),
     ]);
   }
@@ -931,24 +1006,15 @@ class SyncService {
 
   // ==================== PULL ====================
 
-  // Tables that use created_at instead of updated_at
-  static const _createdAtTables = {
-    'grn_serials',
-    'sale_serials',
-    'credit_transactions',
-    'serial_number_history',
-  };
-
-  // Tables that use changed_at instead of updated_at
-  static const _changedAtTables = {
-    'repair_status_history',
-    'warranty_claim_history',
-  };
-
   /// Gets the timestamp column name for a table
   static String _getTimestampColumn(String table) {
-    if (_createdAtTables.contains(table)) return 'created_at';
-    if (_changedAtTables.contains(table)) return 'changed_at';
+    // Tables that use created_at
+    if (table == 'grn_serials' ||
+        table == 'sale_serials' ||
+        table == 'credit_transactions') {
+      return 'created_at';
+    }
+    // Default: updated_at
     return 'updated_at';
   }
 
@@ -958,6 +1024,8 @@ class SyncService {
     var count = 0;
 
     // Pull in dependency order (parent tables first, then children)
+    // NOTE: History tables (repair_status_history, warranty_claim_history, serial_number_history)
+    // are NOT pulled - they are push-only since they're maintained locally
     final tables = [
       // Master data
       'categories',
@@ -984,17 +1052,16 @@ class SyncService {
       // Repairs
       'repair_jobs',
       'repair_parts',
-      'repair_status_history',
       // Other transactions
       'expenses',
       'stock_losses',
       'warranty_claims',
-      'warranty_claim_history',
-      'serial_number_history',
     ];
 
     for (final table in tables) {
       try {
+        final timestampColumn = _getTimestampColumn(table);
+
         // Get last sync time for this table
         final syncMeta = await (_database.select(_database.syncMetadata)
               ..where((t) => t.syncTableName.equals(table)))
@@ -1003,10 +1070,8 @@ class SyncService {
         final lastSync = syncMeta?.lastSyncAt;
 
         // Fetch records updated/created since last sync
-        // Tables use different timestamp columns
         var query = _supabaseClient.from(table).select();
         if (lastSync != null) {
-          final timestampColumn = _getTimestampColumn(table);
           query = query.gt(timestampColumn, lastSync.toIso8601String());
         }
 

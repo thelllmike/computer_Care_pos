@@ -120,45 +120,59 @@ class WarrantyClaimDao extends DatabaseAccessor<AppDatabase>
     String? notes,
     String? createdBy,
   }) async {
-    return transaction(() async {
-      final id = _uuid.v4();
-      final now = DateTime.now();
-      final claimNumber = await db.getNextSequenceNumber('WARRANTY_CLAIM');
+    final id = _uuid.v4();
+    final now = DateTime.now();
 
-      // Insert warranty claim
-      await into(warrantyClaims).insert(WarrantyClaimsCompanion.insert(
-        id: id,
-        claimNumber: claimNumber,
-        serialNumberId: serialNumberId,
-        supplierId: supplierId,
-        claimReason: claimReason,
-        status: const Value('PENDING'),
-        createdBy: Value(createdBy),
-        syncStatus: const Value('PENDING'),
-        localUpdatedAt: Value(now),
-      ));
+    // Retry up to 5 times in case of duplicate claim number
+    for (int attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await transaction(() async {
+          final claimNumber = await db.getNextSequenceNumber('WARRANTY_CLAIM');
 
-      // Add history entry
-      await _addClaimHistory(
-        claimId: id,
-        fromStatus: null,
-        toStatus: WarrantyClaimStatus.pending,
-        notes: 'Warranty claim created',
-        changedBy: createdBy,
-      );
+          // Insert warranty claim
+          await into(warrantyClaims).insert(WarrantyClaimsCompanion.insert(
+            id: id,
+            claimNumber: claimNumber,
+            serialNumberId: serialNumberId,
+            supplierId: supplierId,
+            claimReason: claimReason,
+            status: const Value('PENDING'),
+            createdBy: Value(createdBy),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
+          ));
 
-      // Update serial status to DEFECTIVE
-      await db.inventoryDao.updateSerialStatus(
-        serialId: serialNumberId,
-        newStatus: SerialStatus.defective,
-        referenceType: 'WARRANTY_CLAIM',
-        referenceId: id,
-        notes: 'Warranty claim: $claimReason',
-        changedBy: createdBy,
-      );
+          // Add history entry
+          await _addClaimHistory(
+            claimId: id,
+            fromStatus: null,
+            toStatus: WarrantyClaimStatus.pending,
+            notes: 'Warranty claim created',
+            changedBy: createdBy,
+          );
 
-      return (await getWarrantyClaimById(id))!;
-    });
+          // Update serial status to DEFECTIVE
+          await db.inventoryDao.updateSerialStatus(
+            serialId: serialNumberId,
+            newStatus: SerialStatus.defective,
+            referenceType: 'WARRANTY_CLAIM',
+            referenceId: id,
+            notes: 'Warranty claim: $claimReason',
+            changedBy: createdBy,
+          );
+
+          return (await getWarrantyClaimById(id))!;
+        });
+      } catch (e) {
+        // If it's a UNIQUE constraint error on claim_number, retry with next number
+        if (e.toString().contains('UNIQUE') && e.toString().contains('claim_number')) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    throw Exception('Failed to create warranty claim after 5 attempts. Please try again.');
   }
 
   // Update warranty claim status with validation

@@ -126,22 +126,36 @@ class QuotationDao extends DatabaseAccessor<AppDatabase> with _$QuotationDaoMixi
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
-    final quotationNumber = await db.getNextSequenceNumber('QUOTATION');
 
-    await into(quotations).insert(QuotationsCompanion.insert(
-      id: id,
-      quotationNumber: quotationNumber,
-      quotationDate: now,
-      customerId: Value(customerId),
-      validUntil: Value(validUntil ?? now.add(const Duration(days: 30))),
-      status: const Value('DRAFT'),
-      notes: Value(notes),
-      createdBy: Value(createdBy),
-      syncStatus: const Value('PENDING'),
-      localUpdatedAt: Value(now),
-    ));
+    // Retry up to 5 times in case of duplicate quotation number
+    for (int attempt = 0; attempt < 5; attempt++) {
+      final quotationNumber = await db.getNextSequenceNumber('QUOTATION');
 
-    return (await getQuotationById(id))!;
+      try {
+        await into(quotations).insert(QuotationsCompanion.insert(
+          id: id,
+          quotationNumber: quotationNumber,
+          quotationDate: now,
+          customerId: Value(customerId),
+          validUntil: Value(validUntil ?? now.add(const Duration(days: 30))),
+          status: const Value('DRAFT'),
+          notes: Value(notes),
+          createdBy: Value(createdBy),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ));
+
+        return (await getQuotationById(id))!;
+      } catch (e) {
+        // If it's a UNIQUE constraint error on quotation_number, retry with next number
+        if (e.toString().contains('UNIQUE') && e.toString().contains('quotation_number')) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    throw Exception('Failed to create quotation after 5 attempts. Please try again.');
   }
 
   // Update quotation

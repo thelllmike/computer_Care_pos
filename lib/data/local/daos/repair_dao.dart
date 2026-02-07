@@ -268,66 +268,86 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
       throw Exception('Either a customer or manual customer name is required');
     }
 
-    return transaction(() async {
-      final jobNumber = await attachedDatabase.getNextSequenceNumber('REPAIR_JOB');
-      final jobId = _uuid.v4();
+    final jobId = _uuid.v4();
 
-      // Check warranty if it's our serial
-      bool isUnderWarranty = false;
-      String? warrantyNotes;
-      if (serialNumberId != null) {
-        final warrantyInfo = await checkWarranty(serialNumberId);
-        if (warrantyInfo != null && warrantyInfo.isUnderWarranty) {
-          isUnderWarranty = true;
-          warrantyNotes =
-              'Device under warranty until ${warrantyInfo.warrantyExpiry}';
+    // Retry up to 5 times in case of duplicate job number
+    for (int attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await transaction(() async {
+          final jobNumber = await attachedDatabase.getNextSequenceNumber('REPAIR_JOB');
+
+          // Check warranty if it's our serial
+          bool isUnderWarranty = false;
+          String? warrantyNotes;
+          if (serialNumberId != null) {
+            final warrantyInfo = await checkWarranty(serialNumberId);
+            if (warrantyInfo != null && warrantyInfo.isUnderWarranty) {
+              isUnderWarranty = true;
+              warrantyNotes =
+                  'Device under warranty until ${warrantyInfo.warrantyExpiry}';
+            }
+          }
+
+          final now = DateTime.now();
+          final job = RepairJobsCompanion.insert(
+            id: jobId,
+            jobNumber: jobNumber,
+            customerId: Value(customerId),
+            manualCustomerName: Value(manualCustomerName),
+            manualCustomerPhone: Value(manualCustomerPhone),
+            serialNumberId: Value(serialNumberId),
+            deviceType: deviceType,
+            deviceBrand: Value(deviceBrand),
+            deviceModel: Value(deviceModel),
+            deviceSerial: Value(deviceSerial),
+            problemDescription: problemDescription,
+            estimatedCost: Value(estimatedCost),
+            promisedDate: Value(promisedDate),
+            isUnderWarranty: Value(isUnderWarranty),
+            warrantyNotes: Value(warrantyNotes),
+            receivedDate: now,
+            receivedBy: Value(receivedBy),
+            notes: Value(notes),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
+          );
+
+          await into(repairJobs).insert(job);
+
+          // Record status history
+          await _recordStatusChange(
+            jobId: jobId,
+            fromStatus: null,
+            toStatus: RepairStatus.received,
+            changedBy: receivedBy,
+            notes: 'Job created',
+          );
+
+          // If it's our serial, update its status
+          if (serialNumberId != null) {
+            final serialNow = DateTime.now();
+            await (update(serialNumbers)
+                  ..where((s) => s.id.equals(serialNumberId)))
+                .write(SerialNumbersCompanion(
+              status: Value(SerialStatus.inRepair.code),
+              updatedAt: Value(serialNow),
+              syncStatus: const Value('PENDING'),
+              localUpdatedAt: Value(serialNow),
+            ));
+          }
+
+          return (await getRepairJobById(jobId))!;
+        });
+      } catch (e) {
+        // If it's a UNIQUE constraint error on job_number, retry with next number
+        if (e.toString().contains('UNIQUE') && e.toString().contains('job_number')) {
+          continue;
         }
+        rethrow;
       }
+    }
 
-      final job = RepairJobsCompanion.insert(
-        id: jobId,
-        jobNumber: jobNumber,
-        customerId: Value(customerId),
-        manualCustomerName: Value(manualCustomerName),
-        manualCustomerPhone: Value(manualCustomerPhone),
-        serialNumberId: Value(serialNumberId),
-        deviceType: deviceType,
-        deviceBrand: Value(deviceBrand),
-        deviceModel: Value(deviceModel),
-        deviceSerial: Value(deviceSerial),
-        problemDescription: problemDescription,
-        estimatedCost: Value(estimatedCost),
-        promisedDate: Value(promisedDate),
-        isUnderWarranty: Value(isUnderWarranty),
-        warrantyNotes: Value(warrantyNotes),
-        receivedDate: DateTime.now(),
-        receivedBy: Value(receivedBy),
-        notes: Value(notes),
-      );
-
-      await into(repairJobs).insert(job);
-
-      // Record status history
-      await _recordStatusChange(
-        jobId: jobId,
-        fromStatus: null,
-        toStatus: RepairStatus.received,
-        changedBy: receivedBy,
-        notes: 'Job created',
-      );
-
-      // If it's our serial, update its status
-      if (serialNumberId != null) {
-        await (update(serialNumbers)
-              ..where((s) => s.id.equals(serialNumberId)))
-            .write(SerialNumbersCompanion(
-          status: Value(SerialStatus.inRepair.code),
-          updatedAt: Value(DateTime.now()),
-        ));
-      }
-
-      return (await getRepairJobById(jobId))!;
-    });
+    throw Exception('Failed to create repair job after 5 attempts. Please try again.');
   }
 
   // Update repair job
@@ -378,26 +398,27 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
     }
 
     return transaction(() async {
-      final updateData = RepairJobsCompanion(
-        status: Value(newStatus.code),
-        updatedAt: Value(DateTime.now()),
-      );
+      final now = DateTime.now();
 
       // Set completion/delivery dates
       if (newStatus == RepairStatus.completed) {
         await (update(repairJobs)..where((j) => j.id.equals(jobId))).write(
           RepairJobsCompanion(
             status: Value(newStatus.code),
-            completedDate: Value(DateTime.now()),
-            updatedAt: Value(DateTime.now()),
+            completedDate: Value(now),
+            updatedAt: Value(now),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
           ),
         );
       } else if (newStatus == RepairStatus.delivered) {
         await (update(repairJobs)..where((j) => j.id.equals(jobId))).write(
           RepairJobsCompanion(
             status: Value(newStatus.code),
-            deliveredDate: Value(DateTime.now()),
-            updatedAt: Value(DateTime.now()),
+            deliveredDate: Value(now),
+            updatedAt: Value(now),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
           ),
         );
 
@@ -407,12 +428,20 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
                 ..where((s) => s.id.equals(job.serialNumberId!)))
               .write(SerialNumbersCompanion(
             status: Value(SerialStatus.sold.code),
-            updatedAt: Value(DateTime.now()),
+            updatedAt: Value(now),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
           ));
         }
       } else {
-        await (update(repairJobs)..where((j) => j.id.equals(jobId)))
-            .write(updateData);
+        await (update(repairJobs)..where((j) => j.id.equals(jobId))).write(
+          RepairJobsCompanion(
+            status: Value(newStatus.code),
+            updatedAt: Value(now),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
+          ),
+        );
       }
 
       // Record history
@@ -605,6 +634,7 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
     String? notes,
   }) async {
     final historyId = _uuid.v4();
+    final now = DateTime.now();
     await into(repairStatusHistory).insert(
       RepairStatusHistoryCompanion.insert(
         id: historyId,
@@ -613,6 +643,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
         toStatus: toStatus.code,
         notes: Value(notes),
         changedBy: Value(changedBy),
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       ),
     );
   }
@@ -721,181 +753,195 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
       }
     }
 
-    return transaction(() async {
-      final status = RepairStatusExtension.fromString(job.status);
-      if (status != RepairStatus.completed &&
-          status != RepairStatus.readyForPickup &&
-          status != RepairStatus.delivered) {
-        throw Exception('Repair job must be completed before generating invoice');
-      }
+    final status = RepairStatusExtension.fromString(job.status);
+    if (status != RepairStatus.completed &&
+        status != RepairStatus.readyForPickup &&
+        status != RepairStatus.delivered) {
+      throw Exception('Repair job must be completed before generating invoice');
+    }
 
-      // Credit repairs require a customer
-      if (isCredit && (job.customerId == null || job.customerId!.isEmpty)) {
-        throw Exception('Credit repairs require a registered customer');
-      }
+    // Credit repairs require a customer
+    if (isCredit && (job.customerId == null || job.customerId!.isEmpty)) {
+      throw Exception('Credit repairs require a registered customer');
+    }
 
-      // Get repair parts
-      final parts = await getRepairParts(repairJobId);
+    // Get repair parts
+    final parts = await getRepairParts(repairJobId);
 
-      // Generate invoice number
-      final invoiceNumber = await attachedDatabase.getNextSequenceNumber('INVOICE');
-      final saleId = _uuid.v4();
-      final now = DateTime.now();
+    final saleId = _uuid.v4();
+    final now = DateTime.now();
 
-      // Calculate totals
-      // Labor is the service charge, parts are the products used
-      double partsCost = 0;
-      double partsPrice = 0;
-      for (final p in parts) {
-        partsCost += p.part.unitCost * p.part.quantity;
-        partsPrice += p.part.unitPrice * p.part.quantity;
-      }
+    // Retry up to 5 times in case of duplicate invoice number
+    for (int attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await transaction(() async {
+          // Generate invoice number
+          final invoiceNumber = await attachedDatabase.getNextSequenceNumber('INVOICE');
 
-      // Subtotal = labor + parts price
-      final subtotal = job.laborCost + partsPrice;
-      final totalAmount = subtotal - discountAmount;
+          // Calculate totals
+          // Labor is the service charge, parts are the products used
+          double partsCost = 0;
+          double partsPrice = 0;
+          for (final p in parts) {
+            partsCost += p.part.unitCost * p.part.quantity;
+            partsPrice += p.part.unitPrice * p.part.quantity;
+          }
 
-      // Total cost = parts cost (labor has no cost, it's pure profit)
-      final totalCost = partsCost;
-      final grossProfit = subtotal - totalCost - discountAmount;
+          // Subtotal = labor + parts price
+          final subtotal = job.laborCost + partsPrice;
+          final totalAmount = subtotal - discountAmount;
 
-      // Determine paid amount
-      // If partial payment is provided, use it; otherwise full payment or 0 for credit
-      double paidAmount;
-      if (partialPayment != null) {
-        paidAmount = partialPayment.clamp(0, totalAmount);
-        // If there's remaining balance, treat as credit
-        if (paidAmount < totalAmount) {
-          isCredit = true;
-        }
-      } else {
-        paidAmount = isCredit ? 0 : totalAmount;
-      }
+          // Total cost = parts cost (labor has no cost, it's pure profit)
+          final totalCost = partsCost;
+          final grossProfit = subtotal - totalCost - discountAmount;
 
-      // Create sale record
-      await into(sales).insert(SalesCompanion.insert(
-        id: saleId,
-        invoiceNumber: invoiceNumber,
-        saleDate: now,
-        customerId: Value(job.customerId),
-        subtotal: Value(subtotal),
-        discountAmount: Value(discountAmount),
-        taxAmount: const Value(0),
-        totalAmount: Value(totalAmount),
-        paidAmount: Value(paidAmount),
-        totalCost: Value(totalCost),
-        grossProfit: Value(grossProfit),
-        isCredit: Value(isCredit),
-        status: const Value('COMPLETED'),
-        notes: Value('Service Invoice for Repair Job: ${job.jobNumber}${notes != null ? '\n$notes' : ''}'),
-        createdBy: Value(createdBy),
-        syncStatus: const Value('PENDING'),
-        localUpdatedAt: Value(now),
-      ));
+          // Determine paid amount
+          // If partial payment is provided, use it; otherwise full payment or 0 for credit
+          double paidAmount;
+          if (partialPayment != null) {
+            paidAmount = partialPayment.clamp(0, totalAmount);
+            // If there's remaining balance, treat as credit
+            if (paidAmount < totalAmount) {
+              isCredit = true;
+            }
+          } else {
+            paidAmount = isCredit ? 0 : totalAmount;
+          }
 
-      // Create sale item for labor (as a service item)
-      if (job.laborCost > 0) {
-        final laborTotalPrice = job.laborCost;
-        final laborTotalCost = 0.0;
-        final laborProfit = laborTotalPrice - laborTotalCost;
-        await into(saleItems).insert(SaleItemsCompanion.insert(
-          id: _uuid.v4(),
-          saleId: saleId,
-          productId: 'SERVICE_LABOR', // Special ID for labor
-          quantity: 1,
-          unitPrice: job.laborCost,
-          unitCost: 0, // No cost for labor
-          totalPrice: laborTotalPrice,
-          totalCost: laborTotalCost,
-          profit: laborProfit,
-          syncStatus: const Value('PENDING'),
-          localUpdatedAt: Value(now),
-        ));
-      }
-
-      // Create sale items for parts
-      for (final part in parts) {
-        final partTotalPrice = part.part.unitPrice * part.part.quantity;
-        final partTotalCost = part.part.unitCost * part.part.quantity;
-        final partProfit = partTotalPrice - partTotalCost;
-        await into(saleItems).insert(SaleItemsCompanion.insert(
-          id: _uuid.v4(),
-          saleId: saleId,
-          productId: part.part.productId,
-          quantity: part.part.quantity,
-          unitPrice: part.part.unitPrice,
-          unitCost: part.part.unitCost,
-          totalPrice: partTotalPrice,
-          totalCost: partTotalCost,
-          profit: partProfit,
-          syncStatus: const Value('PENDING'),
-          localUpdatedAt: Value(now),
-        ));
-      }
-
-      // If credit sale (partial or full credit), create credit transaction
-      if (isCredit && job.customerId != null && job.customerId!.isNotEmpty) {
-        // Calculate credit amount (total - paid)
-        final creditAmount = totalAmount - paidAmount;
-
-        if (creditAmount > 0) {
-          // Get current balance to calculate new balance
-          final customer = await (select(customers)
-                ..where((c) => c.id.equals(job.customerId!)))
-              .getSingle();
-          final newBalance = customer.creditBalance + creditAmount;
-
-          final paymentNote = paidAmount > 0
-              ? 'Service Invoice: $invoiceNumber (Partial payment: ${paidAmount.toStringAsFixed(2)})'
-              : 'Service Invoice: $invoiceNumber';
-
-          await into(creditTransactions).insert(CreditTransactionsCompanion.insert(
-            id: _uuid.v4(),
-            customerId: job.customerId!,
-            transactionType: 'SALE',
-            amount: creditAmount, // Only record the unpaid amount as credit
-            balanceAfter: newBalance,
-            transactionDate: now,
-            referenceId: Value(saleId),
-            notes: Value(paymentNote),
+          // Create sale record
+          await into(sales).insert(SalesCompanion.insert(
+            id: saleId,
+            invoiceNumber: invoiceNumber,
+            saleDate: now,
+            customerId: Value(job.customerId),
+            subtotal: Value(subtotal),
+            discountAmount: Value(discountAmount),
+            taxAmount: const Value(0),
+            totalAmount: Value(totalAmount),
+            paidAmount: Value(paidAmount),
+            totalCost: Value(totalCost),
+            grossProfit: Value(grossProfit),
+            isCredit: Value(isCredit),
+            status: const Value('COMPLETED'),
+            notes: Value('Service Invoice for Repair Job: ${job.jobNumber}${notes != null ? '\n$notes' : ''}'),
             createdBy: Value(createdBy),
             syncStatus: const Value('PENDING'),
             localUpdatedAt: Value(now),
           ));
 
-          // Update customer credit balance
-          await (update(customers)..where((c) => c.id.equals(job.customerId!))).write(
-            CustomersCompanion(
-              creditBalance: Value(newBalance),
+          // Create sale item for labor (as a service item)
+          if (job.laborCost > 0) {
+            final laborTotalPrice = job.laborCost;
+            final laborTotalCost = 0.0;
+            final laborProfit = laborTotalPrice - laborTotalCost;
+            await into(saleItems).insert(SaleItemsCompanion.insert(
+              id: _uuid.v4(),
+              saleId: saleId,
+              productId: 'SERVICE_LABOR', // Special ID for labor
+              quantity: 1,
+              unitPrice: job.laborCost,
+              unitCost: 0, // No cost for labor
+              totalPrice: laborTotalPrice,
+              totalCost: laborTotalCost,
+              profit: laborProfit,
+              syncStatus: const Value('PENDING'),
+              localUpdatedAt: Value(now),
+            ));
+          }
+
+          // Create sale items for parts
+          for (final part in parts) {
+            final partTotalPrice = part.part.unitPrice * part.part.quantity;
+            final partTotalCost = part.part.unitCost * part.part.quantity;
+            final partProfit = partTotalPrice - partTotalCost;
+            await into(saleItems).insert(SaleItemsCompanion.insert(
+              id: _uuid.v4(),
+              saleId: saleId,
+              productId: part.part.productId,
+              quantity: part.part.quantity,
+              unitPrice: part.part.unitPrice,
+              unitCost: part.part.unitCost,
+              totalPrice: partTotalPrice,
+              totalCost: partTotalCost,
+              profit: partProfit,
+              syncStatus: const Value('PENDING'),
+              localUpdatedAt: Value(now),
+            ));
+          }
+
+          // If credit sale (partial or full credit), create credit transaction
+          if (isCredit && job.customerId != null && job.customerId!.isNotEmpty) {
+            // Calculate credit amount (total - paid)
+            final creditAmount = totalAmount - paidAmount;
+
+            if (creditAmount > 0) {
+              // Get current balance to calculate new balance
+              final customer = await (select(customers)
+                    ..where((c) => c.id.equals(job.customerId!)))
+                  .getSingle();
+              final newBalance = customer.creditBalance + creditAmount;
+
+              final paymentNote = paidAmount > 0
+                  ? 'Service Invoice: $invoiceNumber (Partial payment: ${paidAmount.toStringAsFixed(2)})'
+                  : 'Service Invoice: $invoiceNumber';
+
+              await into(creditTransactions).insert(CreditTransactionsCompanion.insert(
+                id: _uuid.v4(),
+                customerId: job.customerId!,
+                transactionType: 'SALE',
+                amount: creditAmount, // Only record the unpaid amount as credit
+                balanceAfter: newBalance,
+                transactionDate: now,
+                referenceId: Value(saleId),
+                notes: Value(paymentNote),
+                createdBy: Value(createdBy),
+                syncStatus: const Value('PENDING'),
+                localUpdatedAt: Value(now),
+              ));
+
+              // Update customer credit balance
+              await (update(customers)..where((c) => c.id.equals(job.customerId!))).write(
+                CustomersCompanion(
+                  creditBalance: Value(newBalance),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('PENDING'),
+                  localUpdatedAt: Value(now),
+                ),
+              );
+            }
+          }
+
+          // Update repair job with invoiceId to prevent duplicates
+          await (update(repairJobs)..where((j) => j.id.equals(repairJobId))).write(
+            RepairJobsCompanion(
+              invoiceId: Value(saleId),
+              notes: Value('${job.notes ?? ''}${job.notes != null ? '\n' : ''}Invoice Generated: $invoiceNumber'),
               updatedAt: Value(now),
               syncStatus: const Value('PENDING'),
               localUpdatedAt: Value(now),
             ),
           );
+
+          // Get created sale
+          final sale = await (select(sales)..where((s) => s.id.equals(saleId))).getSingle();
+
+          return ServiceInvoiceResult(
+            sale: sale,
+            invoiceNumber: invoiceNumber,
+            repairJobNumber: job.jobNumber,
+            wasExisting: false,
+          );
+        });
+      } catch (e) {
+        // If it's a UNIQUE constraint error on invoice_number, retry with next number
+        if (e.toString().contains('UNIQUE') && e.toString().contains('invoice_number')) {
+          continue;
         }
+        rethrow;
       }
+    }
 
-      // Update repair job with invoiceId to prevent duplicates
-      await (update(repairJobs)..where((j) => j.id.equals(repairJobId))).write(
-        RepairJobsCompanion(
-          invoiceId: Value(saleId),
-          notes: Value('${job.notes ?? ''}${job.notes != null ? '\n' : ''}Invoice Generated: $invoiceNumber'),
-          updatedAt: Value(now),
-          syncStatus: const Value('PENDING'),
-          localUpdatedAt: Value(now),
-        ),
-      );
-
-      // Get created sale
-      final sale = await (select(sales)..where((s) => s.id.equals(saleId))).getSingle();
-
-      return ServiceInvoiceResult(
-        sale: sale,
-        invoiceNumber: invoiceNumber,
-        repairJobNumber: job.jobNumber,
-        wasExisting: false,
-      );
-    });
+    throw Exception('Failed to generate service invoice after 5 attempts. Please try again.');
   }
 }
 
