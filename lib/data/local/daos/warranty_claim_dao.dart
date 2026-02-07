@@ -290,15 +290,19 @@ class WarrantyClaimDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  // Get sold items under warranty (for creating new claims)
+  // Get sold items for warranty claims (includes items under warranty or without warranty date)
   Future<List<SerialNumberWithProduct>> getSoldItemsUnderWarranty() async {
     final now = DateTime.now();
 
+    // Show SOLD items that are either:
+    // 1. Under warranty (warrantyEndDate >= now), OR
+    // 2. Have no warranty date set (null - for backwards compatibility)
     final query = select(serialNumbers).join([
       innerJoin(products, products.id.equalsExp(serialNumbers.productId)),
     ])
       ..where(serialNumbers.status.equals(SerialStatus.sold.code) &
-          serialNumbers.warrantyEndDate.isBiggerOrEqualValue(now))
+          (serialNumbers.warrantyEndDate.isBiggerOrEqualValue(now) |
+              serialNumbers.warrantyEndDate.isNull()))
       ..orderBy([OrderingTerm.desc(serialNumbers.createdAt)]);
 
     final results = await query.get();
@@ -316,12 +320,16 @@ class WarrantyClaimDao extends DatabaseAccessor<AppDatabase>
     final now = DateTime.now();
     final searchTerm = '%$query%';
 
+    // Show SOLD items matching search that are either:
+    // 1. Under warranty (warrantyEndDate >= now), OR
+    // 2. Have no warranty date set (null - for backwards compatibility)
     final queryBuilder = select(serialNumbers).join([
       innerJoin(products, products.id.equalsExp(serialNumbers.productId)),
     ])
       ..where(serialNumbers.serialNumber.like(searchTerm) &
           serialNumbers.status.equals(SerialStatus.sold.code) &
-          serialNumbers.warrantyEndDate.isBiggerOrEqualValue(now))
+          (serialNumbers.warrantyEndDate.isBiggerOrEqualValue(now) |
+              serialNumbers.warrantyEndDate.isNull()))
       ..orderBy([OrderingTerm.desc(serialNumbers.createdAt)]);
 
     final results = await queryBuilder.get();

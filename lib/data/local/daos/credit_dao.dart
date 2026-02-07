@@ -240,11 +240,15 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
 
       final newBalance = customer.creditBalance - amount;
 
+      final now = DateTime.now();
+
       // Update customer balance
       await (update(customers)..where((c) => c.id.equals(customerId))).write(
         CustomersCompanion(
           creditBalance: Value(newBalance < 0 ? 0 : newBalance),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ),
       );
 
@@ -257,7 +261,9 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
           paymentMethod: paymentMethod.code,
           amount: amount,
           referenceNumber: Value(referenceNumber),
-          paymentDate: DateTime.now(),
+          paymentDate: now,
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ));
 
         // Update sale paid amount
@@ -266,7 +272,9 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
         await (update(sales)..where((s) => s.id.equals(saleId))).write(
           SalesCompanion(
             paidAmount: Value(sale.paidAmount + amount),
-            updatedAt: Value(DateTime.now()),
+            updatedAt: Value(now),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
           ),
         );
       }
@@ -283,7 +291,9 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
         balanceAfter: newBalance < 0 ? 0 : newBalance,
         notes: Value(notes),
         createdBy: Value(createdBy),
-        transactionDate: DateTime.now(),
+        transactionDate: now,
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       );
 
       await into(creditTransactions).insert(txn);
@@ -307,11 +317,14 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
           .getSingle();
 
       final newBalance = customer.creditBalance + amount;
+      final now = DateTime.now();
 
       await (update(customers)..where((c) => c.id.equals(customerId))).write(
         CustomersCompanion(
           creditBalance: Value(newBalance < 0 ? 0 : newBalance),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ),
       );
 
@@ -326,7 +339,9 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
         balanceAfter: newBalance < 0 ? 0 : newBalance,
         notes: Value(reason),
         createdBy: Value(createdBy),
-        transactionDate: DateTime.now(),
+        transactionDate: now,
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       );
 
       await into(creditTransactions).insert(txn);
