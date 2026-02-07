@@ -340,6 +340,7 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
     String? assignedTo,
     String? notes,
   }) async {
+    final now = DateTime.now();
     await (update(repairJobs)..where((j) => j.id.equals(id))).write(
       RepairJobsCompanion(
         diagnosis: diagnosis != null ? Value(diagnosis) : const Value.absent(),
@@ -351,7 +352,9 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
         assignedTo:
             assignedTo != null ? Value(assignedTo) : const Value.absent(),
         notes: notes != null ? Value(notes) : const Value.absent(),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(now),
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       ),
     );
     await _updateTotalCost(id);
@@ -464,13 +467,16 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
         throw Exception('Insufficient inventory for this part');
       }
 
+      final now = DateTime.now();
+
       // Update inventory
       await (update(inventory)..where((i) => i.productId.equals(productId)))
           .write(InventoryCompanion(
         quantityOnHand: Value(inventoryItem.quantityOnHand - quantity),
-        totalCost:
-            Value(inventoryItem.totalCost - (unitCost * quantity)),
-        updatedAt: Value(DateTime.now()),
+        totalCost: Value(inventoryItem.totalCost - (unitCost * quantity)),
+        updatedAt: Value(now),
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       ));
 
       // If serialized part, update serial status
@@ -479,7 +485,9 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
               ..where((s) => s.id.equals(serialNumberId)))
             .write(SerialNumbersCompanion(
           status: Value(SerialStatus.sold.code),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ));
       }
 
@@ -494,6 +502,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
         unitPrice: unitPrice,
         totalCost: unitCost * quantity,
         totalPrice: unitPrice * quantity,
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       );
 
       await into(repairParts).insert(part);
@@ -513,6 +523,8 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
           .getSingleOrNull();
       if (part == null) return;
 
+      final now = DateTime.now();
+
       // Return to inventory
       final inventoryItem = await (select(inventory)
             ..where((i) => i.productId.equals(part.productId)))
@@ -524,7 +536,9 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
             .write(InventoryCompanion(
           quantityOnHand: Value(inventoryItem.quantityOnHand + part.quantity),
           totalCost: Value(inventoryItem.totalCost + part.totalCost),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ));
       }
 
@@ -534,7 +548,9 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
               ..where((s) => s.id.equals(part.serialNumberId!)))
             .write(SerialNumbersCompanion(
           status: Value(SerialStatus.inStock.code),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ));
       }
 
@@ -558,13 +574,16 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
     }
 
     final totalCost = job.laborCost + partsCost;
+    final now = DateTime.now();
 
     await (update(repairJobs)..where((j) => j.id.equals(repairJobId))).write(
       RepairJobsCompanion(
         partsCost: Value(partsCost),
         totalCost: Value(totalCost),
         actualCost: Value(totalCost),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(now),
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       ),
     );
   }

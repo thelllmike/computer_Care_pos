@@ -71,7 +71,12 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
     // Start auto sync if online
     if (isOnline) {
+      // Sync sequence numbers from Supabase first to prevent duplicates
+      await _syncService.syncSequencesFromSupabase();
+
+      // Run an initial full sync to push pending and pull new data
       _syncService.startPeriodicSync();
+      syncNow();
     }
   }
 
