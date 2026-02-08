@@ -26,6 +26,12 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
 
   // ==================== Sales Operations ====================
 
+  // Get total count of all sales in local database (for debugging)
+  Future<int> getTotalSalesCount() async {
+    final result = await select(sales).get();
+    return result.length;
+  }
+
   // Get all sales
   Future<List<SaleWithCustomer>> getAllSales() async {
     final query = select(sales).join([
@@ -489,10 +495,24 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
   Future<SalesSummary> getSalesSummary(DateTime startDate, DateTime endDate) async {
     final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
 
+    // Debug: Get all sales first to see what dates they have
+    final debugAllSales = await select(sales).get();
+    // ignore: avoid_print
+    print('[DEBUG] getSalesSummary: startDate=$startDate, endOfDay=$endOfDay');
+    // ignore: avoid_print
+    print('[DEBUG] Total sales in DB: ${debugAllSales.length}');
+    for (final s in debugAllSales) {
+      // ignore: avoid_print
+      print('[DEBUG] Sale ${s.invoiceNumber}: saleDate=${s.saleDate}, total=${s.totalAmount}');
+    }
+
     final allSales = await (select(sales)
           ..where((t) => t.saleDate.isBiggerOrEqualValue(startDate) &
                          t.saleDate.isSmallerOrEqualValue(endOfDay)))
         .get();
+
+    // ignore: avoid_print
+    print('[DEBUG] Sales matching date filter: ${allSales.length}');
 
     int count = allSales.length;
     double totalRevenue = 0;

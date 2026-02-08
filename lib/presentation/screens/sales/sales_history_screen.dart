@@ -123,6 +123,46 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                         children: [
                           const Icon(FluentIcons.filter),
                           const SizedBox(width: 16),
+                          // Quick filter buttons
+                          Button(
+                            style: ButtonStyle(
+                              backgroundColor: WidgetStateProperty.all(
+                                filter.startDate == null && filter.endDate == null
+                                    ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                                    : null,
+                              ),
+                            ),
+                            child: const Text('All Sales'),
+                            onPressed: () {
+                              ref.read(salesHistoryFilterProvider.notifier).state =
+                                  SalesHistoryFilterState();
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          Button(
+                            child: const Text('This Month'),
+                            onPressed: () {
+                              final now = DateTime.now();
+                              ref.read(salesHistoryFilterProvider.notifier).state =
+                                  SalesHistoryFilterState(
+                                startDate: DateTime(now.year, now.month, 1),
+                                endDate: now,
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          Button(
+                            child: const Text('Today'),
+                            onPressed: () {
+                              final now = DateTime.now();
+                              ref.read(salesHistoryFilterProvider.notifier).state =
+                                  SalesHistoryFilterState(
+                                startDate: DateTime(now.year, now.month, now.day),
+                                endDate: now,
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 16),
                           // Date filters
                           const Text('From: '),
                           DatePicker(
@@ -210,13 +250,8 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                             child: const Text('Clear'),
                             onPressed: () {
                               _searchController.clear();
-                              final now = DateTime.now();
-                              ref
-                                  .read(salesHistoryFilterProvider.notifier)
-                                  .state = SalesHistoryFilterState(
-                                startDate: DateTime(now.year, now.month, 1),
-                                endDate: now,
-                              );
+                              ref.read(salesHistoryFilterProvider.notifier).state =
+                                  SalesHistoryFilterState(); // Reset to show all
                             },
                           ),
                         ],

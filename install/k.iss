@@ -10,7 +10,7 @@
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{08A465A7-1B83-4209-B0B5-D6DA9E072BEB}
+AppId={{60176B05-2F2A-4E58-A057-D333DCE334E1}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
@@ -31,7 +31,6 @@ ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
-OutputDir=C:\Users\sachi\OneDrive\Desktop\New folder (6)\computer_Care_pos\install
 OutputBaseFilename=mysetup
 SolidCompression=yes
 WizardStyle=modern

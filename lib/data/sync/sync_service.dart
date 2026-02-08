@@ -113,6 +113,66 @@ class SyncService {
     }
   }
 
+  /// Force full sync - resets timestamps and pulls ALL data from Supabase
+  Future<SyncResult> forceFullSync() async {
+    if (_isSyncing) {
+      return const SyncResult(
+        success: false,
+        errors: ['Sync already in progress'],
+      );
+    }
+
+    if (!await isOnline()) {
+      return const SyncResult(
+        success: false,
+        errors: ['No internet connection'],
+      );
+    }
+
+    _isSyncing = true;
+    final errors = <String>[];
+    var pushedCount = 0;
+    var pulledCount = 0;
+
+    try {
+      // First push any pending local changes
+      final pushResult = await _pushChanges();
+      pushedCount = pushResult.count;
+      errors.addAll(pushResult.errors);
+
+      // Reset all sync metadata to force full pull
+      await resetSyncMetadata();
+
+      // Pull ALL data (no timestamp filter since we cleared metadata)
+      final pullResult = await _pullChanges();
+      pulledCount = pullResult.count;
+      errors.addAll(pullResult.errors);
+
+      return SyncResult(
+        success: errors.isEmpty,
+        pushedCount: pushedCount,
+        pulledCount: pulledCount,
+        errors: errors,
+      );
+    } catch (e) {
+      return SyncResult(
+        success: false,
+        errors: ['Force full sync failed: $e'],
+      );
+    } finally {
+      _isSyncing = false;
+    }
+  }
+
+  /// Resets all sync metadata timestamps to allow full pull
+  Future<void> resetSyncMetadata() async {
+    // ignore: avoid_print
+    print('[SYNC] Resetting all sync metadata for full pull...');
+    await _database.delete(_database.syncMetadata).go();
+    // ignore: avoid_print
+    print('[SYNC] Sync metadata cleared.');
+  }
+
   // ==================== PUSH ====================
 
   /// Pushes local pending changes to Supabase
@@ -1018,6 +1078,19 @@ class SyncService {
     return 'updated_at';
   }
 
+  /// Parses a date string and converts to local time if needed
+  /// Supabase returns dates in UTC, we need local time for proper filtering
+  static DateTime _parseLocalDate(String dateString) {
+    final parsed = DateTime.parse(dateString);
+    return parsed.isUtc ? parsed.toLocal() : parsed;
+  }
+
+  /// Parses an optional date string and converts to local time if needed
+  static DateTime? _parseLocalDateOrNull(String? dateString) {
+    if (dateString == null) return null;
+    return _parseLocalDate(dateString);
+  }
+
   /// Pulls changes from Supabase to local database
   Future<({int count, List<String> errors})> _pullChanges() async {
     final errors = <String>[];
@@ -1077,12 +1150,20 @@ class SyncService {
 
         final records = await query;
 
+        // Debug log for key tables
+        if (table == 'sales' || table == 'sale_items' || table == 'payments') {
+          // ignore: avoid_print
+          print('[SYNC] Pulling $table: ${records.length} records (lastSync: $lastSync)');
+        }
+
         // Upsert records to local database
         for (final record in records) {
           try {
             await _upsertRecord(table, record);
             count++;
           } catch (e) {
+            // ignore: avoid_print
+            print('[SYNC ERROR] Failed to upsert $table/${record['id']}: $e');
             errors.add('Failed to upsert $table/${record['id']}: $e');
           }
         }
@@ -1106,6 +1187,8 @@ class SyncService {
               );
         }
       } catch (e) {
+        // ignore: avoid_print
+        print('[SYNC ERROR] Failed to pull $table: $e');
         errors.add('Failed to pull $table: $e');
       }
     }
@@ -1261,7 +1344,7 @@ class SyncService {
                 id: record['id'] as String,
                 orderNumber: record['order_number'] as String,
                 supplierId: record['supplier_id'] as String,
-                orderDate: DateTime.parse(record['order_date'] as String),
+                orderDate: _parseLocalDate(record['order_date'] as String),
                 expectedDate: Value(record['expected_date'] != null
                     ? DateTime.tryParse(record['expected_date'] as String)
                     : null),
@@ -1303,7 +1386,7 @@ class SyncService {
                 invoiceDate: Value(record['invoice_date'] != null
                     ? DateTime.tryParse(record['invoice_date'] as String)
                     : null),
-                receivedDate: DateTime.parse(record['received_date'] as String),
+                receivedDate: _parseLocalDate(record['received_date'] as String),
                 totalAmount: Value((record['total_amount'] as num?)?.toDouble() ?? 0),
                 notes: Value(record['notes'] as String?),
                 receivedBy: Value(record['received_by'] as String?),
@@ -1346,7 +1429,7 @@ class SyncService {
               QuotationsCompanion.insert(
                 id: record['id'] as String,
                 quotationNumber: record['quotation_number'] as String,
-                quotationDate: DateTime.parse(record['quotation_date'] as String),
+                quotationDate: _parseLocalDate(record['quotation_date'] as String),
                 customerId: Value(record['customer_id'] as String?),
                 validUntil: Value(record['valid_until'] != null
                     ? DateTime.tryParse(record['valid_until'] as String)
@@ -1387,7 +1470,7 @@ class SyncService {
               SalesCompanion.insert(
                 id: record['id'] as String,
                 invoiceNumber: record['invoice_number'] as String,
-                saleDate: DateTime.parse(record['sale_date'] as String),
+                saleDate: _parseLocalDate(record['sale_date'] as String),
                 customerId: Value(record['customer_id'] as String?),
                 quotationId: Value(record['quotation_id'] as String?),
                 subtotal: Value((record['subtotal'] as num?)?.toDouble() ?? 0),
@@ -1448,7 +1531,7 @@ class SyncService {
                 paymentMethod: record['payment_method'] as String,
                 amount: (record['amount'] as num).toDouble(),
                 referenceNumber: Value(record['reference_number'] as String?),
-                paymentDate: DateTime.parse(record['payment_date'] as String),
+                paymentDate: _parseLocalDate(record['payment_date'] as String),
                 notes: Value(record['notes'] as String?),
                 receivedBy: Value(record['received_by'] as String?),
                 syncStatus: const Value('SYNCED'),
@@ -1469,7 +1552,7 @@ class SyncService {
                 balanceAfter: (record['balance_after'] as num).toDouble(),
                 notes: Value(record['notes'] as String?),
                 createdBy: Value(record['created_by'] as String?),
-                transactionDate: DateTime.parse(record['transaction_date'] as String),
+                transactionDate: _parseLocalDate(record['transaction_date'] as String),
                 syncStatus: const Value('SYNCED'),
                 serverUpdatedAt: Value(updatedAt),
               ),
@@ -1499,7 +1582,7 @@ class SyncService {
                 status: Value(record['status'] as String? ?? 'RECEIVED'),
                 isUnderWarranty: Value(record['is_under_warranty'] as bool? ?? false),
                 warrantyNotes: Value(record['warranty_notes'] as String?),
-                receivedDate: DateTime.parse(record['received_date'] as String),
+                receivedDate: _parseLocalDate(record['received_date'] as String),
                 promisedDate: Value(record['promised_date'] != null
                     ? DateTime.tryParse(record['promised_date'] as String)
                     : null),
@@ -1560,7 +1643,7 @@ class SyncService {
                 category: record['category'] as String,
                 description: record['description'] as String,
                 amount: (record['amount'] as num).toDouble(),
-                expenseDate: DateTime.parse(record['expense_date'] as String),
+                expenseDate: _parseLocalDate(record['expense_date'] as String),
                 paymentMethod: Value(record['payment_method'] as String?),
                 referenceNumber: Value(record['reference_number'] as String?),
                 vendor: Value(record['vendor'] as String?),
@@ -1584,7 +1667,7 @@ class SyncService {
                 lossReason: record['loss_reason'] as String,
                 unitCost: (record['unit_cost'] as num).toDouble(),
                 totalLossAmount: (record['total_loss_amount'] as num).toDouble(),
-                lossDate: DateTime.parse(record['loss_date'] as String),
+                lossDate: _parseLocalDate(record['loss_date'] as String),
                 notes: Value(record['notes'] as String?),
                 createdBy: Value(record['created_by'] as String?),
                 syncStatus: const Value('SYNCED'),

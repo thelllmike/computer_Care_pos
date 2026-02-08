@@ -175,6 +175,30 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
+  // Force full sync - clears timestamps and pulls ALL data from Supabase
+  Future<SyncResult> forceFullSync() async {
+    if (state.isSyncing) {
+      return const SyncResult(success: false, errors: ['Sync in progress']);
+    }
+
+    state = state.copyWith(isSyncing: true, clearError: true);
+
+    try {
+      final result = await _syncService.forceFullSync();
+      await _refreshStatus();
+      state = state.copyWith(
+        isSyncing: false,
+        lastSyncAt: DateTime.now(),
+        lastResult: result,
+        lastError: result.errors.isNotEmpty ? result.errors.join(', ') : null,
+      );
+      return result;
+    } catch (e) {
+      state = state.copyWith(isSyncing: false, lastError: e.toString());
+      return SyncResult(success: false, errors: [e.toString()]);
+    }
+  }
+
   @override
   void dispose() {
     _statusTimer?.cancel();

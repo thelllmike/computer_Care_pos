@@ -21,6 +21,13 @@ final todaysSalesProvider = FutureProvider<List<SaleWithCustomer>>((ref) {
   return db.salesDao.getTodaysSales();
 });
 
+// Provider for recent sales (all time, for dashboard)
+final recentSalesProvider = FutureProvider<List<SaleWithCustomer>>((ref) {
+  ref.watch(salesRefreshProvider);
+  final db = ref.watch(databaseProvider);
+  return db.salesDao.getAllSales(); // Returns all, sorted by date desc
+});
+
 // Provider for sale detail
 final saleDetailProvider = FutureProvider.family<SaleDetail?, String>((ref, id) {
   final db = ref.watch(databaseProvider);
@@ -96,12 +103,12 @@ class SalesHistoryFilterState {
 }
 
 // Sales history filter provider
+// Default: Show ALL sales (no date filter) - user can add filter if needed
 final salesHistoryFilterProvider =
     StateProvider<SalesHistoryFilterState>((ref) {
-  final now = DateTime.now();
   return SalesHistoryFilterState(
-    startDate: DateTime(now.year, now.month, 1),
-    endDate: now,
+    startDate: null,  // No start date = show all
+    endDate: null,    // No end date = show all
   );
 });
 
