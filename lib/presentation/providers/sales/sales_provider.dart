@@ -633,6 +633,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       if (cart.isCredit) {
         _ref.invalidate(creditSummaryProvider);
         _ref.invalidate(outstandingCustomersProvider);
+        _ref.invalidate(agingSummaryProvider);
+        _ref.invalidate(agingByCustomerProvider);
       }
 
       state = state.copyWith(
@@ -730,6 +732,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       if (creditAmount > 0) {
         _ref.invalidate(creditSummaryProvider);
         _ref.invalidate(outstandingCustomersProvider);
+        _ref.invalidate(agingSummaryProvider);
+        _ref.invalidate(agingByCustomerProvider);
       }
 
       state = state.copyWith(
