@@ -310,22 +310,24 @@ class _CreatePurchaseOrderDialogState extends ConsumerState<CreatePurchaseOrderD
     return ContentDialog(
       title: const Text('Create Purchase Order'),
       constraints: const BoxConstraints(maxWidth: 400),
-      content: Column(
+      content: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InfoLabel(
             label: 'Supplier *',
             child: suppliersAsync.when(
-              data: (suppliers) => ComboBox<String>(
-                placeholder: const Text('Select supplier'),
-                value: _selectedSupplierId,
-                items: suppliers.map((s) => ComboBoxItem<String>(
-                      value: s.id,
-                      child: Text(s.name),
-                    )).toList(),
-                onChanged: (value) => setState(() => _selectedSupplierId = value),
-                isExpanded: true,
+              data: (suppliers) => AutoSuggestBox<String>(
+                placeholder: 'Search supplier...',
+                maxPopupHeight: 280,
+                items: suppliers
+                    .map((s) => AutoSuggestBoxItem<String>(
+                          value: s.id,
+                          label: s.name,
+                        ))
+                    .toList(),
+                onSelected: (item) => setState(() => _selectedSupplierId = item.value),
               ),
               loading: () => const ProgressRing(),
               error: (e, _) => Text('Error: $e'),
@@ -341,6 +343,7 @@ class _CreatePurchaseOrderDialogState extends ConsumerState<CreatePurchaseOrderD
             ),
           ),
         ],
+      ),
       ),
       actions: [
         Button(
@@ -620,28 +623,29 @@ class _AddPOItemDialogState extends ConsumerState<AddPOItemDialog> {
 
     return ContentDialog(
       title: const Text('Add Item'),
-      constraints: const BoxConstraints(maxWidth: 400),
-      content: Column(
+      constraints: const BoxConstraints(maxWidth: 500),
+      content: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InfoLabel(
             label: 'Product *',
             child: productsAsync.when(
-              data: (products) => ComboBox<String>(
-                placeholder: const Text('Select product'),
-                value: _selectedProductId,
-                items: products.map((p) => ComboBoxItem<String>(
-                      value: p.id,
-                      child: Text('${p.name} (${p.code})'),
-                    )).toList(),
-                onChanged: (value) {
-                  setState(() => _selectedProductId = value);
-                  // Auto-fill cost from product
-                  final product = products.firstWhere((p) => p.id == value);
+              data: (products) => AutoSuggestBox<String>(
+                placeholder: 'Search product...',
+                maxPopupHeight: 280,
+                items: products
+                    .map((p) => AutoSuggestBoxItem<String>(
+                          value: p.id,
+                          label: '${p.name} (${p.code})',
+                        ))
+                    .toList(),
+                onSelected: (item) {
+                  setState(() => _selectedProductId = item.value);
+                  final product = products.firstWhere((p) => p.id == item.value);
                   _unitCostController.text = product.weightedAvgCost.toString();
                 },
-                isExpanded: true,
               ),
               loading: () => const ProgressRing(),
               error: (e, _) => Text('Error: $e'),
@@ -672,6 +676,7 @@ class _AddPOItemDialogState extends ConsumerState<AddPOItemDialog> {
             ],
           ),
         ],
+      ),
       ),
       actions: [
         Button(

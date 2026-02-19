@@ -642,6 +642,8 @@ class ServiceInvoiceNotifier extends StateNotifier<ServiceInvoiceState> {
       if (isCredit) {
         _ref.invalidate(creditSummaryProvider);
         _ref.invalidate(outstandingCustomersProvider);
+        _ref.invalidate(agingSummaryProvider);
+        _ref.invalidate(agingByCustomerProvider);
       }
 
       state = state.copyWith(

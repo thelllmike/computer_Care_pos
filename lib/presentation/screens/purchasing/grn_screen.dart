@@ -231,18 +231,19 @@ class _CreateGrnDialogState extends ConsumerState<CreateGrnDialog> {
             InfoLabel(
               label: 'Supplier *',
               child: suppliersAsync.when(
-                data: (suppliers) => ComboBox<String>(
-                  placeholder: const Text('Select supplier'),
-                  value: _selectedSupplierId,
-                  items: suppliers.map((s) => ComboBoxItem<String>(
-                        value: s.id,
-                        child: Text(s.name),
-                      )).toList(),
-                  onChanged: (value) => setState(() {
-                    _selectedSupplierId = value;
+                data: (suppliers) => AutoSuggestBox<String>(
+                  placeholder: 'Search supplier...',
+                  maxPopupHeight: 280,
+                  items: suppliers
+                      .map((s) => AutoSuggestBoxItem<String>(
+                            value: s.id,
+                            label: s.name,
+                          ))
+                      .toList(),
+                  onSelected: (item) => setState(() {
+                    _selectedSupplierId = item.value;
                     _selectedPOId = null;
                   }),
-                  isExpanded: true,
                 ),
                 loading: () => const ProgressRing(),
                 error: (e, _) => Text('Error: $e'),
@@ -682,22 +683,23 @@ class _AddGrnItemDialogState extends ConsumerState<AddGrnItemDialog> {
             InfoLabel(
               label: 'Product *',
               child: productsAsync.when(
-                data: (products) => ComboBox<String>(
-                  placeholder: const Text('Select product'),
-                  value: _selectedProductId,
-                  items: products.map((p) => ComboBoxItem<String>(
-                        value: p.id,
-                        child: Text('${p.name} (${p.code})'),
-                      )).toList(),
-                  onChanged: (value) {
-                    final product = products.firstWhere((p) => p.id == value);
+                data: (products) => AutoSuggestBox<String>(
+                  placeholder: 'Search product...',
+                  maxPopupHeight: 280,
+                  items: products
+                      .map((p) => AutoSuggestBoxItem<String>(
+                            value: p.id,
+                            label: '${p.name} (${p.code})',
+                          ))
+                      .toList(),
+                  onSelected: (item) {
+                    final product = products.firstWhere((p) => p.id == item.value);
                     setState(() {
-                      _selectedProductId = value;
+                      _selectedProductId = item.value;
                       _isSerialized = product.requiresSerial;
                     });
                     _unitCostController.text = product.weightedAvgCost.toString();
                   },
-                  isExpanded: true,
                 ),
                 loading: () => const ProgressRing(),
                 error: (e, _) => Text('Error: $e'),
