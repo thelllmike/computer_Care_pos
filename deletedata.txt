@@ -1,0 +1,62 @@
+  -- =====================================================                                                                                                                  -- DELETE ALL DATA (EXCEPT ADMINS) - RUN IN SUPABASE SQL EDITOR
+  -- Order matters due to foreign key constraints (children first)                                                                                                        
+  -- =====================================================  
+
+  -- Disable triggers temporarily for faster deletion
+  SET session_replication_role = 'replica';
+
+  -- ==================== HISTORY TABLES ====================
+  TRUNCATE TABLE serial_number_history CASCADE;
+  TRUNCATE TABLE warranty_claim_history CASCADE;
+  TRUNCATE TABLE repair_status_history CASCADE;
+
+  -- ==================== WARRANTY & STOCK ====================
+  TRUNCATE TABLE warranty_claims CASCADE;
+  TRUNCATE TABLE stock_losses CASCADE;
+  TRUNCATE TABLE expenses CASCADE;
+
+  -- ==================== REPAIRS ====================
+  TRUNCATE TABLE repair_parts CASCADE;
+  TRUNCATE TABLE repair_jobs CASCADE;
+
+  -- ==================== SALES & PAYMENTS ====================
+  TRUNCATE TABLE credit_transactions CASCADE;
+  TRUNCATE TABLE payments CASCADE;
+  TRUNCATE TABLE sale_serials CASCADE;
+  TRUNCATE TABLE sale_items CASCADE;
+  TRUNCATE TABLE sales CASCADE;
+
+  -- ==================== QUOTATIONS ====================
+  TRUNCATE TABLE quotation_items CASCADE;
+  TRUNCATE TABLE quotations CASCADE;
+
+  -- ==================== GRN ====================
+  TRUNCATE TABLE grn_serials CASCADE;
+  TRUNCATE TABLE grn_items CASCADE;
+  TRUNCATE TABLE grn CASCADE;
+
+  -- ==================== PURCHASE ORDERS ====================
+  TRUNCATE TABLE purchase_order_items CASCADE;
+  TRUNCATE TABLE purchase_orders CASCADE;
+
+  -- ==================== INVENTORY & SERIALS ====================
+  TRUNCATE TABLE serial_numbers CASCADE;
+  TRUNCATE TABLE inventory CASCADE;
+
+  -- ==================== MASTER DATA ====================
+  TRUNCATE TABLE products CASCADE;
+  TRUNCATE TABLE customers CASCADE;
+  TRUNCATE TABLE suppliers CASCADE;
+  TRUNCATE TABLE categories CASCADE;
+
+  -- ==================== RESET SEQUENCES ====================
+  -- Reset sequence numbers to start fresh
+  DELETE FROM sequences;
+
+  -- Re-enable triggers
+  SET session_replication_role = 'origin';
+
+  -- =====================================================
+  -- VERIFY: Tables NOT deleted (should still have data)
+  -- =====================================================
+  SELECT 'admins' as table_name, COUNT(*) as count FROM admins;

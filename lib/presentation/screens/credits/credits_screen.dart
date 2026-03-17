@@ -693,25 +693,19 @@ class _ReceivePaymentDialogState extends ConsumerState<_ReceivePaymentDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                // Sale selection (optional)
+                // Sale selection (required)
                 if (_selectedCustomerId != null && outstandingSalesAsync != null)
                   InfoLabel(
-                    label: 'Against Invoice (Optional)',
+                    label: 'Against Invoice *',
                     child: outstandingSalesAsync.when(
-                      data: (sales) => ComboBox<String?>(
+                      data: (sales) => ComboBox<String>(
                         value: _selectedSaleId,
-                        placeholder: const Text('General payment'),
-                        items: [
-                          const ComboBoxItem<String?>(
-                            value: null,
-                            child: Text('General payment'),
-                          ),
-                          ...sales.map((s) => ComboBoxItem(
-                                value: s.sale.id,
-                                child: Text(
-                                    '${s.invoiceNumber} - ${Formatters.currency(s.outstandingAmount)}'),
-                              )),
-                        ],
+                        placeholder: const Text('Select invoice'),
+                        items: sales.map((s) => ComboBoxItem(
+                              value: s.sale.id,
+                              child: Text(
+                                  '${s.invoiceNumber} - ${Formatters.currency(s.outstandingAmount)}'),
+                            )).toList(),
                         onChanged: (value) {
                           setState(() => _selectedSaleId = value);
                           // Auto-fill amount if invoice selected
@@ -837,6 +831,23 @@ class _ReceivePaymentDialogState extends ConsumerState<_ReceivePaymentDialog> {
 
   void _savePayment() {
     if (_selectedCustomerId == null) {
+      return;
+    }
+
+    if (_selectedSaleId == null) {
+      showDialog(
+        context: context,
+        builder: (context) => ContentDialog(
+          title: const Text('Invoice Required'),
+          content: const Text('Please select an invoice to record payment against.'),
+          actions: [
+            FilledButton(
+              child: const Text('OK'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      );
       return;
     }
 

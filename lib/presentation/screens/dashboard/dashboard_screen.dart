@@ -12,17 +12,20 @@ class DashboardScreen extends ConsumerWidget {
 
   void _refreshDashboard(WidgetRef ref) {
     ref.invalidate(salesSummaryProvider(DateRange.today()));
+    ref.invalidate(salesSummaryProvider(DateRange.thisMonth()));
     ref.invalidate(repairSummaryProvider);
     ref.invalidate(lowStockProvider);
     ref.invalidate(todaysSalesProvider);
+    ref.invalidate(recentSalesProvider);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final salesSummaryAsync = ref.watch(salesSummaryProvider(DateRange.today()));
+    final todaySummaryAsync = ref.watch(salesSummaryProvider(DateRange.today()));
+    final monthSummaryAsync = ref.watch(salesSummaryProvider(DateRange.thisMonth()));
     final repairSummaryAsync = ref.watch(repairSummaryProvider);
     final lowStockAsync = ref.watch(lowStockProvider);
-    final todaysSalesAsync = ref.watch(todaysSalesProvider);
+    final recentSalesAsync = ref.watch(recentSalesProvider); // Changed to all sales
 
     return ScaffoldPage.scrollable(
       header: PageHeader(
@@ -44,24 +47,30 @@ class DashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Summary cards
+              // Today's Summary cards
+              Text(
+                "Today's Summary",
+                style: FluentTheme.of(context).typography.subtitle,
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: salesSummaryAsync.when(
+                    child: todaySummaryAsync.when(
                       data: (summary) => _SummaryCard(
                         title: "Today's Sales",
                         value: Formatters.currency(summary.totalRevenue),
+                        subtitle: '${summary.totalSales} transactions',
                         icon: FluentIcons.money,
                         color: AppTheme.successColor,
                       ),
-                      loading: () => const _SummaryCard(
+                      loading: () => _SummaryCard(
                         title: "Today's Sales",
                         value: '...',
                         icon: FluentIcons.money,
                         color: AppTheme.successColor,
                       ),
-                      error: (_, __) => const _SummaryCard(
+                      error: (_, __) => _SummaryCard(
                         title: "Today's Sales",
                         value: 'Error',
                         icon: FluentIcons.money,
@@ -71,20 +80,20 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: salesSummaryAsync.when(
+                    child: todaySummaryAsync.when(
                       data: (summary) => _SummaryCard(
                         title: "Today's Profit",
                         value: Formatters.currency(summary.totalProfit),
                         icon: FluentIcons.chart,
                         color: AppTheme.primaryColor,
                       ),
-                      loading: () => const _SummaryCard(
+                      loading: () => _SummaryCard(
                         title: "Today's Profit",
                         value: '...',
                         icon: FluentIcons.chart,
                         color: AppTheme.primaryColor,
                       ),
-                      error: (_, __) => const _SummaryCard(
+                      error: (_, __) => _SummaryCard(
                         title: "Today's Profit",
                         value: 'Error',
                         icon: FluentIcons.chart,
@@ -101,13 +110,13 @@ class DashboardScreen extends ConsumerWidget {
                         icon: FluentIcons.repair,
                         color: AppTheme.warningColor,
                       ),
-                      loading: () => const _SummaryCard(
+                      loading: () => _SummaryCard(
                         title: 'Pending Repairs',
                         value: '...',
                         icon: FluentIcons.repair,
                         color: AppTheme.warningColor,
                       ),
-                      error: (_, __) => const _SummaryCard(
+                      error: (_, __) => _SummaryCard(
                         title: 'Pending Repairs',
                         value: 'Error',
                         icon: FluentIcons.repair,
@@ -124,13 +133,13 @@ class DashboardScreen extends ConsumerWidget {
                         icon: FluentIcons.warning,
                         color: AppTheme.errorColor,
                       ),
-                      loading: () => const _SummaryCard(
+                      loading: () => _SummaryCard(
                         title: 'Low Stock Items',
                         value: '...',
                         icon: FluentIcons.warning,
                         color: AppTheme.errorColor,
                       ),
-                      error: (_, __) => const _SummaryCard(
+                      error: (_, __) => _SummaryCard(
                         title: 'Low Stock Items',
                         value: 'Error',
                         icon: FluentIcons.warning,
@@ -141,13 +150,95 @@ class DashboardScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 24),
-              // Recent transactions
+              // This Month's Summary
+              Text(
+                "This Month's Summary",
+                style: FluentTheme.of(context).typography.subtitle,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: monthSummaryAsync.when(
+                      data: (summary) => _SummaryCard(
+                        title: "Month's Sales",
+                        value: Formatters.currency(summary.totalRevenue),
+                        subtitle: '${summary.totalSales} transactions',
+                        icon: FluentIcons.calendar,
+                        color: Colors.teal,
+                      ),
+                      loading: () => _SummaryCard(
+                        title: "Month's Sales",
+                        value: '...',
+                        icon: FluentIcons.calendar,
+                        color: Colors.teal,
+                      ),
+                      error: (_, __) => _SummaryCard(
+                        title: "Month's Sales",
+                        value: 'Error',
+                        icon: FluentIcons.calendar,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: monthSummaryAsync.when(
+                      data: (summary) => _SummaryCard(
+                        title: "Month's Profit",
+                        value: Formatters.currency(summary.totalProfit),
+                        icon: FluentIcons.up,
+                        color: Colors.purple,
+                      ),
+                      loading: () => _SummaryCard(
+                        title: "Month's Profit",
+                        value: '...',
+                        icon: FluentIcons.up,
+                        color: Colors.purple,
+                      ),
+                      error: (_, __) => _SummaryCard(
+                        title: "Month's Profit",
+                        value: 'Error',
+                        icon: FluentIcons.up,
+                        color: Colors.purple,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: monthSummaryAsync.when(
+                      data: (summary) => _SummaryCard(
+                        title: "Month's Cost",
+                        value: Formatters.currency(summary.totalCost),
+                        icon: FluentIcons.product,
+                        color: Colors.orange,
+                      ),
+                      loading: () => _SummaryCard(
+                        title: "Month's Cost",
+                        value: '...',
+                        icon: FluentIcons.product,
+                        color: Colors.orange,
+                      ),
+                      error: (_, __) => _SummaryCard(
+                        title: "Month's Cost",
+                        value: 'Error',
+                        icon: FluentIcons.product,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(child: SizedBox()), // Empty space for alignment
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Recent transactions (shows all recent sales, not just today)
               Text(
                 'Recent Transactions',
                 style: FluentTheme.of(context).typography.subtitle,
               ),
               const SizedBox(height: 16),
-              todaysSalesAsync.when(
+              recentSalesAsync.when(
                 data: (sales) => sales.isEmpty
                     ? Card(
                         child: SizedBox(
@@ -193,7 +284,7 @@ class DashboardScreen extends ConsumerWidget {
                                 ),
                                 title: Text(sale.sale.invoiceNumber),
                                 subtitle: Text(
-                                  sale.customer?.name ?? 'Walk-in Customer',
+                                  '${sale.customer?.name ?? 'Walk-in'} - ${Formatters.date(sale.sale.saleDate)}',
                                 ),
                                 trailing: Text(
                                   Formatters.currency(sale.sale.totalAmount),
@@ -230,12 +321,14 @@ class DashboardScreen extends ConsumerWidget {
 class _SummaryCard extends StatelessWidget {
   final String title;
   final String value;
+  final String? subtitle;
   final IconData icon;
   final Color color;
 
   const _SummaryCard({
     required this.title,
     required this.value,
+    this.subtitle,
     required this.icon,
     required this.color,
   });
@@ -274,6 +367,15 @@ class _SummaryCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
             ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle!,
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: Colors.grey[100],
+                    ),
+              ),
+            ],
           ],
         ),
       ),

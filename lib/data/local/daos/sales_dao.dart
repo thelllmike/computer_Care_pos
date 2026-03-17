@@ -26,6 +26,12 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
 
   // ==================== Sales Operations ====================
 
+  // Get total count of all sales in local database (for debugging)
+  Future<int> getTotalSalesCount() async {
+    final result = await select(sales).get();
+    return result.length;
+  }
+
   // Get all sales
   Future<List<SaleWithCustomer>> getAllSales() async {
     final query = select(sales).join([
@@ -106,86 +112,100 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
     String? notes,
     String? createdBy,
   }) async {
-    return transaction(() async {
-      final id = _uuid.v4();
-      final now = DateTime.now();
-      final invoiceNumber = await db.getNextSequenceNumber('INVOICE');
+    final id = _uuid.v4();
+    final now = DateTime.now();
 
-      // Calculate totals
-      double subtotal = 0;
-      double totalCost = 0;
+    // Retry up to 5 times in case of duplicate invoice number
+    for (int attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await transaction(() async {
+          final invoiceNumber = await db.getNextSequenceNumber('INVOICE');
 
-      for (final item in cartItems) {
-        subtotal += item.totalPrice;
-        totalCost += item.totalCost;
-      }
+          // Calculate totals
+          double subtotal = 0;
+          double totalCost = 0;
 
-      final totalAmount = subtotal - discountAmount + taxAmount;
-      final grossProfit = subtotal - totalCost - discountAmount;
+          for (final item in cartItems) {
+            subtotal += item.totalPrice;
+            totalCost += item.totalCost;
+          }
 
-      // Determine paid amount
-      double paidAmount = 0;
-      if (payments != null && payments.isNotEmpty) {
-        paidAmount = payments.fold(0, (sum, p) => sum + p.amount);
-      } else if (!isCredit && creditAmount <= 0) {
-        paidAmount = totalAmount;
-      }
+          final totalAmount = subtotal - discountAmount + taxAmount;
+          final grossProfit = subtotal - totalCost - discountAmount;
 
-      // Create sale record
-      await into(sales).insert(SalesCompanion.insert(
-        id: id,
-        invoiceNumber: invoiceNumber,
-        saleDate: now,
-        customerId: Value(customerId),
-        subtotal: Value(subtotal),
-        discountAmount: Value(discountAmount),
-        taxAmount: Value(taxAmount),
-        totalAmount: Value(totalAmount),
-        paidAmount: Value(paidAmount),
-        totalCost: Value(totalCost),
-        grossProfit: Value(grossProfit),
-        isCredit: Value(isCredit || creditAmount > 0), // Mark as credit if any credit portion
-        status: const Value('COMPLETED'),
-        notes: Value(notes),
-        createdBy: Value(createdBy),
-        syncStatus: const Value('PENDING'),
-        localUpdatedAt: Value(now),
-      ));
+          // Determine paid amount
+          double paidAmount = 0;
+          if (payments != null && payments.isNotEmpty) {
+            paidAmount = payments.fold(0, (sum, p) => sum + p.amount);
+          } else if (!isCredit && creditAmount <= 0) {
+            paidAmount = totalAmount;
+          }
 
-      // Create sale items and update inventory
-      for (final cartItem in cartItems) {
-        await _createSaleItem(
-          saleId: id,
-          cartItem: cartItem,
-          createdBy: createdBy,
-        );
-      }
+          // Create sale record
+          await into(sales).insert(SalesCompanion.insert(
+            id: id,
+            invoiceNumber: invoiceNumber,
+            saleDate: now,
+            customerId: Value(customerId),
+            subtotal: Value(subtotal),
+            discountAmount: Value(discountAmount),
+            taxAmount: Value(taxAmount),
+            totalAmount: Value(totalAmount),
+            paidAmount: Value(paidAmount),
+            totalCost: Value(totalCost),
+            grossProfit: Value(grossProfit),
+            isCredit: Value(isCredit || creditAmount > 0), // Mark as credit if any credit portion
+            status: const Value('COMPLETED'),
+            notes: Value(notes),
+            createdBy: Value(createdBy),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
+          ));
 
-      // Create payments if any
-      if (payments != null && payments.isNotEmpty) {
-        for (final payment in payments) {
-          await _createPayment(
-            saleId: id,
-            method: payment.method,
-            amount: payment.amount,
-            reference: payment.reference,
-            createdBy: createdBy,
-          );
+          // Create sale items and update inventory
+          for (final cartItem in cartItems) {
+            await _createSaleItem(
+              saleId: id,
+              cartItem: cartItem,
+              createdBy: createdBy,
+            );
+          }
+
+          // Create payments if any
+          if (payments != null && payments.isNotEmpty) {
+            for (final payment in payments) {
+              await _createPayment(
+                saleId: id,
+                method: payment.method,
+                amount: payment.amount,
+                reference: payment.reference,
+                createdBy: createdBy,
+              );
+            }
+          }
+
+          // Create credit transaction only for the credit portion
+          if (creditAmount > 0 && customerId != null) {
+            await _createCreditTransaction(
+              customerId: customerId,
+              saleId: id,
+              amount: creditAmount,
+              createdBy: createdBy,
+            );
+          }
+
+          return (await getSaleById(id))!;
+        });
+      } catch (e) {
+        // If it's a UNIQUE constraint error on invoice_number, retry with next number
+        if (e.toString().contains('UNIQUE') && e.toString().contains('invoice_number')) {
+          continue;
         }
+        rethrow;
       }
+    }
 
-      // Create credit transaction only for the credit portion
-      if (creditAmount > 0 && customerId != null) {
-        await _createCreditTransaction(
-          customerId: customerId,
-          saleId: id,
-          amount: creditAmount,
-          createdBy: createdBy,
-        );
-      }
-
-      return (await getSaleById(id))!;
-    });
+    throw Exception('Failed to create sale after 5 attempts. Please try again.');
   }
 
   // Create sale item and update inventory
@@ -475,10 +495,24 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
   Future<SalesSummary> getSalesSummary(DateTime startDate, DateTime endDate) async {
     final endOfDay = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
 
+    // Debug: Get all sales first to see what dates they have
+    final debugAllSales = await select(sales).get();
+    // ignore: avoid_print
+    print('[DEBUG] getSalesSummary: startDate=$startDate, endOfDay=$endOfDay');
+    // ignore: avoid_print
+    print('[DEBUG] Total sales in DB: ${debugAllSales.length}');
+    for (final s in debugAllSales) {
+      // ignore: avoid_print
+      print('[DEBUG] Sale ${s.invoiceNumber}: saleDate=${s.saleDate}, total=${s.totalAmount}');
+    }
+
     final allSales = await (select(sales)
           ..where((t) => t.saleDate.isBiggerOrEqualValue(startDate) &
                          t.saleDate.isSmallerOrEqualValue(endOfDay)))
         .get();
+
+    // ignore: avoid_print
+    print('[DEBUG] Sales matching date filter: ${allSales.length}');
 
     int count = allSales.length;
     double totalRevenue = 0;

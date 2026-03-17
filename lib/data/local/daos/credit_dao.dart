@@ -98,16 +98,16 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
 
     final results = await query.get();
 
-    // Calculate outstanding for each sale
+    // Calculate outstanding for each sale using sale.paidAmount directly
+    // (not payments table, since repair invoices may not create payment records)
     final outstandingSales = <OutstandingSale>[];
     for (final sale in results) {
-      final paid = await _getTotalPaidForSale(sale.id);
-      final outstanding = sale.totalAmount - paid;
+      final outstanding = sale.totalAmount - sale.paidAmount;
       if (outstanding > 0.01) {
         // Small threshold for floating point
         outstandingSales.add(OutstandingSale(
           sale: sale,
-          paidAmount: paid,
+          paidAmount: sale.paidAmount,
           outstandingAmount: outstanding,
           daysSinceSale: DateTime.now().difference(sale.saleDate).inDays,
         ));
@@ -117,25 +117,11 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
     return outstandingSales;
   }
 
-  // Get total paid amount for a specific sale
-  Future<double> _getTotalPaidForSale(String saleId) async {
-    final result = await (select(payments)
-          ..where((p) => p.saleId.equals(saleId)))
-        .get();
-
-    double total = 0.0;
-    for (final p in result) {
-      total += p.amount;
-    }
-    return total;
-  }
-
   // ==================== Aging Report ====================
 
   // Get aging summary for all customers
   Future<AgingSummary> getAgingSummary() async {
     final outstandingCustomers = await getCustomersWithOutstanding();
-    final now = DateTime.now();
 
     double current = 0;
     double days30 = 0;
@@ -238,13 +224,33 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
             ..where((c) => c.id.equals(customerId)))
           .getSingle();
 
-      final newBalance = customer.creditBalance - amount;
+      // If paying against a specific sale, cap amount to the actual outstanding
+      double paymentAmount = amount;
+      if (saleId != null) {
+        final sale = await (select(sales)..where((s) => s.id.equals(saleId)))
+            .getSingle();
+        final saleOutstanding = sale.totalAmount - sale.paidAmount;
+        if (paymentAmount > saleOutstanding) {
+          paymentAmount = saleOutstanding;
+        }
+      }
+
+      // Cap payment to customer's credit balance to prevent negative balance
+      if (paymentAmount > customer.creditBalance) {
+        paymentAmount = customer.creditBalance;
+      }
+
+      final newBalance = customer.creditBalance - paymentAmount;
+
+      final now = DateTime.now();
 
       // Update customer balance
       await (update(customers)..where((c) => c.id.equals(customerId))).write(
         CustomersCompanion(
           creditBalance: Value(newBalance < 0 ? 0 : newBalance),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ),
       );
 
@@ -255,9 +261,11 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
           id: paymentId,
           saleId: saleId,
           paymentMethod: paymentMethod.code,
-          amount: amount,
+          amount: paymentAmount,
           referenceNumber: Value(referenceNumber),
-          paymentDate: DateTime.now(),
+          paymentDate: now,
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ));
 
         // Update sale paid amount
@@ -265,8 +273,10 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
             .getSingle();
         await (update(sales)..where((s) => s.id.equals(saleId))).write(
           SalesCompanion(
-            paidAmount: Value(sale.paidAmount + amount),
-            updatedAt: Value(DateTime.now()),
+            paidAmount: Value(sale.paidAmount + paymentAmount),
+            updatedAt: Value(now),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
           ),
         );
       }
@@ -279,11 +289,13 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
         transactionType: CreditTransactionType.payment.code,
         referenceType: Value(saleId != null ? 'SALE' : 'PAYMENT_RECEIPT'),
         referenceId: Value(saleId ?? referenceNumber),
-        amount: amount,
+        amount: paymentAmount,
         balanceAfter: newBalance < 0 ? 0 : newBalance,
         notes: Value(notes),
         createdBy: Value(createdBy),
-        transactionDate: DateTime.now(),
+        transactionDate: now,
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       );
 
       await into(creditTransactions).insert(txn);
@@ -307,11 +319,14 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
           .getSingle();
 
       final newBalance = customer.creditBalance + amount;
+      final now = DateTime.now();
 
       await (update(customers)..where((c) => c.id.equals(customerId))).write(
         CustomersCompanion(
           creditBalance: Value(newBalance < 0 ? 0 : newBalance),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
         ),
       );
 
@@ -326,7 +341,9 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
         balanceAfter: newBalance < 0 ? 0 : newBalance,
         notes: Value(reason),
         createdBy: Value(createdBy),
-        transactionDate: DateTime.now(),
+        transactionDate: now,
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
       );
 
       await into(creditTransactions).insert(txn);
@@ -383,9 +400,10 @@ class CreditDao extends DatabaseAccessor<AppDatabase> with _$CreditDaoMixin {
 
   // Get credit summary
   Future<CreditSummary> getCreditSummary() async {
-    // Total outstanding
+    // Total outstanding (only positive balances)
     final totalOutstanding = await (selectOnly(customers)
-          ..addColumns([customers.creditBalance.sum()]))
+          ..addColumns([customers.creditBalance.sum()])
+          ..where(customers.creditBalance.isBiggerThanValue(0)))
         .map((row) => row.read(customers.creditBalance.sum()) ?? 0.0)
         .getSingle();
 

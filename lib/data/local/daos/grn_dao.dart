@@ -78,24 +78,38 @@ class GrnDao extends DatabaseAccessor<AppDatabase> with _$GrnDaoMixin {
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
-    final grnNumber = await db.getNextSequenceNumber('GRN');
 
-    await into(grn).insert(GrnCompanion.insert(
-      id: id,
-      grnNumber: grnNumber,
-      supplierId: supplierId,
-      receivedDate: now,
-      purchaseOrderId: Value(purchaseOrderId),
-      invoiceNumber: Value(invoiceNumber),
-      invoiceDate: Value(invoiceDate),
-      totalAmount: const Value(0),
-      notes: Value(notes),
-      receivedBy: Value(receivedBy),
-      syncStatus: const Value('PENDING'),
-      localUpdatedAt: Value(now),
-    ));
+    // Retry up to 5 times in case of duplicate GRN number
+    for (int attempt = 0; attempt < 5; attempt++) {
+      final grnNumber = await db.getNextSequenceNumber('GRN');
 
-    return (await getGrnById(id))!;
+      try {
+        await into(grn).insert(GrnCompanion.insert(
+          id: id,
+          grnNumber: grnNumber,
+          supplierId: supplierId,
+          receivedDate: now,
+          purchaseOrderId: Value(purchaseOrderId),
+          invoiceNumber: Value(invoiceNumber),
+          invoiceDate: Value(invoiceDate),
+          totalAmount: const Value(0),
+          notes: Value(notes),
+          receivedBy: Value(receivedBy),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ));
+
+        return (await getGrnById(id))!;
+      } catch (e) {
+        // If it's a UNIQUE constraint error on grn_number, retry with next number
+        if (e.toString().contains('UNIQUE') && e.toString().contains('grn_number')) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    throw Exception('Failed to create GRN after 5 attempts. Please try again.');
   }
 
   // Update GRN
@@ -272,6 +286,236 @@ class GrnDao extends DatabaseAccessor<AppDatabase> with _$GrnDaoMixin {
 
     final results = await query.get();
     return results.map((row) => row.readTable(serialNumbers)).toList();
+  }
+
+  // Get GRN item by ID
+  Future<GrnItem?> getGrnItemById(String id) {
+    return (select(grnItems)..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
+  // Update GRN item (for non-serialized products only - adjusts inventory)
+  Future<bool> updateGrnItem({
+    required String itemId,
+    int? quantity,
+    double? unitCost,
+  }) async {
+    final item = await getGrnItemById(itemId);
+    if (item == null) return false;
+
+    final now = DateTime.now();
+    final oldQuantity = item.quantity;
+    final oldUnitCost = item.unitCost;
+    final newQuantity = quantity ?? oldQuantity;
+    final newUnitCost = unitCost ?? oldUnitCost;
+
+    // Check if this is a serialized item (can only update unitCost for serialized)
+    final serials = await getGrnItemSerials(itemId);
+    if (serials.isNotEmpty && quantity != null && quantity != oldQuantity) {
+      throw Exception('Cannot change quantity for serialized items. Remove and re-add instead.');
+    }
+
+    // Calculate inventory adjustment
+    final quantityDiff = newQuantity - oldQuantity;
+
+    // Update the item
+    await (update(grnItems)..where((t) => t.id.equals(itemId))).write(
+      GrnItemsCompanion(
+        quantity: Value(newQuantity),
+        unitCost: Value(newUnitCost),
+        updatedAt: Value(now),
+        syncStatus: const Value('PENDING'),
+        localUpdatedAt: Value(now),
+      ),
+    );
+
+    // Update GRN total
+    await _updateGrnTotal(item.grnId);
+
+    // Adjust inventory if quantity changed
+    if (quantityDiff != 0) {
+      await _adjustInventoryForEdit(item.productId, quantityDiff, newUnitCost);
+    } else if (unitCost != null && unitCost != oldUnitCost) {
+      // If only cost changed, recalculate WAC
+      await _recalculateWacForCostChange(
+        item.productId,
+        oldQuantity,
+        oldUnitCost,
+        newUnitCost,
+      );
+    }
+
+    // Update serial costs if cost changed for serialized items
+    if (serials.isNotEmpty && unitCost != null && unitCost != oldUnitCost) {
+      for (final serial in serials) {
+        await (update(serialNumbers)..where((t) => t.id.equals(serial.id))).write(
+          SerialNumbersCompanion(
+            unitCost: Value(newUnitCost),
+            updatedAt: Value(now),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
+          ),
+        );
+      }
+    }
+
+    return true;
+  }
+
+  // Delete GRN item (reverses inventory changes)
+  Future<bool> deleteGrnItem(String itemId) async {
+    final item = await getGrnItemById(itemId);
+    if (item == null) return false;
+
+    // Check if this is a serialized item
+    final serials = await getGrnItemSerials(itemId);
+
+    // For serialized items, check if any have been sold
+    if (serials.isNotEmpty) {
+      for (final serial in serials) {
+        if (serial.status != SerialStatus.inStock.code) {
+          throw Exception('Cannot delete item: Serial ${serial.serialNumber} is no longer in stock (status: ${serial.status})');
+        }
+      }
+
+      // Delete serial numbers and GRN serials
+      for (final serial in serials) {
+        // Delete GRN serial link
+        await (delete(grnSerials)..where((t) => t.serialNumberId.equals(serial.id))).go();
+        // Delete serial number record
+        await (delete(serialNumbers)..where((t) => t.id.equals(serial.id))).go();
+      }
+    }
+
+    // Reverse inventory (subtract quantity)
+    await _reverseInventoryOnDelete(item.productId, item.quantity, item.unitCost);
+
+    // Delete the item
+    await (delete(grnItems)..where((t) => t.id.equals(itemId))).go();
+
+    // Update GRN total
+    await _updateGrnTotal(item.grnId);
+
+    // Reverse PO received quantity if linked
+    if (item.purchaseOrderItemId != null) {
+      await _reversePoReceivedQuantity(item.purchaseOrderItemId!, item.quantity);
+    }
+
+    return true;
+  }
+
+  // Helper: Adjust inventory for edit (add/subtract difference)
+  Future<void> _adjustInventoryForEdit(String productId, int quantityDiff, double unitCost) async {
+    if (quantityDiff == 0) return;
+
+    if (quantityDiff > 0) {
+      // Adding more - use normal receive logic
+      await _updateInventoryOnReceive(productId, quantityDiff, unitCost);
+    } else {
+      // Removing some - reverse
+      await _reverseInventoryOnDelete(productId, -quantityDiff, unitCost);
+    }
+  }
+
+  // Helper: Recalculate WAC when only cost changes (not quantity)
+  Future<void> _recalculateWacForCostChange(
+    String productId,
+    int quantity,
+    double oldCost,
+    double newCost,
+  ) async {
+    final now = DateTime.now();
+    final inv = await (select(inventory)
+          ..where((t) => t.productId.equals(productId)))
+        .getSingleOrNull();
+
+    if (inv != null && inv.quantityOnHand > 0) {
+      // Adjust total cost for the difference
+      final costDiff = (newCost - oldCost) * quantity;
+      final newTotalCost = inv.totalCost + costDiff;
+      final newWac = newTotalCost / inv.quantityOnHand;
+
+      await (update(inventory)..where((t) => t.productId.equals(productId))).write(
+        InventoryCompanion(
+          totalCost: Value(newTotalCost),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ),
+      );
+
+      // Update product WAC
+      await (update(products)..where((t) => t.id.equals(productId))).write(
+        ProductsCompanion(
+          weightedAvgCost: Value(newWac),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ),
+      );
+    }
+  }
+
+  // Helper: Reverse inventory on delete
+  Future<void> _reverseInventoryOnDelete(String productId, int quantity, double unitCost) async {
+    final now = DateTime.now();
+    final inv = await (select(inventory)
+          ..where((t) => t.productId.equals(productId)))
+        .getSingleOrNull();
+
+    if (inv != null) {
+      final newQuantity = inv.quantityOnHand - quantity;
+      final costToRemove = quantity * unitCost;
+      final newTotalCost = inv.totalCost - costToRemove;
+
+      // Recalculate WAC (if still has quantity)
+      double newWac = 0;
+      if (newQuantity > 0) {
+        newWac = newTotalCost / newQuantity;
+      }
+
+      await (update(inventory)..where((t) => t.productId.equals(productId))).write(
+        InventoryCompanion(
+          quantityOnHand: Value(newQuantity),
+          totalCost: Value(newTotalCost),
+          lastStockDate: Value(now),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ),
+      );
+
+      // Update product WAC
+      await (update(products)..where((t) => t.id.equals(productId))).write(
+        ProductsCompanion(
+          weightedAvgCost: Value(newWac),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ),
+      );
+    }
+  }
+
+  // Helper: Reverse PO received quantity
+  Future<void> _reversePoReceivedQuantity(String poItemId, int quantity) async {
+    final now = DateTime.now();
+    final poItem = await (select(purchaseOrderItems)..where((t) => t.id.equals(poItemId))).getSingleOrNull();
+
+    if (poItem != null) {
+      final newReceived = (poItem.receivedQuantity - quantity).clamp(0, poItem.quantity);
+
+      await (update(purchaseOrderItems)..where((t) => t.id.equals(poItemId))).write(
+        PurchaseOrderItemsCompanion(
+          receivedQuantity: Value(newReceived),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ),
+      );
+
+      // Update PO status
+      await _updatePoStatus(poItem.purchaseOrderId);
+    }
   }
 
   // Update GRN total

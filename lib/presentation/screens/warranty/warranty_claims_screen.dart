@@ -459,27 +459,9 @@ class _CreateClaimDialogState extends ConsumerState<_CreateClaimDialog> {
                       .map((s) => AutoSuggestBoxItem<SerialNumberWithProduct>(
                             value: s,
                             label: s.serialNumberString,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(s.serialNumberString,
-                                    style:
-                                        const TextStyle(fontWeight: FontWeight.w600)),
-                                Text(
-                                  s.productName,
-                                  style: TextStyle(
-                                      fontSize: 12, color: Colors.grey[100]),
-                                ),
-                                if (s.warrantyEndDate != null)
-                                  Text(
-                                    'Warranty until: ${Formatters.date(s.warrantyEndDate!)}',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: s.isUnderWarranty
-                                            ? Colors.green
-                                            : Colors.red),
-                                  ),
-                              ],
+                            child: Text(
+                              '${s.serialNumberString} - ${s.productName}${s.warrantyEndDate != null ? ' (Warranty: ${Formatters.date(s.warrantyEndDate!)})' : ''}',
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ))
                       .toList(),

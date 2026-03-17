@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../providers/core/database_provider.dart';
 import '../../providers/core/settings_provider.dart';
 import '../../providers/core/sync_provider.dart';
 
@@ -418,10 +419,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
+// Provider for local sales count (for debugging)
+final localSalesCountProvider = FutureProvider<int>((ref) async {
+  final db = ref.watch(databaseProvider);
+  return db.salesDao.getTotalSalesCount();
+});
+
 class _SyncStatusCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final syncState = ref.watch(syncProvider);
+    final localSalesCount = ref.watch(localSalesCountProvider);
 
     return Card(
       child: Padding(
@@ -489,10 +497,13 @@ class _SyncStatusCard extends ConsumerWidget {
                     ),
                   ],
                 ),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     Button(
                       child: const Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(FluentIcons.download, size: 14),
                           SizedBox(width: 4),
@@ -522,9 +533,9 @@ class _SyncStatusCard extends ConsumerWidget {
                               }
                             },
                     ),
-                    const SizedBox(width: 8),
                     Button(
                       child: const Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(FluentIcons.upload, size: 14),
                           SizedBox(width: 4),
@@ -554,7 +565,6 @@ class _SyncStatusCard extends ConsumerWidget {
                               }
                             },
                     ),
-                    const SizedBox(width: 8),
                     FilledButton(
                       onPressed: syncState.isSyncing
                           ? null
@@ -585,6 +595,7 @@ class _SyncStatusCard extends ConsumerWidget {
                               child: ProgressRing(strokeWidth: 2),
                             )
                           : const Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(FluentIcons.sync, size: 14),
                                 SizedBox(width: 4),
@@ -592,7 +603,92 @@ class _SyncStatusCard extends ConsumerWidget {
                               ],
                             ),
                     ),
+                    Button(
+                      style: ButtonStyle(
+                        backgroundColor: WidgetStateProperty.all(AppTheme.warningColor.withValues(alpha: 0.1)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(FluentIcons.refresh, size: 14, color: AppTheme.warningColor),
+                          const SizedBox(width: 4),
+                          Text('Force Full Sync', style: TextStyle(color: AppTheme.warningColor)),
+                        ],
+                      ),
+                      onPressed: syncState.isSyncing
+                          ? null
+                          : () async {
+                              // Show confirmation dialog
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => ContentDialog(
+                                  title: const Text('Force Full Sync'),
+                                  content: const Text(
+                                    'This will reset sync timestamps and pull ALL data from Supabase. '
+                                    'Use this if your local data is out of sync.\n\n'
+                                    'Your local pending changes will be pushed first.',
+                                  ),
+                                  actions: [
+                                    Button(
+                                      child: const Text('Cancel'),
+                                      onPressed: () => Navigator.of(context).pop(false),
+                                    ),
+                                    FilledButton(
+                                      child: const Text('Force Full Sync'),
+                                      onPressed: () => Navigator.of(context).pop(true),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirmed == true) {
+                                final result = await ref.read(syncProvider.notifier).forceFullSync();
+                                if (context.mounted) {
+                                  displayInfoBar(
+                                    context,
+                                    builder: (context, close) => InfoBar(
+                                      title: Text(result.success
+                                          ? 'Full sync complete: ${result.pushedCount} pushed, ${result.pulledCount} pulled'
+                                          : 'Full sync failed'),
+                                      content: result.errors.isNotEmpty
+                                          ? Text(result.errors.first)
+                                          : null,
+                                      severity: result.success
+                                          ? InfoBarSeverity.success
+                                          : InfoBarSeverity.error,
+                                      onClose: close,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                    ),
                   ],
+                ),
+              ],
+            ),
+            // Local data count (debug)
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  'Local Sales Count: ',
+                  style: FluentTheme.of(context).typography.caption,
+                ),
+                localSalesCount.when(
+                  data: (count) => Text(
+                    count.toString(),
+                    style: FluentTheme.of(context).typography.body?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  loading: () => const SizedBox(width: 16, height: 16, child: ProgressRing(strokeWidth: 2)),
+                  error: (e, _) => Text('Error: $e'),
+                ),
+                const SizedBox(width: 8),
+                Button(
+                  child: const Text('Refresh'),
+                  onPressed: () => ref.invalidate(localSalesCountProvider),
                 ),
               ],
             ),

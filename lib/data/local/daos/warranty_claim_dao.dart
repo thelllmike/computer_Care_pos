@@ -120,45 +120,59 @@ class WarrantyClaimDao extends DatabaseAccessor<AppDatabase>
     String? notes,
     String? createdBy,
   }) async {
-    return transaction(() async {
-      final id = _uuid.v4();
-      final now = DateTime.now();
-      final claimNumber = await db.getNextSequenceNumber('WARRANTY_CLAIM');
+    final id = _uuid.v4();
+    final now = DateTime.now();
 
-      // Insert warranty claim
-      await into(warrantyClaims).insert(WarrantyClaimsCompanion.insert(
-        id: id,
-        claimNumber: claimNumber,
-        serialNumberId: serialNumberId,
-        supplierId: supplierId,
-        claimReason: claimReason,
-        status: const Value('PENDING'),
-        createdBy: Value(createdBy),
-        syncStatus: const Value('PENDING'),
-        localUpdatedAt: Value(now),
-      ));
+    // Retry up to 5 times in case of duplicate claim number
+    for (int attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await transaction(() async {
+          final claimNumber = await db.getNextSequenceNumber('WARRANTY_CLAIM');
 
-      // Add history entry
-      await _addClaimHistory(
-        claimId: id,
-        fromStatus: null,
-        toStatus: WarrantyClaimStatus.pending,
-        notes: 'Warranty claim created',
-        changedBy: createdBy,
-      );
+          // Insert warranty claim
+          await into(warrantyClaims).insert(WarrantyClaimsCompanion.insert(
+            id: id,
+            claimNumber: claimNumber,
+            serialNumberId: serialNumberId,
+            supplierId: supplierId,
+            claimReason: claimReason,
+            status: const Value('PENDING'),
+            createdBy: Value(createdBy),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
+          ));
 
-      // Update serial status to DEFECTIVE
-      await db.inventoryDao.updateSerialStatus(
-        serialId: serialNumberId,
-        newStatus: SerialStatus.defective,
-        referenceType: 'WARRANTY_CLAIM',
-        referenceId: id,
-        notes: 'Warranty claim: $claimReason',
-        changedBy: createdBy,
-      );
+          // Add history entry
+          await _addClaimHistory(
+            claimId: id,
+            fromStatus: null,
+            toStatus: WarrantyClaimStatus.pending,
+            notes: 'Warranty claim created',
+            changedBy: createdBy,
+          );
 
-      return (await getWarrantyClaimById(id))!;
-    });
+          // Update serial status to DEFECTIVE
+          await db.inventoryDao.updateSerialStatus(
+            serialId: serialNumberId,
+            newStatus: SerialStatus.defective,
+            referenceType: 'WARRANTY_CLAIM',
+            referenceId: id,
+            notes: 'Warranty claim: $claimReason',
+            changedBy: createdBy,
+          );
+
+          return (await getWarrantyClaimById(id))!;
+        });
+      } catch (e) {
+        // If it's a UNIQUE constraint error on claim_number, retry with next number
+        if (e.toString().contains('UNIQUE') && e.toString().contains('claim_number')) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    throw Exception('Failed to create warranty claim after 5 attempts. Please try again.');
   }
 
   // Update warranty claim status with validation
@@ -290,15 +304,19 @@ class WarrantyClaimDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  // Get sold items under warranty (for creating new claims)
+  // Get sold items for warranty claims (includes items under warranty or without warranty date)
   Future<List<SerialNumberWithProduct>> getSoldItemsUnderWarranty() async {
     final now = DateTime.now();
 
+    // Show SOLD items that are either:
+    // 1. Under warranty (warrantyEndDate >= now), OR
+    // 2. Have no warranty date set (null - for backwards compatibility)
     final query = select(serialNumbers).join([
       innerJoin(products, products.id.equalsExp(serialNumbers.productId)),
     ])
       ..where(serialNumbers.status.equals(SerialStatus.sold.code) &
-          serialNumbers.warrantyEndDate.isBiggerOrEqualValue(now))
+          (serialNumbers.warrantyEndDate.isBiggerOrEqualValue(now) |
+              serialNumbers.warrantyEndDate.isNull()))
       ..orderBy([OrderingTerm.desc(serialNumbers.createdAt)]);
 
     final results = await query.get();
@@ -316,12 +334,16 @@ class WarrantyClaimDao extends DatabaseAccessor<AppDatabase>
     final now = DateTime.now();
     final searchTerm = '%$query%';
 
+    // Show SOLD items matching search that are either:
+    // 1. Under warranty (warrantyEndDate >= now), OR
+    // 2. Have no warranty date set (null - for backwards compatibility)
     final queryBuilder = select(serialNumbers).join([
       innerJoin(products, products.id.equalsExp(serialNumbers.productId)),
     ])
       ..where(serialNumbers.serialNumber.like(searchTerm) &
           serialNumbers.status.equals(SerialStatus.sold.code) &
-          serialNumbers.warrantyEndDate.isBiggerOrEqualValue(now))
+          (serialNumbers.warrantyEndDate.isBiggerOrEqualValue(now) |
+              serialNumbers.warrantyEndDate.isNull()))
       ..orderBy([OrderingTerm.desc(serialNumbers.createdAt)]);
 
     final results = await queryBuilder.get();

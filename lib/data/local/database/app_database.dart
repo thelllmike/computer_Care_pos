@@ -275,6 +275,7 @@ class AppDatabase extends _$AppDatabase {
         'quotations', 'quotation_items',
         'payments', 'credit_transactions',
         'repair_jobs', 'repair_parts', 'repair_status_history',
+        'expenses',
         'stock_losses', 'warranty_claims', 'warranty_claim_history',
         'audit_logs', 'number_sequences',
       ];
@@ -321,6 +322,36 @@ class AppDatabase extends _$AppDatabase {
 
       // Format: PREFIX-YEAR-NUMBER (e.g., INV-2024-0001)
       return '${seq.prefix}-$currentYear-${nextNumber.toString().padLeft(4, '0')}';
+    });
+  }
+
+  /// Syncs the local sequence number with the remote max value
+  /// to prevent generating duplicate numbers after multi-device usage
+  Future<void> syncSequenceNumber(
+      String sequenceType, int year, int maxNumber) async {
+    await transaction(() async {
+      final seq = await (select(numberSequences)
+            ..where((t) => t.sequenceType.equals(sequenceType)))
+          .getSingle();
+
+      // Only update if the remote number is higher than local
+      if (seq.currentYear == year && seq.lastNumber < maxNumber) {
+        await (update(numberSequences)
+              ..where((t) => t.sequenceType.equals(sequenceType)))
+            .write(NumberSequencesCompanion(
+          lastNumber: Value(maxNumber),
+          updatedAt: Value(DateTime.now()),
+        ));
+      } else if (seq.currentYear < year) {
+        // Remote is in a newer year, update both
+        await (update(numberSequences)
+              ..where((t) => t.sequenceType.equals(sequenceType)))
+            .write(NumberSequencesCompanion(
+          currentYear: Value(year),
+          lastNumber: Value(maxNumber),
+          updatedAt: Value(DateTime.now()),
+        ));
+      }
     });
   }
 }

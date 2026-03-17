@@ -97,22 +97,36 @@ class PurchaseOrderDao extends DatabaseAccessor<AppDatabase> with _$PurchaseOrde
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
-    final orderNumber = await db.getNextSequenceNumber('PURCHASE_ORDER');
 
-    await into(purchaseOrders).insert(PurchaseOrdersCompanion.insert(
-      id: id,
-      orderNumber: orderNumber,
-      supplierId: supplierId,
-      orderDate: now,
-      status: Value(OrderStatus.draft.code),
-      totalAmount: const Value(0),
-      notes: Value(notes),
-      createdBy: Value(createdBy),
-      syncStatus: const Value('PENDING'),
-      localUpdatedAt: Value(now),
-    ));
+    // Retry up to 5 times in case of duplicate order number
+    for (int attempt = 0; attempt < 5; attempt++) {
+      final orderNumber = await db.getNextSequenceNumber('PURCHASE_ORDER');
 
-    return (await getPurchaseOrderById(id))!;
+      try {
+        await into(purchaseOrders).insert(PurchaseOrdersCompanion.insert(
+          id: id,
+          orderNumber: orderNumber,
+          supplierId: supplierId,
+          orderDate: now,
+          status: Value(OrderStatus.draft.code),
+          totalAmount: const Value(0),
+          notes: Value(notes),
+          createdBy: Value(createdBy),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ));
+
+        return (await getPurchaseOrderById(id))!;
+      } catch (e) {
+        // If it's a UNIQUE constraint error on order_number, retry with next number
+        if (e.toString().contains('UNIQUE') && e.toString().contains('order_number')) {
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    throw Exception('Failed to create purchase order after 5 attempts');
   }
 
   // Update purchase order
