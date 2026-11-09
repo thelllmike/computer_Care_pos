@@ -1,0 +1,57 @@
+name: Windows build
+
+# Builds CP POS for Windows and uploads:
+#   - CP_POS_Setup.exe  (installer, Start menu + desktop shortcut)
+#   - CP_POS_Windows.zip (portable folder: unzip and run cp_pos.exe)
+# Download them from the run's "Artifacts" section on GitHub Actions.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'fix/**', 'feature/**']
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.7
+          channel: stable
+          cache: true
+
+      - name: Build
+        run: |
+          flutter config --enable-windows-desktop
+          flutter pub get
+          flutter build windows --release
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches[0].Groups[1].Value
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Zip portable build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath dist\CP_POS_Windows.zip
+
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+            choco install innosetup --no-progress -y
+            $env:Path += ";C:\Program Files (x86)\Inno Setup 6"
+          }
+          iscc /DAppVersion=${{ steps.ver.outputs.version }} windows\installer\cp_pos.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CP_POS_Windows_${{ steps.ver.outputs.version }}
+          path: |
+            dist/CP_POS_Setup.exe
+            dist/CP_POS_Windows.zip

@@ -474,7 +474,7 @@ class SyncService {
   /// Convert a record to JSON for Supabase
   Map<String, dynamic>? _recordToJson(String tableName, dynamic record) {
     try {
-      final now = DateTime.now().toIso8601String();
+      final now = DateTime.now().toUtc().toIso8601String();
       switch (tableName) {
         case 'categories':
           return {
@@ -547,7 +547,7 @@ class SyncService {
             'quantity_on_hand': record.quantityOnHand,
             'total_cost': record.totalCost,
             'reserved_quantity': record.reservedQuantity,
-            'last_stock_date': record.lastStockDate?.toIso8601String(),
+            'last_stock_date': record.lastStockDate?.toUtc().toIso8601String(),
             'updated_at': now,
           };
         case 'serial_numbers':
@@ -561,8 +561,8 @@ class SyncService {
             'grn_item_id': record.grnItemId,
             'sale_id': record.saleId,
             'customer_id': record.customerId,
-            'warranty_start_date': record.warrantyStartDate?.toIso8601String(),
-            'warranty_end_date': record.warrantyEndDate?.toIso8601String(),
+            'warranty_start_date': record.warrantyStartDate?.toUtc().toIso8601String(),
+            'warranty_end_date': record.warrantyEndDate?.toUtc().toIso8601String(),
             'notes': record.notes,
             'updated_at': now,
           };
@@ -582,8 +582,8 @@ class SyncService {
             'id': record.id,
             'order_number': record.orderNumber,
             'supplier_id': record.supplierId,
-            'order_date': record.orderDate.toIso8601String(),
-            'expected_date': record.expectedDate?.toIso8601String(),
+            'order_date': record.orderDate.toUtc().toIso8601String(),
+            'expected_date': record.expectedDate?.toUtc().toIso8601String(),
             'status': record.status,
             'total_amount': record.totalAmount,
             'notes': record.notes,
@@ -609,8 +609,8 @@ class SyncService {
             'purchase_order_id': record.purchaseOrderId,
             'supplier_id': record.supplierId,
             'invoice_number': record.invoiceNumber,
-            'invoice_date': record.invoiceDate?.toIso8601String(),
-            'received_date': record.receivedDate.toIso8601String(),
+            'invoice_date': record.invoiceDate?.toUtc().toIso8601String(),
+            'received_date': record.receivedDate.toUtc().toIso8601String(),
             'total_amount': record.totalAmount,
             'notes': record.notes,
             'received_by': record.receivedBy,
@@ -638,8 +638,8 @@ class SyncService {
             'id': record.id,
             'quotation_number': record.quotationNumber,
             'customer_id': record.customerId,
-            'quotation_date': record.quotationDate.toIso8601String(),
-            'valid_until': record.validUntil?.toIso8601String(),
+            'quotation_date': record.quotationDate.toUtc().toIso8601String(),
+            'valid_until': record.validUntil?.toUtc().toIso8601String(),
             'subtotal': record.subtotal,
             'discount_amount': record.discountAmount,
             'tax_amount': record.taxAmount,
@@ -668,7 +668,7 @@ class SyncService {
             'invoice_number': record.invoiceNumber,
             'customer_id': record.customerId,
             'quotation_id': record.quotationId,
-            'sale_date': record.saleDate.toIso8601String(),
+            'sale_date': record.saleDate.toUtc().toIso8601String(),
             'subtotal': record.subtotal,
             'discount_amount': record.discountAmount,
             'tax_amount': record.taxAmount,
@@ -711,7 +711,7 @@ class SyncService {
             'payment_method': record.paymentMethod,
             'amount': record.amount,
             'reference_number': record.referenceNumber,
-            'payment_date': record.paymentDate.toIso8601String(),
+            'payment_date': record.paymentDate.toUtc().toIso8601String(),
             'notes': record.notes,
             'received_by': record.receivedBy,
             'updated_at': now,
@@ -727,7 +727,7 @@ class SyncService {
             'balance_after': record.balanceAfter,
             'notes': record.notes,
             'created_by': record.createdBy,
-            'transaction_date': record.transactionDate.toIso8601String(),
+            'transaction_date': record.transactionDate.toUtc().toIso8601String(),
           };
         case 'repair_jobs':
           return {
@@ -751,10 +751,10 @@ class SyncService {
             'status': record.status,
             'is_under_warranty': record.isUnderWarranty,
             'warranty_notes': record.warrantyNotes,
-            'received_date': record.receivedDate.toIso8601String(),
-            'promised_date': record.promisedDate?.toIso8601String(),
-            'completed_date': record.completedDate?.toIso8601String(),
-            'delivered_date': record.deliveredDate?.toIso8601String(),
+            'received_date': record.receivedDate.toUtc().toIso8601String(),
+            'promised_date': record.promisedDate?.toUtc().toIso8601String(),
+            'completed_date': record.completedDate?.toUtc().toIso8601String(),
+            'delivered_date': record.deliveredDate?.toUtc().toIso8601String(),
             'received_by': record.receivedBy,
             'assigned_to': record.assignedTo,
             'notes': record.notes,
@@ -782,7 +782,7 @@ class SyncService {
             'to_status': record.toStatus,
             'notes': record.notes,
             'changed_by': record.changedBy,
-            'changed_at': record.changedAt.toIso8601String(),
+            'changed_at': record.changedAt.toUtc().toIso8601String(),
           };
         case 'expenses':
           return {
@@ -791,7 +791,7 @@ class SyncService {
             'category': record.category,
             'description': record.description,
             'amount': record.amount,
-            'expense_date': record.expenseDate.toIso8601String(),
+            'expense_date': record.expenseDate.toUtc().toIso8601String(),
             'payment_method': record.paymentMethod,
             'reference_number': record.referenceNumber,
             'vendor': record.vendor,
@@ -810,7 +810,7 @@ class SyncService {
             'loss_reason': record.lossReason,
             'unit_cost': record.unitCost,
             'total_loss_amount': record.totalLossAmount,
-            'loss_date': record.lossDate.toIso8601String(),
+            'loss_date': record.lossDate.toUtc().toIso8601String(),
             'notes': record.notes,
             'created_by': record.createdBy,
             'updated_at': now,
@@ -823,9 +823,9 @@ class SyncService {
             'supplier_id': record.supplierId,
             'claim_reason': record.claimReason,
             'status': record.status,
-            'date_sent_to_supplier': record.dateSentToSupplier?.toIso8601String(),
-            'expected_return_date': record.expectedReturnDate?.toIso8601String(),
-            'actual_return_date': record.actualReturnDate?.toIso8601String(),
+            'date_sent_to_supplier': record.dateSentToSupplier?.toUtc().toIso8601String(),
+            'expected_return_date': record.expectedReturnDate?.toUtc().toIso8601String(),
+            'actual_return_date': record.actualReturnDate?.toUtc().toIso8601String(),
             'supplier_response': record.supplierResponse,
             'resolution_notes': record.resolutionNotes,
             'created_by': record.createdBy,
@@ -839,7 +839,7 @@ class SyncService {
             'to_status': record.toStatus,
             'notes': record.notes,
             'changed_by': record.changedBy,
-            'changed_at': record.changedAt.toIso8601String(),
+            'changed_at': record.changedAt.toUtc().toIso8601String(),
           };
         default:
           return null;
@@ -1148,7 +1148,7 @@ class SyncService {
         // Fetch records updated/created since last sync
         var query = _supabaseClient.from(table).select();
         if (lastSync != null) {
-          query = query.gt(timestampColumn, lastSync.toIso8601String());
+          query = query.gt(timestampColumn, lastSync.toUtc().toIso8601String());
         }
 
         final records = await query;
