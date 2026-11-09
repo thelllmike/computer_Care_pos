@@ -15,7 +15,12 @@
       "Bash(tree:*)",
       "Bash(dart pub add:*)",
       "Bash(dart run:*)",
-      "Bash(flutter clean:*)"
+      "Bash(flutter clean:*)",
+      "Bash(dart analyze:*)",
+      "Bash(powershell -Command \"Get-Process -Name ''dart'',''cmake'',''MSBuild'',''ninja'',''flutter_tester'' -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Host ''Processes stopped''\")",
+      "Bash(powershell -Command \"Remove-Item -Recurse -Force ''C:\\\\Users\\\\sachi\\\\OneDrive\\\\Desktop\\\\New folder \\(6\\)\\\\computer_Care_pos\\\\build'' -ErrorAction SilentlyContinue; Write-Host ''Build folder removed''\")",
+      "Bash(powershell -Command:*)",
+      "Bash(\"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\Common7\\\\IDE\\\\CommonExtensions\\\\Microsoft\\\\CMake\\\\CMake\\\\bin\\\\cmake.exe\" -DBUILD_TYPE=Release -P cmake_install.cmake)"
     ]
   }
 }

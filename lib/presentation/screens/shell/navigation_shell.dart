@@ -15,6 +15,7 @@ import '../purchasing/purchase_orders_screen.dart';
 import '../purchasing/grn_screen.dart';
 import '../quotations/quotations_screen.dart';
 import '../credits/credits_screen.dart';
+import '../online_delivery/online_orders_screen.dart';
 import '../repairs/repairs_screen.dart';
 import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
@@ -207,6 +208,11 @@ class NavigationShell extends ConsumerWidget {
         icon: const Icon(FluentIcons.money),
         title: const Text('Credits'),
         body: const CreditsScreen(),
+      ),
+      PaneItem(
+        icon: const Icon(FluentIcons.delivery_truck),
+        title: const Text('Online Delivery'),
+        body: const OnlineOrdersScreen(),
       ),
     ]);
 

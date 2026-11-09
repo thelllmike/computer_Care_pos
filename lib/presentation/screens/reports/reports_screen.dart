@@ -13,6 +13,49 @@ import '../../../data/local/daos/expense_dao.dart';
 import '../../../data/local/daos/sales_dao.dart';
 import '../../../data/local/tables/stock_losses_table.dart';
 
+// ---------------------------------------------------------------------------
+// Month helpers (file-private)
+// ---------------------------------------------------------------------------
+
+const _kMonthNames = [
+  '', // index 0 unused — months are 1-based
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/// Returns the full month name for [offset] months before the current month.
+/// [offset] = 0 → current month, 1 → last month, 2 → two months ago, etc.
+/// Handles year wrap-around correctly.
+String _monthName(int offset) {
+  final now = DateTime.now();
+  int month = now.month - offset;
+  while (month <= 0) {
+    month += 12;
+  }
+  return _kMonthNames[month];
+}
+
+/// Returns a [DateRange] covering exactly one calendar month that is [offset]
+/// months before the current month.  Year rollover is handled safely.
+///
+/// Dart's [DateTime] constructor normalises out-of-range month values, so
+/// `DateTime(year, month + 1, 0)` always gives the last day of [month].
+DateRange _monthOffsetRange(int offset) {
+  final now = DateTime.now();
+  int month = now.month - offset;
+  int year = now.year;
+  while (month <= 0) {
+    month += 12;
+    year--;
+  }
+  return DateRange(
+    start: DateTime(year, month, 1),
+    end: DateTime(year, month + 1, 0, 23, 59, 59),
+  );
+}
+
+// ---------------------------------------------------------------------------
+
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
@@ -157,7 +200,10 @@ class _ReportCard extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
 // Sales Report Content
+// ---------------------------------------------------------------------------
+
 class _SalesReportContent extends ConsumerStatefulWidget {
   const _SalesReportContent();
 
@@ -180,12 +226,17 @@ class _SalesReportContentState extends ConsumerState<_SalesReportContent> {
           end: DateTime(now.year, now.month, now.day, 23, 59, 59),
         );
       case 'month':
+        // Current calendar month only (e.g. Mar 1 – Mar 31)
         return DateRange.thisMonth();
-      case 'year':
-        return DateRange(
-          start: DateTime(now.year, 1, 1),
-          end: DateTime(now.year, 12, 31, 23, 59, 59),
-        );
+      case 'last_month':
+        // Previous calendar month only (e.g. Feb 1 – Feb 28)
+        return _monthOffsetRange(1);
+      case 'last_2_months':
+        // Exactly the month 2 months ago (e.g. Jan 1 – Jan 31)
+        return _monthOffsetRange(2);
+      case 'last_3_months':
+        // Exactly the month 3 months ago (e.g. Dec 1 – Dec 31)
+        return _monthOffsetRange(3);
       default:
         return DateRange.today();
     }
@@ -205,11 +256,25 @@ class _SalesReportContentState extends ConsumerState<_SalesReportContent> {
             children: [
               ComboBox<String>(
                 value: _period,
-                items: const [
-                  ComboBoxItem(value: 'today', child: Text('Today')),
-                  ComboBoxItem(value: 'week', child: Text('This Week')),
-                  ComboBoxItem(value: 'month', child: Text('This Month')),
-                  ComboBoxItem(value: 'year', child: Text('This Year')),
+                items: [
+                  const ComboBoxItem(value: 'today', child: Text('Today')),
+                  const ComboBoxItem(value: 'week', child: Text('This Week')),
+                  ComboBoxItem(
+                    value: 'month',
+                    child: Text('This Month - ${_monthName(0)}'),
+                  ),
+                  ComboBoxItem(
+                    value: 'last_month',
+                    child: Text('Last Month - ${_monthName(1)}'),
+                  ),
+                  ComboBoxItem(
+                    value: 'last_2_months',
+                    child: Text('Last 2 Months - ${_monthName(2)}'),
+                  ),
+                  ComboBoxItem(
+                    value: 'last_3_months',
+                    child: Text('Last 3 Months - ${_monthName(3)}'),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _period = value);
@@ -300,7 +365,10 @@ class _SalesReportContentState extends ConsumerState<_SalesReportContent> {
   }
 }
 
+// ---------------------------------------------------------------------------
 // Profit Report Content
+// ---------------------------------------------------------------------------
+
 class _ProfitReportContent extends ConsumerStatefulWidget {
   const _ProfitReportContent();
 
@@ -323,12 +391,17 @@ class _ProfitReportContentState extends ConsumerState<_ProfitReportContent> {
           end: DateTime(now.year, now.month, now.day, 23, 59, 59),
         );
       case 'month':
+        // Current calendar month only (e.g. Mar 1 – Mar 31)
         return DateRange.thisMonth();
-      case 'year':
-        return DateRange(
-          start: DateTime(now.year, 1, 1),
-          end: DateTime(now.year, 12, 31, 23, 59, 59),
-        );
+      case 'last_month':
+        // Previous calendar month only (e.g. Feb 1 – Feb 28)
+        return _monthOffsetRange(1);
+      case 'last_2_months':
+        // Exactly the month 2 months ago (e.g. Jan 1 – Jan 31)
+        return _monthOffsetRange(2);
+      case 'last_3_months':
+        // Exactly the month 3 months ago (e.g. Dec 1 – Dec 31)
+        return _monthOffsetRange(3);
       default:
         return DateRange.thisMonth();
     }
@@ -354,11 +427,25 @@ class _ProfitReportContentState extends ConsumerState<_ProfitReportContent> {
             children: [
               ComboBox<String>(
                 value: _period,
-                items: const [
-                  ComboBoxItem(value: 'today', child: Text('Today')),
-                  ComboBoxItem(value: 'week', child: Text('This Week')),
-                  ComboBoxItem(value: 'month', child: Text('This Month')),
-                  ComboBoxItem(value: 'year', child: Text('This Year')),
+                items: [
+                  const ComboBoxItem(value: 'today', child: Text('Today')),
+                  const ComboBoxItem(value: 'week', child: Text('This Week')),
+                  ComboBoxItem(
+                    value: 'month',
+                    child: Text('This Month - ${_monthName(0)}'),
+                  ),
+                  ComboBoxItem(
+                    value: 'last_month',
+                    child: Text('Last Month - ${_monthName(1)}'),
+                  ),
+                  ComboBoxItem(
+                    value: 'last_2_months',
+                    child: Text('Last 2 Months - ${_monthName(2)}'),
+                  ),
+                  ComboBoxItem(
+                    value: 'last_3_months',
+                    child: Text('Last 3 Months - ${_monthName(3)}'),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _period = value);
@@ -671,7 +758,10 @@ class _ProfitRow extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
 // Inventory Report Content
+// ---------------------------------------------------------------------------
+
 class _InventoryReportContent extends ConsumerWidget {
   const _InventoryReportContent();
 
@@ -793,7 +883,10 @@ class _InventoryReportContent extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
 // Aging Report Content
+// ---------------------------------------------------------------------------
+
 class _AgingReportContent extends ConsumerWidget {
   const _AgingReportContent();
 
@@ -929,7 +1022,10 @@ class _AgingRow extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
 // Repair Report Content
+// ---------------------------------------------------------------------------
+
 class _RepairReportContent extends ConsumerWidget {
   const _RepairReportContent();
 
@@ -1009,7 +1105,10 @@ class _RepairReportContent extends ConsumerWidget {
   }
 }
 
-// Stat Card Widget
+// ---------------------------------------------------------------------------
+// Shared stat card widget
+// ---------------------------------------------------------------------------
+
 class _StatCard extends StatelessWidget {
   final String title;
   final String value;

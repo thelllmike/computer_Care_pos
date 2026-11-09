@@ -209,7 +209,7 @@ class _CreateGrnDialogState extends ConsumerState<CreateGrnDialog> {
           builder: (context) => GrnDetailDialog(grnId: next.createdGrn!.id),
         );
       }
-      if (next.error != null) {
+      if (next.error != null && previous?.error != next.error) {
         displayInfoBar(context, builder: (context, close) {
           return InfoBar(
             title: const Text('Error'),
@@ -344,14 +344,32 @@ class _CreateGrnDialogState extends ConsumerState<CreateGrnDialog> {
 }
 
 // GRN Detail Dialog
-class GrnDetailDialog extends ConsumerWidget {
+// Uses ConsumerStatefulWidget so the dialog has stable identity across provider
+// rebuilds and can reset stale form state on open.
+class GrnDetailDialog extends ConsumerStatefulWidget {
   final String grnId;
 
   const GrnDetailDialog({super.key, required this.grnId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final grnDetailAsync = ref.watch(grnDetailProvider(grnId));
+  ConsumerState<GrnDetailDialog> createState() => _GrnDetailDialogState();
+}
+
+class _GrnDetailDialogState extends ConsumerState<GrnDetailDialog> {
+  @override
+  void initState() {
+    super.initState();
+    // Reset any stale form state left over from previous CRUD operations.
+    // This prevents child-dialog ref.listen callbacks from firing immediately
+    // due to a leftover isSuccess:true carried over from a prior add/edit/delete.
+    Future.microtask(() {
+      if (mounted) ref.read(grnFormProvider.notifier).reset();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final grnDetailAsync = ref.watch(grnDetailProvider(widget.grnId));
 
     return ContentDialog(
       title: const Text('GRN Details'),
@@ -361,7 +379,7 @@ class GrnDetailDialog extends ConsumerWidget {
           if (detail == null) {
             return const Center(child: Text('GRN not found'));
           }
-          return _GrnDetailContent(detail: detail, grnId: grnId);
+          return _GrnDetailContent(detail: detail, grnId: widget.grnId);
         },
         loading: () => const Center(child: ProgressRing()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -656,12 +674,17 @@ class _AddGrnItemDialogState extends ConsumerState<AddGrnItemDialog> {
     final productsAsync = ref.watch(productsProvider);
     final formState = ref.watch(grnFormProvider);
 
+    // FIX: Only close when the operation JUST completed successfully.
+    // The guard `!next.isLoading && previous?.isLoading == true` ensures we
+    // only react to a loading→done transition, not to a stale isSuccess:true
+    // that may have been left over from a previous add/edit/delete operation.
     ref.listen<GrnFormState>(grnFormProvider, (previous, next) {
-      if (next.isSuccess) {
+      if (!next.isLoading && next.isSuccess && next.error == null &&
+          (previous?.isLoading ?? false)) {
         Navigator.of(context).pop();
-        ref.invalidate(grnDetailProvider(widget.grnId));
+        ref.read(grnFormProvider.notifier).reset();
       }
-      if (next.error != null) {
+      if (next.error != null && previous?.error != next.error) {
         displayInfoBar(context, builder: (context, close) {
           return InfoBar(
             title: const Text('Error'),
@@ -876,12 +899,15 @@ class _EditGrnItemDialogState extends ConsumerState<EditGrnItemDialog> {
   Widget build(BuildContext context) {
     final formState = ref.watch(grnFormProvider);
 
+    // FIX: Only close when the operation JUST completed successfully.
+    // Same guard as AddGrnItemDialog to prevent stale-state false pops.
     ref.listen<GrnFormState>(grnFormProvider, (previous, next) {
-      if (next.isSuccess) {
+      if (!next.isLoading && next.isSuccess && next.error == null &&
+          (previous?.isLoading ?? false)) {
         Navigator.of(context).pop();
-        ref.invalidate(grnDetailProvider(widget.grnId));
+        ref.read(grnFormProvider.notifier).reset();
       }
-      if (next.error != null) {
+      if (next.error != null && previous?.error != next.error) {
         displayInfoBar(context, builder: (context, close) {
           return InfoBar(
             title: const Text('Error'),
