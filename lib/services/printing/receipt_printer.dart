@@ -529,8 +529,6 @@ class ReceiptPrinter {
   }) async {
     final pdf = pw.Document();
     final quotation = detail.quotation;
-    final customer = detail.customer;
-    final items = detail.items;
 
     // Load logo image before building the page
     pw.MemoryImage? logoImage;
@@ -539,51 +537,17 @@ class ReceiptPrinter {
       logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
     } catch (_) {}
 
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: pw.EdgeInsets.zero,
-        build: (context) {
-          return pw.Container(
-            color: _darkBackground,
-            child: pw.Column(
-              children: [
-                // Header with blue accent and logo
-                _buildDocumentHeader(companyName, quotation.quotationNumber, quotation.createdAt, 'QUOTATION', logoImage: logoImage, companyAddress: companyAddress, companyPhone: companyPhone),
-
-                // Content
-                pw.Expanded(
-                  child: pw.Padding(
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        // Client info
-                        _buildClientInfo(customer),
-                        pw.SizedBox(height: 24),
-
-                        // Items table
-                        _buildQuotationTable(items),
-                        pw.SizedBox(height: 6),
-
-                        // Summary (includes its own top divider)
-                        _buildQuotationSummary(quotation),
-
-                        pw.Spacer(),
-
-                        // Footer (includes its own top divider)
-                        _buildQuotationFooter(companyAddress, companyPhone, quotation.validUntil,
-                            bankName: bankName, accountName: accountName, accountNumber: accountNumber, bankBranch: bankBranch),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+    pdf.addPage(_quotationMultiPage(
+      detail: detail,
+      companyName: companyName,
+      companyAddress: companyAddress,
+      companyPhone: companyPhone,
+      logoImage: logoImage,
+      bankName: bankName,
+      accountName: accountName,
+      accountNumber: accountNumber,
+      bankBranch: bankBranch,
+    ));
 
     return await Printing.layoutPdf(
       onLayout: (format) async => pdf.save(),
@@ -591,7 +555,79 @@ class ReceiptPrinter {
     );
   }
 
-  static pw.Widget _buildDocumentHeader(String companyName, String documentNumber, DateTime date, String documentType, {pw.MemoryImage? logoImage, String companyAddress = '', String companyPhone = ''}) {
+  /// Quotation layout that flows onto as many A4 pages as the items need.
+  /// Page 1 has the full header and client info; later pages repeat a compact
+  /// header and the table column titles. Totals and footer follow the last item.
+  static pw.MultiPage _quotationMultiPage({
+    required QuotationDetail detail,
+    required String companyName,
+    required String companyAddress,
+    required String companyPhone,
+    pw.MemoryImage? logoImage,
+    String? bankName,
+    String? accountName,
+    String? accountNumber,
+    String? bankBranch,
+  }) {
+    final quotation = detail.quotation;
+    return pw.MultiPage(
+      pageTheme: pw.PageTheme(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(40, 0, 40, 24),
+        buildBackground: (context) => pw.FullPage(
+          ignoreMargins: true,
+          child: pw.Container(color: _darkBackground),
+        ),
+      ),
+      maxPages: 50,
+      header: (context) {
+        if (context.pageNumber == 1) return pw.SizedBox();
+        return _continuationHeader(companyName, 'QUOTATION', quotation.quotationNumber,
+            context.pageNumber, context.pagesCount);
+      },
+      footer: (context) => context.pagesCount > 1
+          ? pw.Container(
+              alignment: pw.Alignment.centerRight,
+              padding: const pw.EdgeInsets.only(top: 6),
+              child: pw.Text('Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: const pw.TextStyle(color: PdfColors.grey400, fontSize: 8)),
+            )
+          : pw.SizedBox(),
+      build: (context) => [
+        _buildDocumentHeader(companyName, quotation.quotationNumber, quotation.createdAt, 'QUOTATION',
+            logoImage: logoImage, companyAddress: companyAddress, companyPhone: companyPhone,
+            horizontalPadding: 0),
+        pw.SizedBox(height: 20),
+        _buildClientInfo(detail.customer),
+        pw.SizedBox(height: 24),
+        _buildQuotationTable(detail.items),
+        pw.SizedBox(height: 6),
+        // Containers keep summary/footer in one piece (moved whole, never split)
+        pw.Container(child: _buildQuotationSummary(quotation)),
+        pw.SizedBox(height: 24),
+        pw.Container(
+          child: _buildQuotationFooter(companyAddress, companyPhone, quotation.validUntil,
+              bankName: bankName, accountName: accountName, accountNumber: accountNumber, bankBranch: bankBranch),
+        ),
+      ],
+    );
+  }
+
+  /// Compact header used on page 2+ of long documents.
+  static pw.Widget _continuationHeader(String companyName, String docType, String docNumber, int page, int pages) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.only(top: 24, bottom: 12),
+      child: pw.Row(children: [
+        pw.Text(companyName.toUpperCase(),
+            style: pw.TextStyle(color: _white, fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        pw.Spacer(),
+        pw.Text('$docType # $docNumber  (continued)',
+            style: pw.TextStyle(color: _white, fontSize: 10)),
+      ]),
+    );
+  }
+
+  static pw.Widget _buildDocumentHeader(String companyName, String documentNumber, DateTime date, String documentType, {pw.MemoryImage? logoImage, String companyAddress = '', String companyPhone = '', double horizontalPadding = 40}) {
     // Extract company short name (first letters or abbreviation)
     final words = companyName.split(' ');
     final shortName = words.length > 1
@@ -600,7 +636,7 @@ class ReceiptPrinter {
 
     return pw.Container(
       height: 140,
-      padding: const pw.EdgeInsets.only(left: 40, top: 24, right: 40),
+      padding: pw.EdgeInsets.only(left: horizontalPadding, top: 24, right: horizontalPadding),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -719,7 +755,7 @@ class ReceiptPrinter {
     );
   }
 
-  static pw.Widget _buildQuotationTable(List<QuotationItemWithProduct> items) {
+  static pw.Widget _buildQuotationTable(List<QuotationItemWithProduct> items, {bool headerOnly = false}) {
     // A4 content width with 40px margins = ~515pt
     // Column percentages: # 5%, CODE 20%, DESC auto, QTY 10%, PRICE 15%, DISC 10%, TOTAL 15%
     return pw.Table(
@@ -753,7 +789,7 @@ class ReceiptPrinter {
           ],
         ),
         // Data rows with subtle striping
-        ...items.asMap().entries.map((entry) {
+        if (!headerOnly) ...items.asMap().entries.map((entry) {
           final idx = entry.key + 1;
           final item = entry.value;
           final lineTotal = (item.item.unitPrice * item.item.quantity) - item.item.discountAmount;
@@ -1136,6 +1172,14 @@ class ReceiptPrinter {
   }
 
   /// Generates quotation PDF bytes (A4 format) with dark professional theme
+  /// Builds the quotation PDF without printing (used by tests).
+  static Future<List<int>> buildQuotationPdf({
+    required QuotationDetail detail,
+    required String companyName,
+  }) =>
+      _generateQuotationPdfBytes(
+          detail: detail, companyName: companyName, companyAddress: 'Addr', companyPhone: '000');
+
   static Future<List<int>> _generateQuotationPdfBytes({
     required QuotationDetail detail,
     required String companyName,
@@ -1148,9 +1192,6 @@ class ReceiptPrinter {
     String? bankBranch,
   }) async {
     final pdf = pw.Document();
-    final quotation = detail.quotation;
-    final customer = detail.customer;
-    final items = detail.items;
 
     // Load logo image before building the page
     pw.MemoryImage? logoImage;
@@ -1159,51 +1200,17 @@ class ReceiptPrinter {
       logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
     } catch (_) {}
 
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: pw.EdgeInsets.zero,
-        build: (context) {
-          return pw.Container(
-            color: _darkBackground,
-            child: pw.Column(
-              children: [
-                // Header with blue accent and logo
-                _buildDocumentHeader(companyName, quotation.quotationNumber, quotation.createdAt, 'QUOTATION', logoImage: logoImage, companyAddress: companyAddress, companyPhone: companyPhone),
-
-                // Content
-                pw.Expanded(
-                  child: pw.Padding(
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        // Client info
-                        _buildClientInfo(customer),
-                        pw.SizedBox(height: 24),
-
-                        // Items table
-                        _buildQuotationTable(items),
-                        pw.SizedBox(height: 6),
-
-                        // Summary (includes its own top divider)
-                        _buildQuotationSummary(quotation),
-
-                        pw.Spacer(),
-
-                        // Footer (includes its own top divider)
-                        _buildQuotationFooter(companyAddress, companyPhone, quotation.validUntil,
-                            bankName: bankName, accountName: accountName, accountNumber: accountNumber, bankBranch: bankBranch),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+    pdf.addPage(_quotationMultiPage(
+      detail: detail,
+      companyName: companyName,
+      companyAddress: companyAddress,
+      companyPhone: companyPhone,
+      logoImage: logoImage,
+      bankName: bankName,
+      accountName: accountName,
+      accountNumber: accountNumber,
+      bankBranch: bankBranch,
+    ));
 
     return pdf.save();
   }
@@ -1372,22 +1379,14 @@ class ProfessionalInvoiceGenerator {
   static Future<List<int>> generateInvoice(InvoiceData data) async {
     final pdf = pw.Document();
     final images = await _loadImages();
-    pdf.addPage(pw.Page(
-      pageFormat: PdfPageFormat.a4,
-      margin: pw.EdgeInsets.zero,
-      build: (_) => _page(data, images),
-    ));
+    pdf.addPage(_multiPage(data, images));
     return pdf.save();
   }
 
   static Future<bool> printInvoice(InvoiceData data) async {
     final pdf = pw.Document();
     final images = await _loadImages();
-    pdf.addPage(pw.Page(
-      pageFormat: PdfPageFormat.a4,
-      margin: pw.EdgeInsets.zero,
-      build: (_) => _page(data, images),
-    ));
+    pdf.addPage(_multiPage(data, images));
     return await Printing.layoutPdf(
       onLayout: (format) async => pdf.save(),
       name: 'Invoice_${data.invoiceNumber}',
@@ -1472,26 +1471,55 @@ class ProfessionalInvoiceGenerator {
   //  PAGE SCAFFOLD
   // ══════════════════════════════════════════════════════════════
 
-  static pw.Widget _page(InvoiceData d, _InvoiceImages images) {
-    return pw.Container(
-      color: _bg,
-      padding: const pw.EdgeInsets.fromLTRB(36, 36, 36, 28),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          _header(d, images),
-          pw.SizedBox(height: 10),
-          _slantedDivider(),
-          pw.SizedBox(height: 10),
-          _invoiceTo(d),
-          pw.SizedBox(height: 16),
-          _table(d),
-          pw.SizedBox(height: 16),
-          _totals(d),
-          pw.Spacer(),
-          _footer(d, images),
-        ],
+  /// Invoice layout that flows onto as many A4 pages as the items need.
+  /// Later pages repeat a compact header and the table column titles;
+  /// totals and footer follow the last item.
+  static pw.MultiPage _multiPage(InvoiceData d, _InvoiceImages images) {
+    return pw.MultiPage(
+      pageTheme: pw.PageTheme(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(36, 36, 36, 28),
+        buildBackground: (context) => pw.FullPage(
+          ignoreMargins: true,
+          child: pw.Container(color: _bg),
+        ),
       ),
+      maxPages: 50,
+      header: (context) {
+        if (context.pageNumber == 1) return pw.SizedBox();
+        return pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 12),
+            child: pw.Row(children: [
+              pw.Text(d.companyName.toUpperCase(),
+                  style: pw.TextStyle(color: _w, fontSize: 11, fontWeight: pw.FontWeight.bold)),
+              pw.Spacer(),
+              pw.Text('INVOICE # ${d.invoiceNumber}  (continued)',
+                  style: pw.TextStyle(color: _w, fontSize: 10)),
+            ]),
+          );
+      },
+      footer: (context) => context.pagesCount > 1
+          ? pw.Container(
+              alignment: pw.Alignment.centerRight,
+              padding: const pw.EdgeInsets.only(top: 6),
+              child: pw.Text('Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: const pw.TextStyle(color: PdfColors.grey400, fontSize: 8)),
+            )
+          : pw.SizedBox(),
+      build: (context) => [
+        _header(d, images),
+        pw.SizedBox(height: 10),
+        _slantedDivider(),
+        pw.SizedBox(height: 10),
+        _invoiceTo(d),
+        pw.SizedBox(height: 16),
+        ..._tableParts(d),
+        pw.SizedBox(height: 16),
+        pw.Container(child: _totals(d)),
+        pw.SizedBox(height: 24),
+        // Container keeps the footer in one piece (moved whole, never split)
+        pw.Container(child: _footer(d, images)),
+      ],
     );
   }
 
@@ -1684,7 +1712,10 @@ class ProfessionalInvoiceGenerator {
   //          UNIT PRICE, DISC (Rs.), RATE, TOTAL
   // ══════════════════════════════════════════════════════════════
 
-  static pw.Widget _table(InvoiceData d) {
+
+  /// Invoice table as separate widgets (header + one per row) so a
+  /// multi-page document can break between rows.
+  static List<pw.Widget> _tableParts(InvoiceData d, {bool headerOnly = false}) {
     const c0 = 22.0; // #
     const c1 = 50.0; // CODE
     const c3 = 28.0; // QTY
@@ -1693,7 +1724,7 @@ class ProfessionalInvoiceGenerator {
     const c6 = 56.0; // RATE
     const c7 = 68.0; // TOTAL
 
-    return pw.Column(children: [
+    return [
       // ── Header ──
       pw.Container(
         color: _accentBlue,
@@ -1722,7 +1753,7 @@ class ProfessionalInvoiceGenerator {
         ]),
       ),
       // ── Data rows ──
-      ...d.items.asMap().entries.map((e) {
+      if (!headerOnly) ...d.items.asMap().entries.map((e) {
         final idx = e.key;
         final item = e.value;
         final perUnitDisc =
@@ -1788,7 +1819,7 @@ class ProfessionalInvoiceGenerator {
           ]),
         );
       }),
-    ]);
+    ];
   }
 
   // ══════════════════════════════════════════════════════════════

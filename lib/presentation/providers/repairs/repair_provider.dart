@@ -458,7 +458,7 @@ class StatusUpdateNotifier extends StateNotifier<StatusUpdateState> {
       bool needsInvoice = false;
       String? invoiceJobNumber;
       double invoiceTotalCost = 0;
-      if (newStatus == RepairStatus.delivered) {
+      if (newStatus.isHandedOver) {
         try {
           final job = await _db.repairDao.getRepairJobById(jobId);
           if (job != null && (job.invoiceId == null || job.invoiceId!.isEmpty)) {

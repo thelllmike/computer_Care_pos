@@ -78,8 +78,32 @@ class AppTheme {
       }),
       scaffoldBackgroundColor: const Color(0xFF202020),
       cardColor: const Color(0xFF2D2D2D),
+      typography: const Typography.raw(
+        title: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: Color(0xFFF3F2F1)),
+        titleLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Color(0xFFF3F2F1)),
+        subtitle: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFFF3F2F1)),
+        body: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Color(0xFFF3F2F1)),
+        bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal, color: Color(0xFFF3F2F1)),
+        bodyStrong: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFF3F2F1)),
+        caption: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: Color(0xFFC8C6C4)),
+      ),
     );
   }
+
+  static bool isDark(BuildContext context) =>
+      FluentTheme.of(context).brightness == Brightness.dark;
+
+  /// Border / divider color that works in light and dark mode.
+  static Color dividerColor(BuildContext context) =>
+      isDark(context) ? const Color(0xFF3B3A39) : Colors.grey[40];
+
+  /// Subtle header/background fill that works in light and dark mode.
+  static Color subtleFill(BuildContext context) =>
+      isDark(context) ? const Color(0xFF323130) : Colors.grey[20];
+
+  /// Panel/surface color (cards, footers).
+  static Color surfaceColor(BuildContext context) =>
+      isDark(context) ? const Color(0xFF2D2D2D) : Colors.white;
 }
 
 class AppStyles {

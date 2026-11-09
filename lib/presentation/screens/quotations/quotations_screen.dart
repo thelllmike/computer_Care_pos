@@ -441,7 +441,7 @@ class _QuotationFormDialogState extends ConsumerState<_QuotationFormDialog> {
                   if (formState.items.isNotEmpty) ...[
                     Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[40]!),
+                        border: Border.all(color: AppTheme.dividerColor(context)),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Column(
@@ -449,7 +449,7 @@ class _QuotationFormDialogState extends ConsumerState<_QuotationFormDialog> {
                           // Header
                           Container(
                             padding: const EdgeInsets.all(12),
-                            color: Colors.grey[20],
+                            color: AppTheme.subtleFill(context),
                             child: Row(
                               children: [
                                 const Expanded(flex: 3, child: Text('Product', style: TextStyle(fontWeight: FontWeight.w600))),
@@ -574,7 +574,7 @@ class _QuotationItemRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey[30]!)),
+        border: Border(bottom: BorderSide(color: AppTheme.dividerColor(context))),
       ),
       child: Row(
         children: [
@@ -734,14 +734,14 @@ class _QuotationDetailDialog extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[40]!),
+                    border: Border.all(color: AppTheme.dividerColor(context)),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Column(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
-                        color: Colors.grey[20],
+                        color: AppTheme.subtleFill(context),
                         child: Row(
                           children: [
                             const Expanded(flex: 3, child: Text('Product', style: TextStyle(fontWeight: FontWeight.w600))),
@@ -754,7 +754,7 @@ class _QuotationDetailDialog extends ConsumerWidget {
                       ...detail.items.map((item) => Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              border: Border(bottom: BorderSide(color: Colors.grey[30]!)),
+                              border: Border(bottom: BorderSide(color: AppTheme.dividerColor(context))),
                             ),
                             child: Row(
                               children: [

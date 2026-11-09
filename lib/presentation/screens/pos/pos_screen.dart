@@ -6,10 +6,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/local/database/app_database.dart';
 import '../../../data/local/daos/sales_dao.dart';
-import '../../../domain/entities/sale.dart' as entity;
 import '../../providers/core/database_provider.dart';
-import '../../../services/printing/receipt_printer.dart';
-import '../../providers/core/settings_provider.dart';
+import '../../../services/printing/sale_invoice_printer.dart';
 import '../../providers/inventory/product_provider.dart';
 import '../../providers/inventory/customer_provider.dart';
 import '../../providers/inventory/category_provider.dart';
@@ -18,6 +16,15 @@ import '../../providers/sales/sales_provider.dart';
 
 final _searchQueryProvider = StateProvider<String>((ref) => '');
 final _selectedCategoryProvider = StateProvider<String?>((ref) => null);
+
+/// Live stock per product (available = on hand - reserved). Updates
+/// automatically when a sale, GRN or adjustment changes the inventory table.
+final _posStockProvider = StreamProvider<Map<String, int>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.select(db.inventory).watch().map((rows) => {
+        for (final r in rows) r.productId: r.quantityOnHand - r.reservedQuantity,
+      });
+});
 
 class PosScreen extends ConsumerStatefulWidget {
   const PosScreen({super.key});
@@ -86,6 +93,18 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                         },
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Button(
+                      onPressed: _showServiceChargeDialog,
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(FluentIcons.repair, size: 14),
+                          SizedBox(width: 6),
+                          Text('Service Charge'),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -102,7 +121,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         // Divider
         Container(
           width: 1,
-          color: Colors.grey[40],
+          color: AppTheme.dividerColor(context),
         ),
         // Cart panel (right side)
         Expanded(
@@ -168,6 +187,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final searchQuery = ref.watch(_searchQueryProvider);
     final selectedCategory = ref.watch(_selectedCategoryProvider);
     final productsAsync = ref.watch(productsProvider);
+    final stockMap = ref.watch(_posStockProvider).valueOrNull ?? const <String, int>{};
 
     return productsAsync.when(
       data: (products) {
@@ -212,6 +232,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               final product = filtered[index];
               return _ProductCard(
                 product: product,
+                stock: stockMap[product.id] ?? 0,
                 onTap: () => _addProductToCart(product),
               );
             },
@@ -229,7 +250,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withValues(alpha: 0.05),
         border: Border(
-          bottom: BorderSide(color: Colors.grey[40]!),
+          bottom: BorderSide(color: AppTheme.dividerColor(context)),
         ),
       ),
       child: Row(
@@ -277,7 +298,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.grey[40]!),
+          bottom: BorderSide(color: AppTheme.dividerColor(context)),
         ),
       ),
       child: Row(
@@ -379,6 +400,12 @@ class _PosScreenState extends ConsumerState<PosScreen> {
         return _CartItemTile(
           item: item,
           onQuantityChanged: (qty) {
+            final stock = _stockFor(item.productId);
+            if (!isServiceChargeId(item.productId) &&
+                !item.trackSerials && qty > item.quantity && qty > stock) {
+              _showStockWarning(item.productName, stock);
+              return;
+            }
             ref.read(cartProvider.notifier).updateQuantity(item.productId, qty);
           },
           onRemove: () {
@@ -399,9 +426,9 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.surfaceColor(context),
         border: Border(
-          top: BorderSide(color: Colors.grey[40]!),
+          top: BorderSide(color: AppTheme.dividerColor(context)),
         ),
         boxShadow: [
           BoxShadow(
@@ -493,7 +520,108 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     });
   }
 
+  /// Adds a service charge line (labour, installation, delivery…) that has no
+  /// product, stock or repair job behind it.
+  void _showServiceChargeDialog() {
+    final descController = TextEditingController();
+    final amountController = TextEditingController();
+    String? error;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          void submit() {
+            final desc = descController.text.trim();
+            final amount = double.tryParse(amountController.text.trim().replaceAll(',', ''));
+            if (desc.isEmpty) {
+              setDialogState(() => error = 'Enter a description.');
+              return;
+            }
+            if (amount == null || amount <= 0) {
+              setDialogState(() => error = 'Enter an amount greater than 0.');
+              return;
+            }
+            ref.read(cartProvider.notifier).addProduct(
+                  productId: serviceChargeId(desc),
+                  productName: desc,
+                  productCode: 'SERVICE',
+                  unitPrice: amount,
+                  unitCost: 0,
+                  trackSerials: false,
+                );
+            Navigator.pop(dialogContext);
+          }
+
+          return ContentDialog(
+            title: const Text('Add Service Charge'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InfoLabel(
+                  label: 'Description',
+                  child: TextBox(
+                    controller: descController,
+                    placeholder: 'e.g. OS installation, Laptop cleaning, Delivery',
+                    autofocus: true,
+                    onSubmitted: (_) => submit(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                InfoLabel(
+                  label: 'Amount',
+                  child: TextBox(
+                    controller: amountController,
+                    placeholder: '0.00',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    onSubmitted: (_) => submit(),
+                  ),
+                ),
+                if (error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(error!, style: TextStyle(color: Colors.red)),
+                ],
+              ],
+            ),
+            actions: [
+              Button(child: const Text('Cancel'), onPressed: () => Navigator.pop(dialogContext)),
+              FilledButton(onPressed: submit, child: const Text('Add to Cart')),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  int _stockFor(String productId) =>
+      ref.read(_posStockProvider).valueOrNull?[productId] ?? 0;
+
+  void _showStockWarning(String productName, int stock) {
+    displayInfoBar(context, builder: (context, close) {
+      return InfoBar(
+        title: Text(stock <= 0 ? 'Out of stock' : 'Not enough stock'),
+        content: Text(stock <= 0
+            ? '$productName is out of stock.'
+            : 'Only $stock of $productName left in stock.'),
+        severity: InfoBarSeverity.warning,
+        onClose: close,
+      );
+    });
+  }
+
   void _addProductToCart(Product product) {
+    final stock = _stockFor(product.id);
+    final inCart = ref
+        .read(cartProvider)
+        .items
+        .where((i) => i.productId == product.id)
+        .fold<int>(0, (sum, i) => sum + i.quantity);
+    if (stock <= 0 || (!product.requiresSerial && inCart + 1 > stock)) {
+      _showStockWarning(product.name, stock);
+      return;
+    }
+
     if (product.requiresSerial) {
       // For serialized products, add to cart then show serial selection
       ref.read(cartProvider.notifier).addProduct(
@@ -633,71 +761,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 
   Future<void> _printReceipt(String saleId, String? customerName) async {
     try {
-      final companySettings = await ref.read(companySettingsProvider.future);
-      final db = ref.read(databaseProvider);
-
-      // Fetch full sale details
-      final saleDetail = await db.salesDao.getSaleDetail(saleId);
-      if (saleDetail == null) {
-        throw Exception('Sale not found');
-      }
-
-      // Convert to domain entity Sale with items
-      final entitySale = entity.Sale(
-        id: saleDetail.sale.id,
-        invoiceNumber: saleDetail.sale.invoiceNumber,
-        customerId: saleDetail.sale.customerId,
-        saleDate: saleDetail.sale.saleDate,
-        subtotal: saleDetail.sale.subtotal,
-        discountAmount: saleDetail.sale.discountAmount,
-        taxAmount: saleDetail.sale.taxAmount,
-        totalAmount: saleDetail.sale.totalAmount,
-        paidAmount: saleDetail.sale.paidAmount,
-        totalCost: saleDetail.sale.totalCost,
-        grossProfit: saleDetail.sale.grossProfit,
-        isCredit: saleDetail.sale.isCredit,
-        status: saleDetail.sale.status,
-        notes: saleDetail.sale.notes,
-        createdBy: saleDetail.sale.createdBy,
-        createdAt: saleDetail.sale.createdAt,
-        updatedAt: saleDetail.sale.updatedAt,
-        items: saleDetail.items.map((item) => entity.SaleItem(
-          id: item.item.id,
-          saleId: item.item.saleId,
-          productId: item.item.productId,
-          productName: item.productName,
-          productCode: item.productCode,
-          quantity: item.item.quantity,
-          unitPrice: item.item.unitPrice,
-          unitCost: item.item.unitCost,
-          discountAmount: item.item.discountAmount,
-          totalPrice: item.item.totalPrice,
-          totalCost: item.item.totalCost,
-          profit: item.item.profit,
-          serials: item.serials.map((s) => entity.SaleSerial(
-            id: s.id,
-            saleItemId: s.saleItemId,
-            serialNumberId: s.serialNumberId,
-            serialNumber: s.serialNumber,
-            unitCost: s.unitCost,
-          )).toList(),
-        )).toList(),
-      );
-
-      await ReceiptPrinter.printA4Invoice(
-        sale: entitySale,
-        companyName: companySettings.name.isNotEmpty ? companySettings.name : 'M-TRONIC',
-        companyAddress: companySettings.address.isNotEmpty ? companySettings.address : '',
-        companyPhone: companySettings.phone.isNotEmpty ? companySettings.phone : '',
-        customerName: customerName ?? saleDetail.customer?.name,
-        customerPhone: saleDetail.customer?.phone,
-        customerAddress: saleDetail.customer?.address,
-        customerEmail: saleDetail.customer?.email,
-        bankName: companySettings.bankName,
-        accountName: companySettings.bankAccountName,
-        accountNumber: companySettings.bankAccountNumber,
-        bankBranch: companySettings.bankBranch,
-      );
+      await printSaleInvoice(ref, saleId, customerName: customerName);
     } catch (e) {
       if (mounted) {
         displayInfoBar(context, builder: (context, close) {
@@ -716,53 +780,99 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 // Product Card
 class _ProductCard extends StatelessWidget {
   final Product product;
+  final int stock;
   final VoidCallback onTap;
 
   const _ProductCard({
     required this.product,
+    required this.stock,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final outOfStock = stock <= 0;
+    final lowStock = !outOfStock && stock <= product.reorderLevel;
+    final Color stockColor = outOfStock
+        ? AppTheme.errorColor
+        : lowStock
+            ? AppTheme.warningColor
+            : AppTheme.successColor;
+    final String stockLabel = outOfStock
+        ? 'Out of stock'
+        : lowStock
+            ? 'Low stock: $stock'
+            : 'In stock: $stock';
+
     return Card(
       padding: EdgeInsets.zero,
-      child: Button(
-        style: ButtonStyle(
-          padding: WidgetStateProperty.all(const EdgeInsets.all(12)),
-        ),
-        onPressed: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              product.requiresSerial ? FluentIcons.laptop_secure : FluentIcons.product,
-              size: 32,
-              color: AppTheme.primaryColor,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              product.name,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              product.code,
-              style: TextStyle(fontSize: 11, color: Colors.grey[100]),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              Formatters.currency(product.sellingPrice),
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primaryColor,
+      child: Stack(
+        children: [
+          Opacity(
+            opacity: outOfStock ? 0.45 : 1,
+            child: Button(
+              style: ButtonStyle(
+                padding: WidgetStateProperty.all(const EdgeInsets.all(12)),
+              ),
+              onPressed: onTap,
+              child: SizedBox.expand(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      product.requiresSerial ? FluentIcons.laptop_secure : FluentIcons.product,
+                      size: 32,
+                      color: AppTheme.primaryColor,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      product.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      product.code,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[100]),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      Formatters.currency(product.sellingPrice),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+          // Stock badge
+          Positioned(
+            top: 6,
+            right: 6,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: stockColor.withValues(alpha: outOfStock ? 1 : 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  stockLabel,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: outOfStock ? Colors.white : stockColor,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

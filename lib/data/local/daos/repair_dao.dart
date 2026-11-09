@@ -23,6 +23,7 @@ enum RepairStatus {
   completed,
   readyForPickup,
   delivered,
+  shipped, // Sent to the customer by courier / online delivery
   cancelled,
 }
 
@@ -45,6 +46,8 @@ extension RepairStatusExtension on RepairStatus {
         return 'READY_FOR_PICKUP';
       case RepairStatus.delivered:
         return 'DELIVERED';
+      case RepairStatus.shipped:
+        return 'SHIPPED';
       case RepairStatus.cancelled:
         return 'CANCELLED';
     }
@@ -68,6 +71,8 @@ extension RepairStatusExtension on RepairStatus {
         return 'Ready for Pickup';
       case RepairStatus.delivered:
         return 'Delivered';
+      case RepairStatus.shipped:
+        return 'Shipped (Online Delivery)';
       case RepairStatus.cancelled:
         return 'Cancelled';
     }
@@ -91,6 +96,8 @@ extension RepairStatusExtension on RepairStatus {
         return RepairStatus.readyForPickup;
       case 'DELIVERED':
         return RepairStatus.delivered;
+      case 'SHIPPED':
+        return RepairStatus.shipped;
       case 'CANCELLED':
         return RepairStatus.cancelled;
       default:
@@ -99,48 +106,20 @@ extension RepairStatusExtension on RepairStatus {
   }
 
   // Check if status can transition to another status
+  /// Delivered, shipped and cancelled jobs are closed.
+  bool get isClosed =>
+      this == RepairStatus.delivered ||
+      this == RepairStatus.shipped ||
+      this == RepairStatus.cancelled;
+
+  /// Handed over to the customer (in person or shipped).
+  bool get isHandedOver => this == RepairStatus.delivered || this == RepairStatus.shipped;
+
+  // Open jobs can move to any other status (no fixed order), so staff can
+  // jump straight to e.g. Ready for Pickup. Closed jobs can't be changed.
   bool canTransitionTo(RepairStatus newStatus) {
-    switch (this) {
-      case RepairStatus.received:
-        return [
-          RepairStatus.diagnosing,
-          RepairStatus.cancelled,
-        ].contains(newStatus);
-      case RepairStatus.diagnosing:
-        return [
-          RepairStatus.waitingApproval,
-          RepairStatus.inProgress,
-          RepairStatus.cancelled,
-        ].contains(newStatus);
-      case RepairStatus.waitingApproval:
-        return [
-          RepairStatus.inProgress,
-          RepairStatus.waitingParts,
-          RepairStatus.cancelled,
-        ].contains(newStatus);
-      case RepairStatus.waitingParts:
-        return [
-          RepairStatus.inProgress,
-          RepairStatus.cancelled,
-        ].contains(newStatus);
-      case RepairStatus.inProgress:
-        return [
-          RepairStatus.completed,
-          RepairStatus.waitingParts,
-          RepairStatus.cancelled,
-        ].contains(newStatus);
-      case RepairStatus.completed:
-        return [
-          RepairStatus.readyForPickup,
-        ].contains(newStatus);
-      case RepairStatus.readyForPickup:
-        return [
-          RepairStatus.delivered,
-        ].contains(newStatus);
-      case RepairStatus.delivered:
-      case RepairStatus.cancelled:
-        return false;
-    }
+    if (isClosed) return false;
+    return newStatus != this;
   }
 }
 
@@ -202,7 +181,7 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
     final query = select(repairJobs).join([
       leftOuterJoin(customers, customers.id.equalsExp(repairJobs.customerId)),
     ])
-      ..where(repairJobs.status.isNotIn(['DELIVERED', 'CANCELLED']))
+      ..where(repairJobs.status.isNotIn(['DELIVERED', 'SHIPPED', 'CANCELLED']))
       ..orderBy([OrderingTerm.desc(repairJobs.createdAt)]);
 
     final results = await query.get();
@@ -411,7 +390,7 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
             localUpdatedAt: Value(now),
           ),
         );
-      } else if (newStatus == RepairStatus.delivered) {
+      } else if (newStatus.isHandedOver) {
         await (update(repairJobs)..where((j) => j.id.equals(jobId))).write(
           RepairJobsCompanion(
             status: Value(newStatus.code),
@@ -694,7 +673,7 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
       final job = jobWithCustomer.repairJob;
       final status = RepairStatusExtension.fromString(job.status);
 
-      if (status != RepairStatus.delivered && status != RepairStatus.cancelled) {
+      if (!status.isClosed) {
         activeJobs++;
       }
 
@@ -707,7 +686,7 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
         completedToday++;
       }
 
-      if (status == RepairStatus.delivered) {
+      if (status.isHandedOver) {
         revenue += job.totalCost;
       }
     }
@@ -756,7 +735,7 @@ class RepairDao extends DatabaseAccessor<AppDatabase> with _$RepairDaoMixin {
     final status = RepairStatusExtension.fromString(job.status);
     if (status != RepairStatus.completed &&
         status != RepairStatus.readyForPickup &&
-        status != RepairStatus.delivered) {
+        !status.isHandedOver) {
       throw Exception('Repair job must be completed before generating invoice');
     }
 

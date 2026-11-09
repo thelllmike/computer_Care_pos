@@ -7,6 +7,12 @@ import '../../../data/local/daos/sales_dao.dart';
 import '../../providers/core/database_provider.dart';
 import '../../providers/inventory/customer_provider.dart';
 import '../../providers/sales/sales_provider.dart';
+import '../../../services/printing/sale_invoice_printer.dart';
+import '../../../core/enums/payment_method.dart';
+import '../../../core/enums/user_role.dart';
+import '../../providers/auth/auth_provider.dart';
+import '../../providers/credits/credit_provider.dart';
+import '../../providers/inventory/inventory_provider.dart';
 
 class SalesHistoryScreen extends ConsumerStatefulWidget {
   const SalesHistoryScreen({super.key});
@@ -294,6 +300,8 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                                 sale: sale,
                                 onTap: () =>
                                     _showSaleDetailDialog(context, ref, sale),
+                                onPrint: () => reprintSaleInvoice(
+                                    context, ref, sale.sale.id),
                               ))
                           .toList(),
                     ),
@@ -402,8 +410,9 @@ class _SummaryCardLoading extends StatelessWidget {
 class _SaleTile extends StatelessWidget {
   final SaleWithDetails sale;
   final VoidCallback onTap;
+  final VoidCallback onPrint;
 
-  const _SaleTile({required this.sale, required this.onTap});
+  const _SaleTile({required this.sale, required this.onTap, required this.onPrint});
 
   @override
   Widget build(BuildContext context) {
@@ -416,7 +425,11 @@ class _SaleTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
-          sale.isFullyPaid ? FluentIcons.completed : FluentIcons.clock,
+          sale.isReturned
+              ? FluentIcons.return_key
+              : sale.isFullyPaid
+                  ? FluentIcons.completed
+                  : FluentIcons.clock,
           color: _getStatusColor(),
           size: 20,
         ),
@@ -454,7 +467,7 @@ class _SaleTile extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           _PaymentStatusBadge(status: sale.paymentStatus),
-          if (!sale.isFullyPaid) ...[
+          if (!sale.isFullyPaid && !sale.isReturned) ...[
             const Spacer(),
             Text(
               'Due: ${Formatters.currency(sale.balanceDue)}',
@@ -467,11 +480,19 @@ class _SaleTile extends StatelessWidget {
           ],
         ],
       ),
+      trailing: Tooltip(
+        message: 'Reprint invoice',
+        child: IconButton(
+          icon: const Icon(FluentIcons.print, size: 16),
+          onPressed: onPrint,
+        ),
+      ),
       onPressed: onTap,
     );
   }
 
   Color _getStatusColor() {
+    if (sale.isReturned) return Colors.grey;
     if (sale.isFullyPaid) return Colors.green;
     if (sale.paidAmount > 0) return Colors.orange;
     return Colors.red;
@@ -492,6 +513,9 @@ class _PaymentStatusBadge extends StatelessWidget {
         break;
       case 'Partial':
         color = Colors.orange;
+        break;
+      case 'Returned':
+        color = Colors.grey;
         break;
       default:
         color = Colors.red;
@@ -799,6 +823,35 @@ class _SaleDetailDialog extends ConsumerWidget {
         ),
       ),
       actions: [
+        if (ref.watch(authNotifierProvider).role == UserRole.admin && !sale.isReturned)
+          Button(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(FluentIcons.return_key, size: 16, color: Colors.red),
+                const SizedBox(width: 8),
+                Text('Return Sale', style: TextStyle(color: Colors.red)),
+              ],
+            ),
+            onPressed: () async {
+              final done = await showDialog<bool>(
+                context: context,
+                builder: (_) => _ReturnSaleDialog(sale: sale),
+              );
+              if (done == true && context.mounted) Navigator.of(context).pop();
+            },
+          ),
+        FilledButton(
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(FluentIcons.print, size: 16),
+              SizedBox(width: 8),
+              Text('Reprint Invoice'),
+            ],
+          ),
+          onPressed: () => reprintSaleInvoice(context, ref, sale.sale.id),
+        ),
         Button(
           child: const Text('Close'),
           onPressed: () => Navigator.of(context).pop(),
@@ -847,6 +900,165 @@ class _InfoRow extends StatelessWidget {
           Text(value, style: valueStyle),
         ],
       ),
+    );
+  }
+}
+
+/// Reprints a sale's A4 invoice and reports any error to the user.
+Future<void> reprintSaleInvoice(
+    BuildContext context, WidgetRef ref, String saleId) async {
+  try {
+    await printSaleInvoice(ref, saleId);
+  } catch (e) {
+    if (context.mounted) {
+      displayInfoBar(context, builder: (context, close) {
+        return InfoBar(
+          title: const Text('Print Error'),
+          content: Text(e.toString()),
+          severity: InfoBarSeverity.error,
+          onClose: close,
+        );
+      });
+    }
+  }
+}
+
+// Return Sale Dialog (admin only)
+class _ReturnSaleDialog extends ConsumerStatefulWidget {
+  final SaleWithDetails sale;
+  const _ReturnSaleDialog({required this.sale});
+
+  @override
+  ConsumerState<_ReturnSaleDialog> createState() => _ReturnSaleDialogState();
+}
+
+class _ReturnSaleDialogState extends ConsumerState<_ReturnSaleDialog> {
+  final _reasonController = TextEditingController();
+  PaymentMethod _refundMethod = PaymentMethod.cash;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirm() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final db = ref.read(databaseProvider);
+      final user = ref.read(authNotifierProvider).user;
+      final refund = await db.salesDao.returnSale(
+        saleId: widget.sale.sale.id,
+        refundMethod: _refundMethod,
+        reason: _reasonController.text,
+        returnedBy: user?.email,
+      );
+
+      // Refresh everything that shows sales, stock or credit
+      ref.invalidate(salesProvider);
+      ref.invalidate(todaysSalesProvider);
+      ref.invalidate(salesHistoryProvider);
+      ref.invalidate(saleDetailProvider(widget.sale.sale.id));
+      ref.read(salesRefreshProvider.notifier).state++;
+      ref.read(inventoryRefreshProvider.notifier).state++;
+      ref.invalidate(inventoryProvider);
+      ref.invalidate(creditSummaryProvider);
+      ref.invalidate(outstandingCustomersProvider);
+      ref.invalidate(agingSummaryProvider);
+      ref.invalidate(agingByCustomerProvider);
+
+      if (!mounted) return;
+      final messenger = context;
+      Navigator.of(context).pop(true);
+      displayInfoBar(messenger, builder: (context, close) => InfoBar(
+            title: const Text('Sale returned'),
+            content: Text(refund > 0
+                ? 'Items are back in stock. Refund ${Formatters.currency(refund)} to the customer.'
+                : 'Items are back in stock.'),
+            severity: InfoBarSeverity.success,
+            onClose: close,
+          ));
+    } catch (e) {
+      setState(() {
+        _busy = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sale = widget.sale;
+    final paid = sale.paidAmount;
+    final unpaid = sale.totalAmount - sale.paidAmount;
+
+    return ContentDialog(
+      title: Text('Return ${sale.invoiceNumber}?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('This returns the whole sale:'),
+          const SizedBox(height: 8),
+          const Text('•  All items go back into stock (serial numbers become available again)'),
+          if (paid > 0.009)
+            Text('•  Refund ${Formatters.currency(paid)} to the customer'),
+          if (unpaid > 0.009 && sale.sale.customerId != null)
+            Text('•  Cancel ${Formatters.currency(unpaid)} unpaid credit'),
+          const Text('•  The sale is removed from revenue and profit reports'),
+          const SizedBox(height: 16),
+          if (paid > 0.009) ...[
+            InfoLabel(
+              label: 'Refund method',
+              child: ComboBox<PaymentMethod>(
+                value: _refundMethod,
+                items: [
+                  PaymentMethod.cash,
+                  PaymentMethod.card,
+                  PaymentMethod.bankTransfer,
+                  PaymentMethod.cheque,
+                ].map((m) => ComboBoxItem(value: m, child: Text(m.displayName))).toList(),
+                onChanged: _busy ? null : (m) => setState(() => _refundMethod = m ?? _refundMethod),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          InfoLabel(
+            label: 'Reason (optional)',
+            child: TextBox(
+              controller: _reasonController,
+              placeholder: 'e.g. Faulty item, customer changed mind',
+              enabled: !_busy,
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            InfoBar(
+              title: const Text('Cannot return'),
+              content: Text(_error!),
+              severity: InfoBarSeverity.error,
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        Button(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: ButtonStyle(backgroundColor: WidgetStateProperty.all(Colors.red)),
+          onPressed: _busy ? null : _confirm,
+          child: _busy
+              ? const SizedBox(width: 16, height: 16, child: ProgressRing(strokeWidth: 2))
+              : const Text('Return Sale'),
+        ),
+      ],
     );
   }
 }

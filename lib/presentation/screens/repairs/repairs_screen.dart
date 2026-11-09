@@ -122,8 +122,9 @@ class RepairsScreen extends ConsumerWidget {
                         padding: EdgeInsets.only(left: 8),
                         child: Icon(FluentIcons.search, size: 16),
                       ),
-                      onChanged: (value) =>
-                          ref.read(repairSearchQueryProvider.notifier).state = value,
+                      onChanged: (value) => ref
+                          .read(repairSearchQueryProvider.notifier)
+                          .state = value,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -140,15 +141,17 @@ class RepairsScreen extends ConsumerWidget {
                             child: Text(s.displayName),
                           )),
                     ],
-                    onChanged: (value) =>
-                        ref.read(repairStatusFilterProvider.notifier).state = value,
+                    onChanged: (value) => ref
+                        .read(repairStatusFilterProvider.notifier)
+                        .state = value,
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
               // Job list
-              _RepairJobsList(searchQuery: searchQuery, statusFilter: statusFilter),
+              _RepairJobsList(
+                  searchQuery: searchQuery, statusFilter: statusFilter),
             ],
           ),
         ),
@@ -274,7 +277,8 @@ class _RepairJobsList extends ConsumerWidget {
                   children: [
                     Icon(FluentIcons.repair, size: 48, color: Colors.grey[100]),
                     const SizedBox(height: 16),
-                    Text('No repair jobs', style: TextStyle(color: Colors.grey[100])),
+                    Text('No repair jobs',
+                        style: TextStyle(color: Colors.grey[100])),
                   ],
                 ),
               ),
@@ -287,7 +291,10 @@ class _RepairJobsList extends ConsumerWidget {
             children: filtered
                 .map((job) => _RepairJobTile(
                       job: job,
-                      onTap: () => _showJobDetailDialog(context, ref, job.repairJob.id),
+                      onTap: () =>
+                          _showJobDetailDialog(context, ref, job.repairJob.id),
+                      onStatusChange: (status) =>
+                          _quickStatusChange(context, ref, job, status),
                     ))
                 .toList(),
           ),
@@ -308,6 +315,46 @@ class _RepairJobsList extends ConsumerWidget {
     );
   }
 
+  /// Changes status straight from the list (no dialog). If the job was
+  /// handed over and has no invoice yet, opens the invoice dialog.
+  Future<void> _quickStatusChange(BuildContext context, WidgetRef ref,
+      RepairJobWithCustomer job, RepairStatus status) async {
+    final notifier = ref.read(statusUpdateProvider.notifier);
+    await notifier.updateStatus(jobId: job.repairJob.id, newStatus: status);
+    final result = ref.read(statusUpdateProvider);
+    notifier.reset();
+    if (!context.mounted) return;
+
+    if (result.error != null) {
+      displayInfoBar(context,
+          builder: (context, close) => InfoBar(
+                title: const Text('Could not update status'),
+                content: Text(result.error!),
+                severity: InfoBarSeverity.error,
+                onClose: close,
+              ));
+      return;
+    }
+
+    displayInfoBar(context,
+        builder: (context, close) => InfoBar(
+              title: Text('${job.jobNumber} → ${status.displayName}'),
+              severity: InfoBarSeverity.success,
+              onClose: close,
+            ));
+
+    if (result.needsInvoiceGeneration && result.invoiceJobId != null) {
+      showDialog(
+        context: context,
+        builder: (context) => _GenerateInvoiceDialog(
+          jobId: result.invoiceJobId!,
+          jobNumber: result.invoiceJobNumber ?? '',
+          totalCost: result.invoiceTotalCost,
+        ),
+      );
+    }
+  }
+
   void _showJobDetailDialog(BuildContext context, WidgetRef ref, String jobId) {
     showDialog(
       context: context,
@@ -321,10 +368,12 @@ class _RepairJobsList extends ConsumerWidget {
 class _RepairJobTile extends StatelessWidget {
   final RepairJobWithCustomer job;
   final VoidCallback onTap;
+  final ValueChanged<RepairStatus> onStatusChange;
 
   const _RepairJobTile({
     required this.job,
     required this.onTap,
+    required this.onStatusChange,
   });
 
   @override
@@ -344,7 +393,8 @@ class _RepairJobTile extends StatelessWidget {
       ),
       title: Row(
         children: [
-          Text(job.jobNumber, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(job.jobNumber,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -373,30 +423,57 @@ class _RepairJobTile extends StatelessWidget {
           ),
         ],
       ),
-      trailing: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisAlignment: MainAxisAlignment.center,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            Formatters.currency(job.totalCost),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          if (job.repairJob.isUnderWarranty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.successColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                'WARRANTY',
-                style: TextStyle(
-                  fontSize: 9,
-                  color: AppTheme.successColor,
-                  fontWeight: FontWeight.bold,
-                ),
+          if (!job.statusEnum.isClosed)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: DropDownButton(
+                title: const Text('Set status'),
+                items: RepairStatus.values
+                    .where((s) => job.statusEnum.canTransitionTo(s))
+                    .map((s) => MenuFlyoutItem(
+                          leading: Icon(
+                            s == RepairStatus.shipped
+                                ? FluentIcons.delivery_truck
+                                : FluentIcons.circle_fill,
+                            size: s == RepairStatus.shipped ? 14 : 8,
+                            color: _getStatusColor(s),
+                          ),
+                          text: Text(s.displayName),
+                          onPressed: () => onStatusChange(s),
+                        ))
+                    .toList(),
               ),
             ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                Formatters.currency(job.totalCost),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              if (job.repairJob.isUnderWarranty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.successColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'WARRANTY',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: AppTheme.successColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
       onPressed: onTap,
@@ -421,6 +498,8 @@ class _RepairJobTile extends StatelessWidget {
         return Colors.teal;
       case RepairStatus.delivered:
         return Colors.grey;
+      case RepairStatus.shipped:
+        return Colors.magenta;
       case RepairStatus.cancelled:
         return AppTheme.errorColor;
     }
@@ -433,7 +512,8 @@ class _RepairJobFormDialog extends ConsumerStatefulWidget {
   const _RepairJobFormDialog();
 
   @override
-  ConsumerState<_RepairJobFormDialog> createState() => _RepairJobFormDialogState();
+  ConsumerState<_RepairJobFormDialog> createState() =>
+      _RepairJobFormDialogState();
 }
 
 class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
@@ -471,7 +551,9 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
                     content: const Text('Existing Customer'),
                     onChanged: (checked) {
                       if (checked) {
-                        ref.read(repairFormProvider.notifier).setUseManualCustomer(false);
+                        ref
+                            .read(repairFormProvider.notifier)
+                            .setUseManualCustomer(false);
                       }
                     },
                   ),
@@ -482,7 +564,9 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
                     content: const Text('Walk-in Customer'),
                     onChanged: (checked) {
                       if (checked) {
-                        ref.read(repairFormProvider.notifier).setUseManualCustomer(true);
+                        ref
+                            .read(repairFormProvider.notifier)
+                            .setUseManualCustomer(true);
                       }
                     },
                   ),
@@ -505,7 +589,8 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
                             ))
                         .toList(),
                     onSelected: (item) {
-                      final customer = customers.firstWhere((c) => c.id == item.value);
+                      final customer =
+                          customers.firstWhere((c) => c.id == item.value);
                       ref.read(repairFormProvider.notifier).setCustomer(
                             customer.id,
                             customer.name,
@@ -532,7 +617,9 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
                       child: TextBox(
                         placeholder: 'Enter customer name',
                         onChanged: (value) {
-                          ref.read(repairFormProvider.notifier).setManualCustomer(
+                          ref
+                              .read(repairFormProvider.notifier)
+                              .setManualCustomer(
                                 value.isEmpty ? null : value,
                                 formState.manualCustomerPhone,
                               );
@@ -547,7 +634,9 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
                       child: TextBox(
                         placeholder: 'Phone number',
                         onChanged: (value) {
-                          ref.read(repairFormProvider.notifier).setManualCustomer(
+                          ref
+                              .read(repairFormProvider.notifier)
+                              .setManualCustomer(
                                 formState.manualCustomerName,
                                 value.isEmpty ? null : value,
                               );
@@ -658,16 +747,19 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
                               formState.isUnderWarranty
                                   ? 'Under Warranty'
                                   : 'Out of Warranty',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             Text(
                               formState.warrantyInfo!.productName,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[100]),
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey[100]),
                             ),
                             if (formState.warrantyInfo!.warrantyExpiry != null)
                               Text(
                                 'Expires: ${Formatters.date(formState.warrantyInfo!.warrantyExpiry!)}',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[100]),
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[100]),
                               ),
                           ],
                         ),
@@ -687,7 +779,9 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
                 maxLines: 3,
                 placeholder: 'Describe the issue...',
                 onChanged: (value) {
-                  ref.read(repairFormProvider.notifier).setProblemDescription(value);
+                  ref
+                      .read(repairFormProvider.notifier)
+                      .setProblemDescription(value);
                 },
               ),
             ),
@@ -705,7 +799,9 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
                       placeholder: '0.00',
                       onChanged: (value) {
                         final cost = double.tryParse(value) ?? 0;
-                        ref.read(repairFormProvider.notifier).setEstimatedCost(cost);
+                        ref
+                            .read(repairFormProvider.notifier)
+                            .setEstimatedCost(cost);
                       },
                     ),
                   ),
@@ -717,7 +813,9 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
                     child: DatePicker(
                       selected: formState.promisedDate,
                       onChanged: (date) {
-                        ref.read(repairFormProvider.notifier).setPromisedDate(date);
+                        ref
+                            .read(repairFormProvider.notifier)
+                            .setPromisedDate(date);
                       },
                     ),
                   ),
@@ -821,8 +919,10 @@ class _RepairJobDetailDialog extends ConsumerWidget {
         ),
         if (detailAsync.valueOrNull != null &&
             (detailAsync.valueOrNull!.repairJob.status == 'COMPLETED' ||
-             detailAsync.valueOrNull!.repairJob.status == 'READY_FOR_PICKUP' ||
-             detailAsync.valueOrNull!.repairJob.status == 'DELIVERED'))
+                detailAsync.valueOrNull!.repairJob.status ==
+                    'READY_FOR_PICKUP' ||
+                detailAsync.valueOrNull!.repairJob.status == 'DELIVERED' ||
+                detailAsync.valueOrNull!.repairJob.status == 'SHIPPED'))
           Button(
             child: const Text('Generate Invoice'),
             onPressed: () {
@@ -839,6 +939,7 @@ class _RepairJobDetailDialog extends ConsumerWidget {
           ),
         if (detailAsync.valueOrNull != null &&
             detailAsync.valueOrNull!.repairJob.status != 'DELIVERED' &&
+            detailAsync.valueOrNull!.repairJob.status != 'SHIPPED' &&
             detailAsync.valueOrNull!.repairJob.status != 'CANCELLED')
           FilledButton(
             child: const Text('Update Status'),
@@ -892,7 +993,8 @@ class _RepairJobDetailContent extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: _getStatusColor(status).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
@@ -908,7 +1010,8 @@ class _RepairJobDetailContent extends ConsumerWidget {
                   if (job.isUnderWarranty) ...[
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppTheme.successColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
@@ -954,7 +1057,8 @@ class _RepairJobDetailContent extends ConsumerWidget {
           ),
           if (job.diagnosis != null) ...[
             const SizedBox(height: 16),
-            Text('Diagnosis', style: FluentTheme.of(context).typography.bodyStrong),
+            Text('Diagnosis',
+                style: FluentTheme.of(context).typography.bodyStrong),
             const SizedBox(height: 8),
             Card(
               backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
@@ -970,7 +1074,8 @@ class _RepairJobDetailContent extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Costs', style: FluentTheme.of(context).typography.bodyStrong),
+              Text('Costs',
+                  style: FluentTheme.of(context).typography.bodyStrong),
               Button(
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1014,7 +1119,8 @@ class _RepairJobDetailContent extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Parts Used', style: FluentTheme.of(context).typography.bodyStrong),
+              Text('Parts Used',
+                  style: FluentTheme.of(context).typography.bodyStrong),
               Button(
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1043,9 +1149,11 @@ class _RepairJobDetailContent extends ConsumerWidget {
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(FluentIcons.package, size: 32, color: Colors.grey[100]),
+                      Icon(FluentIcons.package,
+                          size: 32, color: Colors.grey[100]),
                       const SizedBox(height: 8),
-                      Text('No parts added yet', style: TextStyle(color: Colors.grey[100])),
+                      Text('No parts added yet',
+                          style: TextStyle(color: Colors.grey[100])),
                     ],
                   ),
                 ),
@@ -1057,18 +1165,22 @@ class _RepairJobDetailContent extends ConsumerWidget {
                 children: detail.parts
                     .map((part) => ListTile(
                           title: Text(part.productName),
-                          subtitle: Text('Qty: ${part.part.quantity} × ${Formatters.currency(part.part.unitPrice)}'),
+                          subtitle: Text(
+                              'Qty: ${part.part.quantity} × ${Formatters.currency(part.part.unitPrice)}'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 Formatters.currency(part.part.totalPrice),
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(width: 8),
                               IconButton(
-                                icon: Icon(FluentIcons.delete, size: 16, color: AppTheme.errorColor),
-                                onPressed: () => _showRemovePartDialog(context, ref, part.part.id, detail.repairJob.id),
+                                icon: Icon(FluentIcons.delete,
+                                    size: 16, color: AppTheme.errorColor),
+                                onPressed: () => _showRemovePartDialog(context,
+                                    ref, part.part.id, detail.repairJob.id),
                               ),
                             ],
                           ),
@@ -1096,7 +1208,8 @@ class _RepairJobDetailContent extends ConsumerWidget {
           ],
 
           // Dates
-          Text('Timeline', style: FluentTheme.of(context).typography.bodyStrong),
+          Text('Timeline',
+              style: FluentTheme.of(context).typography.bodyStrong),
           const SizedBox(height: 8),
           _InfoRow('Received', Formatters.dateTime(job.receivedDate)),
           if (job.promisedDate != null)
@@ -1128,6 +1241,8 @@ class _RepairJobDetailContent extends ConsumerWidget {
         return Colors.teal;
       case RepairStatus.delivered:
         return Colors.grey;
+      case RepairStatus.shipped:
+        return Colors.magenta;
       case RepairStatus.cancelled:
         return AppTheme.errorColor;
     }
@@ -1202,7 +1317,8 @@ class _UpdateStatusDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_UpdateStatusDialog> createState() => _UpdateStatusDialogState();
+  ConsumerState<_UpdateStatusDialog> createState() =>
+      _UpdateStatusDialogState();
 }
 
 class _UpdateStatusDialogState extends ConsumerState<_UpdateStatusDialog> {
@@ -1241,7 +1357,8 @@ class _UpdateStatusDialogState extends ConsumerState<_UpdateStatusDialog> {
                   const SizedBox(height: 12),
                   InfoBar(
                     title: const Text('Invoice Required'),
-                    content: const Text('Please generate the service invoice to record this repair as a sale.'),
+                    content: const Text(
+                        'Please generate the service invoice to record this repair as a sale.'),
                     severity: InfoBarSeverity.warning,
                   ),
                 ],
@@ -1264,7 +1381,8 @@ class _UpdateStatusDialogState extends ConsumerState<_UpdateStatusDialog> {
                               child: Text(s.displayName),
                             ))
                         .toList(),
-                    onChanged: (value) => setState(() => _selectedStatus = value),
+                    onChanged: (value) =>
+                        setState(() => _selectedStatus = value),
                     isExpanded: true,
                   ),
                 ),
@@ -1350,7 +1468,8 @@ class _UpdateStatusDialogState extends ConsumerState<_UpdateStatusDialog> {
     ref.read(statusUpdateProvider.notifier).updateStatus(
           jobId: widget.jobId,
           newStatus: _selectedStatus!,
-          notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+          notes:
+              _notesController.text.isNotEmpty ? _notesController.text : null,
         );
   }
 }
@@ -1367,10 +1486,12 @@ class _GenerateInvoiceDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_GenerateInvoiceDialog> createState() => _GenerateInvoiceDialogState();
+  ConsumerState<_GenerateInvoiceDialog> createState() =>
+      _GenerateInvoiceDialogState();
 }
 
-class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> {
+class _GenerateInvoiceDialogState
+    extends ConsumerState<_GenerateInvoiceDialog> {
   bool _isCredit = false;
   bool _isPartialPayment = false;
   final _discountController = TextEditingController(text: '0');
@@ -1469,7 +1590,8 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                         _partialPaymentController.clear();
                       }
                     }),
-                    content: const Text('Partial Payment (Pay some now, rest as credit)'),
+                    content: const Text(
+                        'Partial Payment (Pay some now, rest as credit)'),
                   ),
                   if (_isPartialPayment) ...[
                     const SizedBox(height: 12),
@@ -1488,14 +1610,16 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                     ),
                     const SizedBox(height: 8),
                     Builder(builder: (context) {
-                      final partialPay = double.tryParse(_partialPaymentController.text) ?? 0;
+                      final partialPay =
+                          double.tryParse(_partialPaymentController.text) ?? 0;
                       final creditAmount = finalAmount - partialPay;
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text('Credit Amount:'),
                           Text(
-                            Formatters.currency(creditAmount > 0 ? creditAmount : 0),
+                            Formatters.currency(
+                                creditAmount > 0 ? creditAmount : 0),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: AppTheme.warningColor,
@@ -1578,14 +1702,16 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
           isCredit: _isCredit,
           discountAmount: discount,
           partialPayment: partialPayment,
-          notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+          notes:
+              _notesController.text.isNotEmpty ? _notesController.text : null,
         );
   }
 
   Future<void> _printRepairInvoice(ServiceInvoiceState invoiceState) async {
     try {
       final companySettings = await ref.read(companySettingsProvider.future);
-      final jobDetail = await ref.read(repairJobDetailProvider(widget.jobId).future);
+      final jobDetail =
+          await ref.read(repairJobDetailProvider(widget.jobId).future);
 
       if (jobDetail == null) {
         throw Exception('Repair job not found');
@@ -1612,8 +1738,11 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          companySettings.name.isNotEmpty ? companySettings.name : 'M-TRONIC',
-                          style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+                          companySettings.name.isNotEmpty
+                              ? companySettings.name
+                              : 'M-TRONIC',
+                          style: pw.TextStyle(
+                              fontSize: 24, fontWeight: pw.FontWeight.bold),
                         ),
                         pw.SizedBox(height: 4),
                         if (companySettings.address.isNotEmpty)
@@ -1629,9 +1758,13 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                       children: [
                         pw.Text(
                           'SERVICE INVOICE',
-                          style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold, color: PdfColors.green700),
+                          style: pw.TextStyle(
+                              fontSize: 28,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.green700),
                         ),
-                        pw.Text(invoiceState.invoiceNumber ?? '', style: const pw.TextStyle(fontSize: 16)),
+                        pw.Text(invoiceState.invoiceNumber ?? '',
+                            style: const pw.TextStyle(fontSize: 16)),
                       ],
                     ),
                   ],
@@ -1646,9 +1779,12 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('Customer:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                          pw.Text('Customer:',
+                              style:
+                                  pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                           pw.SizedBox(height: 4),
-                          pw.Text(jobDetail.customer?.name ?? 'Walk-in Customer'),
+                          pw.Text(
+                              jobDetail.customer?.name ?? 'Walk-in Customer'),
                           if (jobDetail.customer?.phone != null)
                             pw.Text('Tel: ${jobDetail.customer!.phone}'),
                         ],
@@ -1661,12 +1797,15 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                         pw.Text('Date: ${Formatters.date(DateTime.now())}'),
                         if (_isCredit)
                           pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: pw.BoxDecoration(
                               color: PdfColors.orange100,
                               borderRadius: pw.BorderRadius.circular(4),
                             ),
-                            child: pw.Text('CREDIT SALE', style: const pw.TextStyle(color: PdfColors.orange900)),
+                            child: pw.Text('CREDIT SALE',
+                                style: const pw.TextStyle(
+                                    color: PdfColors.orange900)),
                           ),
                       ],
                     ),
@@ -1684,13 +1823,16 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('Device Information:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text('Device Information:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                       pw.SizedBox(height: 4),
-                      pw.Text('${jobDetail.repairJob.deviceBrand ?? ''} ${jobDetail.repairJob.deviceModel ?? ''} (${jobDetail.repairJob.deviceType})'),
+                      pw.Text(
+                          '${jobDetail.repairJob.deviceBrand ?? ''} ${jobDetail.repairJob.deviceModel ?? ''} (${jobDetail.repairJob.deviceType})'),
                       if (jobDetail.repairJob.deviceSerial != null)
                         pw.Text('Serial: ${jobDetail.repairJob.deviceSerial}'),
                       pw.SizedBox(height: 8),
-                      pw.Text('Problem: ${jobDetail.repairJob.problemDescription}'),
+                      pw.Text(
+                          'Problem: ${jobDetail.repairJob.problemDescription}'),
                       if (jobDetail.repairJob.diagnosis != null) ...[
                         pw.SizedBox(height: 4),
                         pw.Text('Diagnosis: ${jobDetail.repairJob.diagnosis}'),
@@ -1702,7 +1844,8 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
 
                 // Parts table
                 if (jobDetail.parts.isNotEmpty) ...[
-                  pw.Text('Parts Used:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text('Parts Used:',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 8),
                   pw.Table(
                     border: pw.TableBorder.all(color: PdfColors.grey300),
@@ -1714,20 +1857,47 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                     },
                     children: [
                       pw.TableRow(
-                        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                        decoration:
+                            const pw.BoxDecoration(color: PdfColors.grey200),
                         children: [
-                          pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Part', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Qty', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Price', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Total', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(8),
+                              child: pw.Text('Part',
+                                  style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(8),
+                              child: pw.Text('Qty',
+                                  style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(8),
+                              child: pw.Text('Price',
+                                  style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(8),
+                              child: pw.Text('Total',
+                                  style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold))),
                         ],
                       ),
                       ...jobDetail.parts.map((part) => pw.TableRow(
                             children: [
-                              pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(part.productName)),
-                              pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${part.part.quantity}')),
-                              pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(Formatters.currency(part.part.unitPrice))),
-                              pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(Formatters.currency(part.part.totalPrice))),
+                              pw.Padding(
+                                  padding: const pw.EdgeInsets.all(8),
+                                  child: pw.Text(part.productName)),
+                              pw.Padding(
+                                  padding: const pw.EdgeInsets.all(8),
+                                  child: pw.Text('${part.part.quantity}')),
+                              pw.Padding(
+                                  padding: const pw.EdgeInsets.all(8),
+                                  child: pw.Text(Formatters.currency(
+                                      part.part.unitPrice))),
+                              pw.Padding(
+                                  padding: const pw.EdgeInsets.all(8),
+                                  child: pw.Text(Formatters.currency(
+                                      part.part.totalPrice))),
                             ],
                           )),
                     ],
@@ -1743,10 +1913,11 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                       width: 220,
                       child: pw.Column(
                         children: [
-                          _pdfTotalRow('Labor Cost', jobDetail.repairJob.laborCost),
-                          _pdfTotalRow('Parts Cost', jobDetail.repairJob.partsCost),
-                          if (discount > 0)
-                            _pdfTotalRow('Discount', -discount),
+                          _pdfTotalRow(
+                              'Labor Cost', jobDetail.repairJob.laborCost),
+                          _pdfTotalRow(
+                              'Parts Cost', jobDetail.repairJob.partsCost),
+                          if (discount > 0) _pdfTotalRow('Discount', -discount),
                           pw.Divider(color: PdfColors.green300),
                           _pdfTotalRow('Total', finalAmount, isTotal: true),
                         ],
@@ -1765,7 +1936,8 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
                 pw.Center(
                   child: pw.Text(
                     AppConstants.poweredBy,
-                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+                    style: const pw.TextStyle(
+                        fontSize: 8, color: PdfColors.grey500),
                   ),
                 ),
               ],
@@ -1792,16 +1964,23 @@ class _GenerateInvoiceDialogState extends ConsumerState<_GenerateInvoiceDialog> 
     }
   }
 
-  static pw.Widget _pdfTotalRow(String label, double amount, {bool isTotal = false}) {
+  static pw.Widget _pdfTotalRow(String label, double amount,
+      {bool isTotal = false}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 2),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: pw.TextStyle(fontWeight: isTotal ? pw.FontWeight.bold : null, fontSize: isTotal ? 14 : 12)),
+          pw.Text(label,
+              style: pw.TextStyle(
+                  fontWeight: isTotal ? pw.FontWeight.bold : null,
+                  fontSize: isTotal ? 14 : 12)),
           pw.Text(
             Formatters.currency(amount),
-            style: pw.TextStyle(fontWeight: isTotal ? pw.FontWeight.bold : null, fontSize: isTotal ? 14 : 12, color: isTotal ? PdfColors.green700 : null),
+            style: pw.TextStyle(
+                fontWeight: isTotal ? pw.FontWeight.bold : null,
+                fontSize: isTotal ? 14 : 12,
+                color: isTotal ? PdfColors.green700 : null),
           ),
         ],
       ),
@@ -1851,14 +2030,17 @@ class _AddPartDialogState extends ConsumerState<_AddPartDialog> {
                         ))
                     .toList(),
                 onSelected: (item) async {
-                  final product = products.firstWhere((p) => p.id == item.value);
+                  final product =
+                      products.firstWhere((p) => p.id == item.value);
                   final db = ref.read(databaseProvider);
-                  final inventory = await db.inventoryDao.getInventoryByProductId(product.id);
+                  final inventory =
+                      await db.inventoryDao.getInventoryByProductId(product.id);
 
                   setState(() {
                     _selectedProduct = product;
                     _unitPrice = product.sellingPrice;
-                    _unitCost = inventory?.quantityOnHand != null && inventory!.quantityOnHand > 0
+                    _unitCost = inventory?.quantityOnHand != null &&
+                            inventory!.quantityOnHand > 0
                         ? inventory.totalCost / inventory.quantityOnHand
                         : product.weightedAvgCost;
                   });
@@ -1880,16 +2062,23 @@ class _AddPartDialogState extends ConsumerState<_AddPartDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_selectedProduct!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(_selectedProduct!.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
                           Text('Code: ${_selectedProduct!.code}'),
                           FutureBuilder(
-                            future: ref.read(databaseProvider).inventoryDao.getInventoryByProductId(_selectedProduct!.id),
+                            future: ref
+                                .read(databaseProvider)
+                                .inventoryDao
+                                .getInventoryByProductId(_selectedProduct!.id),
                             builder: (context, snapshot) {
                               final qty = snapshot.data?.quantityOnHand ?? 0;
                               return Text(
                                 'In Stock: $qty',
                                 style: TextStyle(
-                                  color: qty > 0 ? AppTheme.successColor : AppTheme.errorColor,
+                                  color: qty > 0
+                                      ? AppTheme.successColor
+                                      : AppTheme.errorColor,
                                 ),
                               );
                             },
@@ -1911,7 +2100,8 @@ class _AddPartDialogState extends ConsumerState<_AddPartDialog> {
                       value: _quantity,
                       min: 1,
                       max: 100,
-                      onChanged: (value) => setState(() => _quantity = value ?? 1),
+                      onChanged: (value) =>
+                          setState(() => _quantity = value ?? 1),
                       mode: SpinButtonPlacementMode.inline,
                     ),
                   ),
@@ -1921,9 +2111,11 @@ class _AddPartDialogState extends ConsumerState<_AddPartDialog> {
                   child: InfoLabel(
                     label: 'Unit Price (Selling)',
                     child: TextBox(
-                      controller: TextEditingController(text: _unitPrice.toStringAsFixed(2)),
+                      controller: TextEditingController(
+                          text: _unitPrice.toStringAsFixed(2)),
                       keyboardType: TextInputType.number,
-                      onChanged: (value) => _unitPrice = double.tryParse(value) ?? _unitPrice,
+                      onChanged: (value) =>
+                          _unitPrice = double.tryParse(value) ?? _unitPrice,
                     ),
                   ),
                 ),
@@ -1939,7 +2131,10 @@ class _AddPartDialogState extends ConsumerState<_AddPartDialog> {
                     const Text('Total Price:'),
                     Text(
                       Formatters.currency(_unitPrice * _quantity),
-                      style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                      style: FluentTheme.of(context)
+                          .typography
+                          .bodyStrong
+                          ?.copyWith(
                             color: AppTheme.primaryColor,
                           ),
                     ),
@@ -2139,7 +2334,8 @@ class _EditCostsDialogState extends ConsumerState<_EditCostsDialog> {
           const SizedBox(height: 16),
           InfoBar(
             title: const Text('Note'),
-            content: const Text('Parts cost is calculated from added parts. Total = Labor + Parts'),
+            content: const Text(
+                'Parts cost is calculated from added parts. Total = Labor + Parts'),
             severity: InfoBarSeverity.info,
           ),
         ],
@@ -2165,24 +2361,29 @@ class _EditCostsDialogState extends ConsumerState<_EditCostsDialog> {
 }
 
 // Helper function to confirm part removal
-void _showRemovePartDialog(BuildContext context, WidgetRef ref, String partId, String repairJobId) {
+void _showRemovePartDialog(
+    BuildContext context, WidgetRef ref, String partId, String repairJobId) {
   showDialog(
     context: context,
     builder: (dialogContext) => ContentDialog(
       title: const Text('Remove Part'),
-      content: const Text('Are you sure you want to remove this part? It will be returned to inventory.'),
+      content: const Text(
+          'Are you sure you want to remove this part? It will be returned to inventory.'),
       actions: [
         Button(
           child: const Text('Cancel'),
           onPressed: () => Navigator.of(dialogContext).pop(),
         ),
         FilledButton(
-          style: ButtonStyle(backgroundColor: WidgetStateProperty.all(AppTheme.errorColor)),
+          style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.all(AppTheme.errorColor)),
           child: const Text('Remove'),
           onPressed: () async {
             Navigator.of(dialogContext).pop();
             try {
-              await ref.read(partsManagementProvider.notifier).removePart(partId, repairJobId);
+              await ref
+                  .read(partsManagementProvider.notifier)
+                  .removePart(partId, repairJobId);
               ref.invalidate(repairJobDetailProvider(repairJobId));
               if (context.mounted) {
                 displayInfoBar(context, builder: (context, close) {
