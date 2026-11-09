@@ -239,19 +239,15 @@ class OnlineOrderDetailDialog extends ConsumerWidget {
                 ),
 
                 // ── Shipping info ──────────────────────────────
-                if (order.trackingNumber != null ||
-                    order.shippedAt != null ||
-                    order.deliveredAt != null ||
-                    order.linkedSaleId != null) ...[
+                ...[
                   const SizedBox(height: 12),
                   _SectionCard(
                     title: 'Shipping',
                     child: Column(
                       children: [
-                        if (order.trackingNumber != null)
-                          _DetailRow(
-                              label: 'Tracking',
-                              value: order.trackingNumber!),
+                        _TrackingEditor(
+                            key: ValueKey('tracking-${order.trackingNumber}'),
+                            order: order),
                         if (order.shippedAt != null)
                           _DetailRow(
                               label: 'Shipped At',
@@ -365,9 +361,7 @@ class OnlineOrderDetailDialog extends ConsumerWidget {
         buttons.add(FilledButton(
           onPressed: (isLoading || !canShip)
               ? null
-              : () => ref
-                  .read(onlineOrderActionProvider.notifier)
-                  .markShipped(orderId),
+              : () => _shipWithTracking(context, ref, order),
           child: isLoading
               ? loadingIndicator()
               : const Text('Mark as Shipped'),
@@ -470,6 +464,113 @@ class OnlineOrderDetailDialog extends ConsumerWidget {
 // ──────────────────────────────────────────────────────────────
 // Helper widgets
 // ──────────────────────────────────────────────────────────────
+/// Asks for the courier tracking number (optional), saves it, then ships.
+Future<void> _shipWithTracking(
+    BuildContext context, WidgetRef ref, OnlineOrderModel order) async {
+  final controller = TextEditingController(text: order.trackingNumber ?? '');
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => ContentDialog(
+      title: const Text('Mark as Shipped'),
+      content: InfoLabel(
+        label: 'Courier tracking number (optional)',
+        child: TextBox(
+          controller: controller,
+          autofocus: true,
+          placeholder: 'e.g. CP123456789LK',
+          onSubmitted: (_) => Navigator.pop(dialogContext, true),
+        ),
+      ),
+      actions: [
+        Button(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogContext, false)),
+        FilledButton(
+            child: const Text('Ship Order'),
+            onPressed: () => Navigator.pop(dialogContext, true)),
+      ],
+    ),
+  );
+  if (ok != true) return;
+
+  final notifier = ref.read(onlineOrderActionProvider.notifier);
+  final tracking = controller.text.trim();
+  if (tracking != (order.trackingNumber ?? '')) {
+    final saved = await notifier.updateTrackingNumber(order.id, tracking);
+    if (!saved) return;
+  }
+  await notifier.markShipped(order.id);
+}
+
+/// Inline editor for the courier tracking number (any status).
+class _TrackingEditor extends ConsumerStatefulWidget {
+  final OnlineOrderModel order;
+  const _TrackingEditor({super.key, required this.order});
+
+  @override
+  ConsumerState<_TrackingEditor> createState() => _TrackingEditorState();
+}
+
+class _TrackingEditorState extends ConsumerState<_TrackingEditor> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.order.trackingNumber ?? '');
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _changed =>
+      _controller.text.trim() != (widget.order.trackingNumber ?? '');
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final ok = await ref
+        .read(onlineOrderActionProvider.notifier)
+        .updateTrackingNumber(widget.order.id, _controller.text);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    displayInfoBar(context, builder: (context, close) => InfoBar(
+          title: Text(ok ? 'Tracking number saved' : 'Could not save tracking number'),
+          severity: ok ? InfoBarSeverity.success : InfoBarSeverity.error,
+          onClose: close,
+        ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text('Tracking', style: TextStyle(color: Colors.grey[120], fontSize: 13)),
+          ),
+          Expanded(
+            child: TextBox(
+              controller: _controller,
+              placeholder: 'Add courier tracking number',
+              enabled: !_saving,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _changed ? _save() : null,
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: (_saving || !_changed) ? null : _save,
+            child: _saving
+                ? const SizedBox(width: 14, height: 14, child: ProgressRing(strokeWidth: 2))
+                : const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
   final String title;
   final Widget child;
