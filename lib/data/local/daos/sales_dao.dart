@@ -378,6 +378,146 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
     );
   }
 
+  // ==================== Sale Returns ====================
+
+  /// Why a sale can't be returned, or null if it can.
+  Future<String?> getReturnBlocker(String saleId) async {
+    final sale = await getSaleById(saleId);
+    if (sale == null) return 'Sale not found.';
+    if (sale.status == 'RETURNED') return 'This sale has already been returned.';
+
+    final repair = await (db.select(db.repairJobs)
+          ..where((r) => r.invoiceId.equals(saleId)))
+        .getSingleOrNull();
+    final labor = await (select(saleItems)
+          ..where((i) => i.saleId.equals(saleId) & i.productId.equals('SERVICE_LABOR')))
+        .get();
+    if (repair != null || labor.isNotEmpty) {
+      return 'Repair invoices cannot be returned here.';
+    }
+    return null;
+  }
+
+  /// Fully returns a sale:
+  /// - puts every item back into stock (quantity and cost, so WAC is restored)
+  /// - puts sold serial numbers back to IN_STOCK
+  /// - records a refund (negative payment) for the amount the customer paid
+  /// - cancels any unpaid credit balance for this sale
+  /// - marks the sale RETURNED so it no longer counts in revenue/profit
+  /// Returns the refunded amount.
+  Future<double> returnSale({
+    required String saleId,
+    required PaymentMethod refundMethod,
+    String? reason,
+    String? returnedBy,
+  }) async {
+    final blocker = await getReturnBlocker(saleId);
+    if (blocker != null) throw Exception(blocker);
+
+    return transaction(() async {
+      final sale = (await getSaleById(saleId))!;
+      final now = DateTime.now();
+      final items = await (select(saleItems)..where((i) => i.saleId.equals(saleId))).get();
+
+      // 1. Stock and serial numbers back in
+      for (final item in items) {
+        final inv = await (select(inventory)..where((t) => t.productId.equals(item.productId)))
+            .getSingleOrNull();
+        if (inv != null) {
+          await (update(inventory)..where((t) => t.productId.equals(item.productId))).write(
+            InventoryCompanion(
+              quantityOnHand: Value(inv.quantityOnHand + item.quantity),
+              totalCost: Value(inv.totalCost + item.totalCost),
+              lastStockDate: Value(now),
+              updatedAt: Value(now),
+              syncStatus: const Value('PENDING'),
+              localUpdatedAt: Value(now),
+            ),
+          );
+        }
+
+        final serials = await getSaleItemSerials(item.id);
+        for (final s in serials) {
+          await db.inventoryDao.updateSerialStatus(
+            serialId: s.serialNumberId,
+            newStatus: SerialStatus.inStock,
+            referenceType: 'SALE_RETURN',
+            referenceId: saleId,
+            notes: 'Returned from ${sale.invoiceNumber}',
+            changedBy: returnedBy,
+          );
+        }
+      }
+
+      // 2. Refund what was paid
+      final refund = sale.paidAmount;
+      if (refund > 0.009) {
+        await into(payments).insert(PaymentsCompanion.insert(
+          id: _uuid.v4(),
+          saleId: saleId,
+          paymentMethod: refundMethod.code,
+          amount: -refund,
+          paymentDate: now,
+          notes: const Value('Refund - sale return'),
+          receivedBy: Value(returnedBy),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ));
+      }
+
+      // 3. Cancel unpaid credit for this sale
+      final outstanding = sale.totalAmount - sale.paidAmount;
+      if (sale.customerId != null && outstanding > 0.009) {
+        final customer = await (select(customers)..where((t) => t.id.equals(sale.customerId!)))
+            .getSingleOrNull();
+        if (customer != null) {
+          var newBalance = customer.creditBalance - outstanding;
+          if (newBalance < 0) newBalance = 0;
+          await into(creditTransactions).insert(CreditTransactionsCompanion.insert(
+            id: _uuid.v4(),
+            customerId: customer.id,
+            transactionType: 'ADJUSTMENT',
+            amount: outstanding,
+            balanceAfter: newBalance,
+            transactionDate: now,
+            referenceType: const Value('SALE'),
+            referenceId: Value(saleId),
+            notes: Value('Sale return ${sale.invoiceNumber}'),
+            createdBy: Value(returnedBy),
+            syncStatus: const Value('PENDING'),
+            localUpdatedAt: Value(now),
+          ));
+          await (update(customers)..where((t) => t.id.equals(customer.id))).write(
+            CustomersCompanion(
+              creditBalance: Value(newBalance),
+              updatedAt: Value(now),
+              syncStatus: const Value('PENDING'),
+              localUpdatedAt: Value(now),
+            ),
+          );
+        }
+      }
+
+      // 4. Mark the sale returned
+      final d = now;
+      final stamp = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      final note = 'RETURNED $stamp'
+          '${refund > 0.009 ? ' - refunded ${refund.toStringAsFixed(2)} (${refundMethod.displayName})' : ''}'
+          '${reason != null && reason.trim().isNotEmpty ? ' - Reason: ${reason.trim()}' : ''}';
+      await (update(sales)..where((t) => t.id.equals(saleId))).write(
+        SalesCompanion(
+          status: const Value('RETURNED'),
+          notes: Value(sale.notes == null || sale.notes!.isEmpty ? note : '${sale.notes}\n$note'),
+          updatedAt: Value(now),
+          syncStatus: const Value('PENDING'),
+          localUpdatedAt: Value(now),
+        ),
+      );
+
+      return refund;
+    });
+  }
+
   // ==================== Sale Items ====================
 
   // Get sale items
@@ -522,6 +662,11 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
     double laborIncome = 0;
 
     for (final sale in allSales) {
+      // Returned sales don't count towards revenue, profit or credit
+      if (sale.status == 'RETURNED') {
+        count--;
+        continue;
+      }
       totalRevenue += sale.totalAmount;
       totalCost += sale.totalCost;
       totalProfit += sale.grossProfit;
@@ -531,7 +676,9 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
 
       // Get labor income from sale items (SERVICE_LABOR items from repairs)
       final laborItems = await (select(saleItems)
-            ..where((i) => i.saleId.equals(sale.id) & i.productId.equals('SERVICE_LABOR')))
+            ..where((i) =>
+                i.saleId.equals(sale.id) &
+                (i.productId.equals('SERVICE_LABOR') | i.productId.like('$serviceChargePrefix%'))))
           .get();
       for (final item in laborItems) {
         laborIncome += item.totalPrice;
@@ -547,6 +694,21 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
       laborIncome: laborIncome,
     );
   }
+}
+
+// ==================== Service charges ====================
+// A service charge (labour, installation, delivery…) sold without a repair
+// job is stored as a sale item whose productId is "SERVICE:<description>".
+// It has no product or stock record; it counts as labour income in reports.
+const serviceChargePrefix = 'SERVICE:';
+
+bool isServiceChargeId(String productId) => productId.startsWith(serviceChargePrefix);
+
+String serviceChargeId(String description) => '$serviceChargePrefix${description.trim()}';
+
+String serviceChargeDescription(String productId) {
+  final d = productId.substring(serviceChargePrefix.length).trim();
+  return d.isEmpty ? 'Service Charge' : d;
 }
 
 // Helper classes
@@ -616,8 +778,15 @@ class SaleItemWithProduct {
     this.serials = const [],
   });
 
-  String get productName => product?.name ?? (item.productId == 'SERVICE_LABOR' ? 'Service Labor' : 'Unknown Product');
-  String get productCode => product?.code ?? '';
+  String get productName =>
+      product?.name ??
+      (item.productId == 'SERVICE_LABOR'
+          ? 'Service Labor'
+          : isServiceChargeId(item.productId)
+              ? serviceChargeDescription(item.productId)
+              : 'Unknown Product');
+  String get productCode =>
+      product?.code ?? (isServiceChargeId(item.productId) ? 'SERVICE' : '');
   int get quantity => item.quantity;
   double get unitPrice => item.unitPrice;
   double get totalPrice => item.totalPrice;
@@ -694,7 +863,10 @@ class SaleWithDetails {
   DateTime get saleDate => sale.saleDate;
   String get status => sale.status;
 
+  bool get isReturned => sale.status == 'RETURNED';
+
   String get paymentStatus {
+    if (isReturned) return 'Returned';
     if (isFullyPaid) return 'Paid';
     if (paidAmount > 0) return 'Partial';
     return 'Pending';

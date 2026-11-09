@@ -6,6 +6,12 @@ import '../../../core/utils/formatters.dart';
 import '../../providers/core/database_provider.dart';
 import '../../providers/core/settings_provider.dart';
 import '../../providers/core/sync_provider.dart';
+import '../../providers/core/theme_provider.dart';
+import '../../providers/auth/auth_provider.dart';
+import '../../../core/enums/user_role.dart';
+import '../../../services/backup/backup_service.dart';
+import 'package:file_selector/file_selector.dart';
+import 'dart:io';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -166,6 +172,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text('Appearance', style: FluentTheme.of(context).typography.subtitle),
+              const SizedBox(height: 16),
+              const _AppearanceCard(),
+              const SizedBox(height: 32),
+              if (ref.watch(authNotifierProvider).role == UserRole.admin) ...[
+                Text('Backup & Restore', style: FluentTheme.of(context).typography.subtitle),
+                const SizedBox(height: 16),
+                const _BackupCard(),
+                const SizedBox(height: 32),
+              ],
               Text('Company Information', style: FluentTheme.of(context).typography.subtitle),
               const SizedBox(height: 16),
               Card(
@@ -701,6 +717,229 @@ class _SyncStatusCard extends ConsumerWidget {
                 severity: InfoBarSeverity.error,
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Appearance (theme) settings
+class _AppearanceCard extends ConsumerWidget {
+  const _AppearanceCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
+    Widget option(ThemeMode mode, IconData icon, String label) {
+      return Padding(
+        padding: const EdgeInsets.only(right: 24),
+        child: RadioButton(
+          checked: themeMode == mode,
+          onChanged: (checked) {
+            if (checked) {
+              ref.read(themeModeProvider.notifier).setThemeMode(mode);
+            }
+          },
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16),
+              const SizedBox(width: 6),
+              Text(label),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: InfoLabel(
+          label: 'Theme',
+          child: Wrap(
+            runSpacing: 8,
+            children: [
+              option(ThemeMode.light, FluentIcons.sunny, 'Light'),
+              option(ThemeMode.dark, FluentIcons.clear_night, 'Dark'),
+              option(ThemeMode.system, FluentIcons.t_v_monitor, 'Use system setting'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Backup & Restore (export / import all data) - admin only
+class _BackupCard extends ConsumerStatefulWidget {
+  const _BackupCard();
+
+  @override
+  ConsumerState<_BackupCard> createState() => _BackupCardState();
+}
+
+class _BackupCardState extends ConsumerState<_BackupCard> {
+  bool _busy = false;
+
+  static const _typeGroup = XTypeGroup(label: 'CP POS Backup', extensions: ['json']);
+
+  BackupService get _service => BackupService(ref.read(databaseProvider));
+
+  void _info(String title, String message, InfoBarSeverity severity) {
+    if (!mounted) return;
+    displayInfoBar(context, builder: (context, close) => InfoBar(
+          title: Text(title),
+          content: Text(message),
+          severity: severity,
+          onClose: close,
+        ));
+  }
+
+  Future<void> _export() async {
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final suggested =
+        'cp_pos_backup_${now.year}-${two(now.month)}-${two(now.day)}_${two(now.hour)}${two(now.minute)}.json';
+
+    final location = await getSaveLocation(
+      suggestedName: suggested,
+      acceptedTypeGroups: const [_typeGroup],
+    );
+    if (location == null) return;
+
+    setState(() => _busy = true);
+    try {
+      final json = await _service.exportToJson();
+      var path = location.path;
+      if (!path.toLowerCase().endsWith('.json')) path = '$path.json';
+      await File(path).writeAsString(json);
+      _info('Export complete', 'All data saved to $path', InfoBarSeverity.success);
+    } catch (e) {
+      _info('Export failed', e.toString(), InfoBarSeverity.error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _import() async {
+    final file = await openFile(acceptedTypeGroups: const [_typeGroup]);
+    if (file == null) return;
+
+    final String json;
+    final Map<String, int> summary;
+    try {
+      json = await file.readAsString();
+      summary = _service.summarize(json);
+    } catch (e) {
+      _info('Cannot import', e is FormatException ? e.message : e.toString(),
+          InfoBarSeverity.error);
+      return;
+    }
+
+    final total = summary.values.fold<int>(0, (a, b) => a + b);
+    final nonEmpty = summary.entries.where((e) => e.value > 0).toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: const Text('Import backup?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${file.name}\n$total records in ${nonEmpty.length} tables.'),
+            const SizedBox(height: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 160),
+              child: SingleChildScrollView(
+                child: Text(
+                  nonEmpty.map((e) => '${e.key}: ${e.value}').join('\n'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const InfoBar(
+              title: Text('Records with the same ID will be overwritten'),
+              content: Text(
+                  'New records are added and nothing is deleted. Imported records '
+                  'are uploaded to the cloud on the next sync, replacing the cloud copy. '
+                  'Export a backup of the current data first if you are unsure.'),
+              severity: InfoBarSeverity.warning,
+              isLong: true,
+            ),
+          ],
+        ),
+        actions: [
+          Button(child: const Text('Cancel'), onPressed: () => Navigator.pop(context, false)),
+          FilledButton(child: const Text('Import'), onPressed: () => Navigator.pop(context, true)),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _busy = true);
+    try {
+      final result = await _service.importFromJson(json);
+      ref.invalidate(settingsNotifierProvider);
+      ref.invalidate(companySettingsProvider);
+      _info(
+        'Import complete',
+        'Imported ${result.imported} records'
+            '${result.skipped > 0 ? ', skipped ${result.skipped} (conflicting or invalid)' : ''}.',
+        result.skipped > 0 ? InfoBarSeverity.warning : InfoBarSeverity.success,
+      );
+    } catch (e) {
+      _info('Import failed', 'No changes were made. $e', InfoBarSeverity.error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Export saves all data (products, stock, customers, sales, repairs, '
+              'expenses, settings…) to a single backup file. Import restores data '
+              'from a backup file.',
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                FilledButton(
+                  onPressed: _busy ? null : _export,
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(FluentIcons.download, size: 16),
+                    SizedBox(width: 8),
+                    Text('Export All Data'),
+                  ]),
+                ),
+                const SizedBox(width: 12),
+                Button(
+                  onPressed: _busy ? null : _import,
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(FluentIcons.upload, size: 16),
+                    SizedBox(width: 8),
+                    Text('Import Data'),
+                  ]),
+                ),
+                if (_busy) ...[
+                  const SizedBox(width: 16),
+                  const SizedBox(width: 20, height: 20, child: ProgressRing(strokeWidth: 2.5)),
+                ],
+              ],
+            ),
           ],
         ),
       ),

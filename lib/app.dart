@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth/auth_provider.dart';
+import 'presentation/providers/core/theme_provider.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/shell/navigation_shell.dart';
 
@@ -12,13 +13,14 @@ class CpPosApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authNotifierProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return FluentApp(
       title: 'CP POS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light,
+      themeMode: themeMode,
       home: authState.isAuthenticated
           ? const NavigationShell()
           : const LoginScreen(),
