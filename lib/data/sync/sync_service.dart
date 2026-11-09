@@ -498,6 +498,9 @@ class SyncService {
             'product_type': record.productType,
             'requires_serial': record.requiresSerial,
             'selling_price': record.sellingPrice,
+            // Only sent when set, so products still sync before the
+            // wholesale_price column has been added in Supabase.
+            if (record.wholesalePrice > 0) 'wholesale_price': record.wholesalePrice,
             'weighted_avg_cost': record.weightedAvgCost,
             'warranty_months': record.warrantyMonths,
             'reorder_level': record.reorderLevel,
@@ -1235,6 +1238,9 @@ class SyncService {
                 productType: Value(record['product_type'] as String? ?? 'ACCESSORY'),
                 requiresSerial: Value(record['requires_serial'] as bool? ?? false),
                 sellingPrice: Value((record['selling_price'] as num?)?.toDouble() ?? 0),
+                wholesalePrice: record.containsKey('wholesale_price')
+                    ? Value((record['wholesale_price'] as num?)?.toDouble() ?? 0)
+                    : const Value.absent(),
                 weightedAvgCost: Value((record['weighted_avg_cost'] as num?)?.toDouble() ?? 0),
                 warrantyMonths: Value(record['warranty_months'] as int? ?? 0),
                 reorderLevel: Value(record['reorder_level'] as int? ?? 5),

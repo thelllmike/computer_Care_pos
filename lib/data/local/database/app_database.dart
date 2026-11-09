@@ -91,7 +91,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -187,6 +187,11 @@ class AppDatabase extends _$AppDatabase {
           await customStatement(
             'ALTER TABLE repair_jobs ADD COLUMN invoice_id TEXT',
           );
+        }
+
+        // Migration from version 4 to 5: wholesale price per product
+        if (from < 5) {
+          await m.addColumn(products, products.wholesalePrice);
         }
       },
     );

@@ -181,6 +181,11 @@ class ProductsScreen extends ConsumerWidget {
                       Formatters.currency(product.sellingPrice),
                       style: FluentTheme.of(context).typography.bodyStrong,
                     ),
+                    if (product.wholesalePrice > 0)
+                      Text(
+                        'Wholesale: ${Formatters.currency(product.wholesalePrice)}',
+                        style: FluentTheme.of(context).typography.caption,
+                      ),
                     Text(
                       'Cost: ${Formatters.currency(product.weightedAvgCost)}',
                       style: FluentTheme.of(context).typography.caption,
@@ -254,6 +259,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
   late final TextEditingController _barcodeController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _sellingPriceController;
+  late final TextEditingController _wholesalePriceController;
   late final TextEditingController _warrantyController;
   late final TextEditingController _reorderLevelController;
   late final TextEditingController _brandController;
@@ -273,6 +279,8 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     _barcodeController = TextEditingController(text: p?.barcode ?? '');
     _descriptionController = TextEditingController(text: p?.description ?? '');
     _sellingPriceController = TextEditingController(text: p?.sellingPrice.toString() ?? '0');
+    _wholesalePriceController = TextEditingController(
+        text: (p != null && p.wholesalePrice > 0) ? p.wholesalePrice.toString() : '');
     _warrantyController = TextEditingController(text: p?.warrantyMonths.toString() ?? '0');
     _reorderLevelController = TextEditingController(text: p?.reorderLevel.toString() ?? '5');
     _brandController = TextEditingController(text: p?.brand ?? '');
@@ -291,6 +299,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     _barcodeController.dispose();
     _descriptionController.dispose();
     _sellingPriceController.dispose();
+    _wholesalePriceController.dispose();
     _warrantyController.dispose();
     _reorderLevelController.dispose();
     _brandController.dispose();
@@ -430,6 +439,17 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: InfoLabel(
+                      label: 'Wholesale Price',
+                      child: TextBox(
+                        controller: _wholesalePriceController,
+                        placeholder: 'Optional',
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: InfoLabel(
                       label: 'Warranty (months)',
                       child: TextBox(
                         controller: _warrantyController,
@@ -504,6 +524,8 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
     }
 
     final sellingPrice = double.tryParse(_sellingPriceController.text) ?? 0;
+    final wholesalePrice =
+        double.tryParse(_wholesalePriceController.text.trim().replaceAll(',', '')) ?? 0;
     final warrantyMonths = int.tryParse(_warrantyController.text) ?? 0;
     final reorderLevel = int.tryParse(_reorderLevelController.text) ?? 5;
 
@@ -519,6 +541,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
             productType: _productType,
             requiresSerial: _requiresSerial,
             sellingPrice: sellingPrice,
+            wholesalePrice: wholesalePrice < 0 ? 0 : wholesalePrice,
             warrantyMonths: warrantyMonths,
             reorderLevel: reorderLevel,
             brand: _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),
@@ -533,6 +556,7 @@ class _ProductFormDialogState extends ConsumerState<ProductFormDialog> {
             productType: _productType,
             requiresSerial: _requiresSerial,
             sellingPrice: sellingPrice,
+            wholesalePrice: wholesalePrice < 0 ? 0 : wholesalePrice,
             warrantyMonths: warrantyMonths,
             reorderLevel: reorderLevel,
             brand: _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),

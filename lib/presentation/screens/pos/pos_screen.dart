@@ -188,6 +188,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     final selectedCategory = ref.watch(_selectedCategoryProvider);
     final productsAsync = ref.watch(productsProvider);
     final stockMap = ref.watch(_posStockProvider).valueOrNull ?? const <String, int>{};
+    final wholesale = ref.watch(cartProvider.select((c) => c.isWholesale));
 
     return productsAsync.when(
       data: (products) {
@@ -233,6 +234,8 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               return _ProductCard(
                 product: product,
                 stock: stockMap[product.id] ?? 0,
+                price: _priceOf(product, wholesale: wholesale),
+                isWholesalePrice: wholesale && product.wholesalePrice > 0,
                 onTap: () => _addProductToCart(product),
               );
             },
@@ -270,6 +273,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
           ),
           Row(
             children: [
+              Tooltip(
+                message: 'Use wholesale prices (products without one keep the normal price)',
+                child: ToggleSwitch(
+                  checked: cart.isWholesale,
+                  content: const Text('Wholesale'),
+                  onChanged: _setWholesale,
+                ),
+              ),
+              const SizedBox(width: 12),
               Checkbox(
                 checked: cart.isCredit,
                 content: const Text('Credit Sale'),
@@ -610,6 +622,23 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     });
   }
 
+  /// Wholesale price when wholesale mode is on and the product has one.
+  double _priceOf(Product product, {bool? wholesale}) {
+    final useWholesale = wholesale ?? ref.read(cartProvider).isWholesale;
+    return useWholesale && product.wholesalePrice > 0
+        ? product.wholesalePrice
+        : product.sellingPrice;
+  }
+
+  void _setWholesale(bool on) {
+    final products = ref.read(productsProvider).valueOrNull ?? const <Product>[];
+    final byId = {for (final p in products) p.id: p};
+    ref.read(cartProvider.notifier).setWholesale(on, (productId, wholesale) {
+      final p = byId[productId];
+      return p == null ? null : _priceOf(p, wholesale: wholesale);
+    });
+  }
+
   void _addProductToCart(Product product) {
     final stock = _stockFor(product.id);
     final inCart = ref
@@ -628,7 +657,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             productId: product.id,
             productName: product.name,
             productCode: product.code,
-            unitPrice: product.sellingPrice,
+            unitPrice: _priceOf(product),
             unitCost: product.weightedAvgCost,
             trackSerials: true,
           );
@@ -642,7 +671,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
             productId: product.id,
             productName: product.name,
             productCode: product.code,
-            unitPrice: product.sellingPrice,
+            unitPrice: _priceOf(product),
             unitCost: product.weightedAvgCost,
             trackSerials: false,
           );
@@ -781,11 +810,15 @@ class _PosScreenState extends ConsumerState<PosScreen> {
 class _ProductCard extends StatelessWidget {
   final Product product;
   final int stock;
+  final double price;
+  final bool isWholesalePrice;
   final VoidCallback onTap;
 
   const _ProductCard({
     required this.product,
     required this.stock,
+    required this.price,
+    required this.isWholesalePrice,
     required this.onTap,
   });
 
@@ -839,12 +872,17 @@ class _ProductCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      Formatters.currency(product.sellingPrice),
+                      Formatters.currency(price),
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.primaryColor,
                       ),
                     ),
+                    if (isWholesalePrice)
+                      Text(
+                        'Wholesale',
+                        style: TextStyle(fontSize: 10, color: Colors.grey[100]),
+                      ),
                   ],
                 ),
               ),

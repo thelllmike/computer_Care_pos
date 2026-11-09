@@ -293,6 +293,7 @@ class CartState {
   final double discountAmount;
   final double taxAmount;
   final bool isCredit;
+  final bool isWholesale;
   final String? notes;
 
   CartState({
@@ -302,6 +303,7 @@ class CartState {
     this.discountAmount = 0,
     this.taxAmount = 0,
     this.isCredit = false,
+    this.isWholesale = false,
     this.notes,
   });
 
@@ -321,6 +323,7 @@ class CartState {
     double? discountAmount,
     double? taxAmount,
     bool? isCredit,
+    bool? isWholesale,
     String? notes,
     bool clearCustomer = false,
   }) {
@@ -331,9 +334,17 @@ class CartState {
       discountAmount: discountAmount ?? this.discountAmount,
       taxAmount: taxAmount ?? this.taxAmount,
       isCredit: isCredit ?? this.isCredit,
+      isWholesale: isWholesale ?? this.isWholesale,
       notes: notes ?? this.notes,
     );
   }
+}
+
+/// Sale notes, tagged "Wholesale sale" when the cart used wholesale prices.
+String? _saleNotes(CartState cart) {
+  if (!cart.isWholesale) return cart.notes;
+  final n = cart.notes?.trim() ?? '';
+  return n.isEmpty ? 'Wholesale sale' : 'Wholesale sale\n$n';
 }
 
 // Cart Notifier
@@ -496,6 +507,17 @@ class CartNotifier extends StateNotifier<CartState> {
     state = state.copyWith(isCredit: isCredit);
   }
 
+  /// Switch wholesale mode and re-price cart lines.
+  /// [priceFor] returns the price to use for a product id, or null to keep
+  /// the line's current price (e.g. service charges).
+  void setWholesale(bool isWholesale, double? Function(String productId, bool wholesale) priceFor) {
+    final items = state.items.map((item) {
+      final price = priceFor(item.productId, isWholesale);
+      return price == null ? item : item.copyWith(unitPrice: price);
+    }).toList();
+    state = state.copyWith(isWholesale: isWholesale, items: items);
+  }
+
   // Set notes
   void setNotes(String? notes) {
     state = state.copyWith(notes: notes);
@@ -615,7 +637,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         isCredit: cart.isCredit,
         payments: cart.isCredit ? null : payments,
         creditAmount: cart.isCredit ? cart.total : 0,
-        notes: cart.notes,
+        notes: _saleNotes(cart),
         createdBy: createdBy,
       );
 
@@ -714,7 +736,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         isCredit: creditAmount > 0, // Mark as credit if there's any credit portion
         payments: payments.isNotEmpty ? payments : null,
         creditAmount: creditAmount,
-        notes: cart.notes,
+        notes: _saleNotes(cart),
         createdBy: createdBy,
       );
 
