@@ -107,6 +107,7 @@ class OnlineOrderActionNotifier
     required double paidAmount,
     required String paymentMethod,
     String? notes,
+    String? trackingNumber,
     required List<Map<String, dynamic>> itemsData,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -129,6 +130,7 @@ class OnlineOrderActionNotifier
         paidAmount: paidAmount,
         paymentMethod: paymentMethod,
         notes: notes,
+        trackingNumber: trackingNumber,
         createdBy: userId,
         itemsData: itemsData,
       );
@@ -150,6 +152,20 @@ class OnlineOrderActionNotifier
       state = state.copyWith(isLoading: false, isSuccess: true);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  // Save courier tracking number
+  Future<bool> updateTrackingNumber(String orderId, String? trackingNumber) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _service.updateTrackingNumber(orderId, trackingNumber);
+      _ref.read(onlineOrdersRefreshProvider.notifier).state++;
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
     }
   }
 

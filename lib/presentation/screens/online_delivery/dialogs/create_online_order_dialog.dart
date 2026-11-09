@@ -22,6 +22,7 @@ class _CreateOnlineOrderDialogState
 
   // Order fields
   final _notesController = TextEditingController();
+  final _trackingController = TextEditingController();
   final _deliveryFeeController = TextEditingController(text: '0');
   String _paymentMethod = 'CASH';
   bool _isPrepaid = false;
@@ -45,6 +46,7 @@ class _CreateOnlineOrderDialogState
     _customerPhoneController.dispose();
     _customerAddressController.dispose();
     _notesController.dispose();
+    _trackingController.dispose();
     _deliveryFeeController.dispose();
     _productSearchController.dispose();
     _customerSearchController.dispose();
@@ -199,6 +201,7 @@ class _CreateOnlineOrderDialogState
           paidAmount: _isPrepaid ? _totalAmount : 0.0,
           paymentMethod: _paymentMethod,
           notes: _notesController.text.isEmpty ? null : _notesController.text,
+          trackingNumber: _trackingController.text,
           itemsData: itemsData,
         );
   }
@@ -509,6 +512,18 @@ class _CreateOnlineOrderDialogState
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    InfoLabel(
+                      label: 'Courier Tracking Number (optional)',
+                      child: TextBox(
+                        controller: _trackingController,
+                        placeholder: 'e.g. CP123456789LK — can also be added later',
+                        prefix: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(FluentIcons.delivery_truck, size: 14),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(

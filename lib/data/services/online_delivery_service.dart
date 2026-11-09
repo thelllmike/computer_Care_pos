@@ -40,7 +40,8 @@ class OnlineDeliveryService {
       orders = orders.where((o) {
         return o.orderNumber.toLowerCase().contains(q) ||
             (o.customerName?.toLowerCase().contains(q) ?? false) ||
-            (o.customerPhone?.toLowerCase().contains(q) ?? false);
+            (o.customerPhone?.toLowerCase().contains(q) ?? false) ||
+            (o.trackingNumber?.toLowerCase().contains(q) ?? false);
       }).toList();
     }
 
@@ -94,6 +95,7 @@ class OnlineDeliveryService {
     required double paidAmount,
     required String paymentMethod,
     String? notes,
+    String? trackingNumber,
     required String createdBy,
     required List<Map<String, dynamic>> itemsData,
   }) async {
@@ -122,6 +124,9 @@ class OnlineDeliveryService {
       'paid_amount': paidAmount,
       'payment_method': paymentMethod,
       'notes': notes,
+      'tracking_number': (trackingNumber == null || trackingNumber.trim().isEmpty)
+          ? null
+          : trackingNumber.trim(),
       'stock_deducted': false,
       'sales_created': false,
       'created_by': createdBy,
@@ -157,6 +162,17 @@ class OnlineDeliveryService {
     await _client
         .from('online_orders')
         .update({'delivery_status': status})
+        .eq('id', id);
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Set / clear courier tracking number
+  // ──────────────────────────────────────────────────────────
+  Future<void> updateTrackingNumber(String id, String? trackingNumber) async {
+    final value = trackingNumber?.trim();
+    await _client
+        .from('online_orders')
+        .update({'tracking_number': (value == null || value.isEmpty) ? null : value})
         .eq('id', id);
   }
 

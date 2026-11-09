@@ -12,6 +12,8 @@ import '../../providers/sales/sales_provider.dart';
 import '../../../data/local/daos/expense_dao.dart';
 import '../../../data/local/daos/sales_dao.dart';
 import '../../../data/local/tables/stock_losses_table.dart';
+import 'online_delivery_report.dart';
+import 'trends_report.dart';
 
 // ---------------------------------------------------------------------------
 // Month helpers (file-private)
@@ -98,6 +100,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         runSpacing: 16,
         children: [
           _ReportCard(
+            title: 'Trends & Charts',
+            description: 'Revenue and profit trends, top products, payments',
+            icon: FluentIcons.line_chart,
+            onTap: () => setState(() => _selectedReport = 'trends'),
+          ),
+          _ReportCard(
+            title: 'Online Delivery Sales',
+            description: 'Online order sales, status and trends',
+            icon: FluentIcons.delivery_truck,
+            onTap: () => setState(() => _selectedReport = 'online'),
+          ),
+          _ReportCard(
             title: 'Sales Report',
             description: 'Daily, weekly, monthly sales analysis',
             icon: FluentIcons.chart,
@@ -134,6 +148,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildReportContent(String reportType) {
     switch (reportType) {
+      case 'trends':
+        return const TrendsReport();
+      case 'online':
+        return const OnlineDeliveryReport();
       case 'sales':
         return const _SalesReportContent();
       case 'profit':

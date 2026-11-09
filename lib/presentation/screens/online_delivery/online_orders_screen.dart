@@ -144,10 +144,10 @@ class _FilterBarState extends State<_FilterBar> {
             const Icon(FluentIcons.filter),
             const SizedBox(width: 12),
             SizedBox(
-              width: 220,
+              width: 300,
               child: TextBox(
                 controller: _searchController,
-                placeholder: 'Search order / customer...',
+                placeholder: 'Search order / customer / tracking no...',
                 prefix: const Padding(
                   padding: EdgeInsets.only(left: 8),
                   child: Icon(FluentIcons.search, size: 14),
@@ -264,9 +264,31 @@ class _OrderRow extends StatelessWidget {
             children: [
               Expanded(
                 flex: 2,
-                child: Text(
-                  order.orderNumber,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.orderNumber,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    if (order.trackingNumber != null)
+                      Row(
+                        children: [
+                          Icon(FluentIcons.delivery_truck,
+                              size: 11, color: Colors.grey[100]),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              order.trackingNumber!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey[100]),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
               ),
               Expanded(
