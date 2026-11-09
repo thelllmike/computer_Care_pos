@@ -361,7 +361,7 @@ class _QuotationFormDialogState extends ConsumerState<_QuotationFormDialog> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                      color: AppTheme.primary(context).withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Row(
@@ -369,12 +369,12 @@ class _QuotationFormDialogState extends ConsumerState<_QuotationFormDialog> {
                                       children: [
                                         Text(
                                           formState.customerName!,
-                                          style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+                                          style: TextStyle(fontSize: 12, color: AppTheme.primary(context), fontWeight: FontWeight.w600),
                                         ),
                                         const SizedBox(width: 4),
                                         GestureDetector(
                                           onTap: () => ref.read(quotationFormProvider.notifier).setCustomer(null, null),
-                                          child: Icon(FluentIcons.cancel, size: 12, color: AppTheme.primaryColor),
+                                          child: Icon(FluentIcons.cancel, size: 12, color: AppTheme.primary(context)),
                                         ),
                                       ],
                                     ),

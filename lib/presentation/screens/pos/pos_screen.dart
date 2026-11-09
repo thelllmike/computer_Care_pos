@@ -251,7 +251,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.05),
+        color: AppTheme.primary(context).withValues(alpha: 0.05),
         border: Border(
           bottom: BorderSide(color: AppTheme.dividerColor(context)),
         ),
@@ -355,26 +355,26 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  color: AppTheme.primary(context).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(FluentIcons.contact, size: 12, color: AppTheme.primaryColor),
+                    Icon(FluentIcons.contact, size: 12, color: AppTheme.primary(context)),
                     const SizedBox(width: 4),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 100),
                       child: Text(
                         cart.customerName!,
-                        style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 12, color: AppTheme.primary(context), fontWeight: FontWeight.w600),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 4),
                     GestureDetector(
                       onTap: () => ref.read(cartProvider.notifier).setCustomer(null, null),
-                      child: Icon(FluentIcons.cancel, size: 12, color: AppTheme.primaryColor),
+                      child: Icon(FluentIcons.cancel, size: 12, color: AppTheme.primary(context)),
                     ),
                   ],
                 ),
@@ -855,7 +855,7 @@ class _ProductCard extends StatelessWidget {
                     Icon(
                       product.requiresSerial ? FluentIcons.laptop_secure : FluentIcons.product,
                       size: 32,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.primary(context),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -875,7 +875,7 @@ class _ProductCard extends StatelessWidget {
                       Formatters.currency(price),
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primary(context),
                       ),
                     ),
                     if (isWholesalePrice)
@@ -1058,7 +1058,7 @@ class _CartItemTile extends StatelessWidget {
               children: item.selectedSerials.map((s) => Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: AppTheme.primary(context).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -1066,7 +1066,7 @@ class _CartItemTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         fontFamily: 'monospace',
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primary(context),
                       ),
                     ),
                   )).toList(),
@@ -1145,7 +1145,7 @@ class _CartSummaryRow extends StatelessWidget {
           value,
           style: isTotal
               ? FluentTheme.of(context).typography.subtitle?.copyWith(
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.primary(context),
                     fontWeight: FontWeight.bold,
                   )
               : FluentTheme.of(context).typography.body,

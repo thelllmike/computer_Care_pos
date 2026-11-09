@@ -69,7 +69,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                         title: 'Total Sales',
                         value: summary.totalSales.toString(),
                         icon: FluentIcons.shopping_cart,
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primary(context),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -134,7 +134,7 @@ class _SalesHistoryScreenState extends ConsumerState<SalesHistoryScreen> {
                             style: ButtonStyle(
                               backgroundColor: WidgetStateProperty.all(
                                 filter.startDate == null && filter.endDate == null
-                                    ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                                    ? AppTheme.primary(context).withValues(alpha: 0.1)
                                     : null,
                               ),
                             ),
@@ -454,7 +454,7 @@ class _SaleTile extends StatelessWidget {
             Formatters.currency(sale.totalAmount),
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
+              color: AppTheme.primary(context),
             ),
           ),
         ],
@@ -618,7 +618,7 @@ class _SaleDetailDialog extends ConsumerWidget {
                                 value: Formatters.currency(detail.totalAmount),
                                 valueStyle: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryColor,
+                                  color: AppTheme.primary(context),
                                 ),
                               ),
                             ),
@@ -740,7 +740,7 @@ class _SaleDetailDialog extends ConsumerWidget {
                                               padding: const EdgeInsets.symmetric(
                                                   horizontal: 8, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: AppTheme.primaryColor
+                                                color: AppTheme.primary(context)
                                                     .withValues(alpha: 0.1),
                                                 borderRadius:
                                                     BorderRadius.circular(4),
@@ -749,7 +749,7 @@ class _SaleDetailDialog extends ConsumerWidget {
                                                 sn,
                                                 style: TextStyle(
                                                   fontSize: 11,
-                                                  color: AppTheme.primaryColor,
+                                                  color: AppTheme.primary(context),
                                                 ),
                                               ),
                                             ))

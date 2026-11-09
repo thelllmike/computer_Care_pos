@@ -116,12 +116,12 @@ class SuppliersScreen extends ConsumerWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                color: AppTheme.primary(context).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 FluentIcons.factory,
-                color: AppTheme.primaryColor,
+                color: AppTheme.primary(context),
               ),
             ),
             title: Text(supplier.name),

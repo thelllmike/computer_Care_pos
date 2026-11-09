@@ -132,12 +132,12 @@ class CustomersScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: customer.creditEnabled
                     ? AppTheme.warningColor.withValues(alpha: 0.1)
-                    : AppTheme.primaryColor.withValues(alpha: 0.1),
+                    : AppTheme.primary(context).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 FluentIcons.contact,
-                color: customer.creditEnabled ? AppTheme.warningColor : AppTheme.primaryColor,
+                color: customer.creditEnabled ? AppTheme.warningColor : AppTheme.primary(context),
               ),
             ),
             title: Row(

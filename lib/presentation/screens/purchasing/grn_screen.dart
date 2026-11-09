@@ -535,7 +535,7 @@ class _GrnDetailContent extends ConsumerWidget {
                 children: item.serialNumberList.map((serial) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        color: AppTheme.primary(context).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -543,7 +543,7 @@ class _GrnDetailContent extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontFamily: 'monospace',
-                          color: AppTheme.primaryColor,
+                          color: AppTheme.primary(context),
                         ),
                       ),
                     )).toList(),
@@ -966,7 +966,7 @@ class _EditGrnItemDialogState extends ConsumerState<EditGrnItemDialog> {
                 children: widget.item.serialNumberList.map((serial) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        color: AppTheme.primary(context).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -974,7 +974,7 @@ class _EditGrnItemDialogState extends ConsumerState<EditGrnItemDialog> {
                         style: TextStyle(
                           fontSize: 12,
                           fontFamily: 'monospace',
-                          color: AppTheme.primaryColor,
+                          color: AppTheme.primary(context),
                         ),
                       ),
                     )).toList(),

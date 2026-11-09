@@ -374,12 +374,12 @@ class _CustomerCreditTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: isOverdue
               ? AppTheme.errorColor.withValues(alpha: 0.1)
-              : AppTheme.primaryColor.withValues(alpha: 0.1),
+              : AppTheme.primary(context).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           FluentIcons.contact,
-          color: isOverdue ? AppTheme.errorColor : AppTheme.primaryColor,
+          color: isOverdue ? AppTheme.errorColor : AppTheme.primary(context),
         ),
       ),
       title: Row(
@@ -916,7 +916,7 @@ class _AgingReportDialog extends ConsumerWidget {
                     _AgingBucket(
                       label: 'Total',
                       amount: aging.total,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.primary(context),
                       isTotal: true,
                     ),
                   ],

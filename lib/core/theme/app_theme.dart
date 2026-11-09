@@ -90,20 +90,115 @@ class AppTheme {
     );
   }
 
+  // ---------------- Clever Project theme ----------------
+  // Brand colours: ink background, purple accent, lilac and lime highlights.
+  static const Color cleverPurple = Color(0xFF7B3AED);
+  static const Color cleverPurpleDark = Color(0xFF6A2DD6);
+  static const Color cleverLilac = Color(0xFFB794FF);
+  static const Color cleverLime = Color(0xFFD5FD44);
+  static const Color cleverInk = Color(0xFF120E22); // page background
+  static const Color cleverSurface = Color(0xFF1B1630); // cards, panels
+  static const Color cleverSubtle = Color(0xFF241D3D); // headers, hover fills
+  static const Color cleverDivider = Color(0xFF2F2752);
+  static const Color cleverText = Color(0xFFF3F0FF);
+  static const Color cleverMuted = Color(0xFFB9B3CC);
+
+  static FluentThemeData get cleverTheme {
+    const mono = 'JetBrainsMono';
+    return FluentThemeData(
+      brightness: Brightness.dark,
+      // Selection colour = Clever lime: selected menu item, checked radio /
+      // checkbox / toggle, focused text box, progress rings. Buttons and
+      // icons stay purple (see buttonTheme and AppTheme.primary).
+      accentColor: AccentColor.swatch(const {
+        'darkest': Color(0xFF5C7A00),
+        'darker': Color(0xFF7AA300),
+        'dark': Color(0xFFA6CF1F),
+        'normal': cleverLime,
+        'light': Color(0xFFDEFF6E),
+        'lighter': Color(0xFFE6FF8F),
+        'lightest': Color(0xFFF0FFC2),
+      }),
+      scaffoldBackgroundColor: cleverInk,
+      micaBackgroundColor: cleverInk,
+      acrylicBackgroundColor: cleverInk,
+      cardColor: cleverSurface,
+      menuColor: cleverSurface,
+      inactiveBackgroundColor: cleverSubtle,
+      // Brand buttons: solid purple with white text (Fluent's dark default
+      // would use a pale lilac with dark text).
+      buttonTheme: ButtonThemeData(
+        filledButtonStyle: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) return cleverPurple.withValues(alpha: 0.4);
+            if (states.contains(WidgetState.pressed)) return cleverPurpleDark;
+            if (states.contains(WidgetState.hovered)) return const Color(0xFF8B50F0);
+            return cleverPurple;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.disabled) ? Colors.white.withValues(alpha: 0.6) : Colors.white),
+        ),
+      ),
+      resources: const ResourceDictionary.dark(
+        solidBackgroundFillColorBase: cleverInk,
+        solidBackgroundFillColorSecondary: cleverSurface,
+        solidBackgroundFillColorTertiary: cleverSubtle,
+        cardBackgroundFillColorDefault: Color(0x0DB794FF),
+        cardStrokeColorDefault: cleverDivider,
+        dividerStrokeColorDefault: cleverDivider,
+        layerFillColorDefault: Color(0x4D1B1630),
+        subtleFillColorSecondary: Color(0x14B794FF),
+        subtleFillColorTertiary: Color(0x0FB794FF),
+        textFillColorPrimary: cleverText,
+        textFillColorSecondary: cleverMuted,
+      ),
+      typography: const Typography.raw(
+        title: TextStyle(fontFamily: mono, fontSize: 26, fontWeight: FontWeight.w800, color: cleverText),
+        titleLarge: TextStyle(fontFamily: mono, fontSize: 24, fontWeight: FontWeight.w800, color: cleverText),
+        subtitle: TextStyle(fontFamily: mono, fontSize: 19, fontWeight: FontWeight.w700, color: cleverText),
+        body: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: cleverText),
+        bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.normal, color: cleverText),
+        bodyStrong: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cleverText),
+        caption: TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: cleverMuted),
+      ),
+    );
+  }
+
   static bool isDark(BuildContext context) =>
       FluentTheme.of(context).brightness == Brightness.dark;
 
-  /// Border / divider color that works in light and dark mode.
-  static Color dividerColor(BuildContext context) =>
-      isDark(context) ? const Color(0xFF3B3A39) : Colors.grey[40];
+  /// True when the Clever Project theme is active.
+  static bool isClever(BuildContext context) =>
+      FluentTheme.of(context).scaffoldBackgroundColor == cleverInk;
 
-  /// Subtle header/background fill that works in light and dark mode.
-  static Color subtleFill(BuildContext context) =>
-      isDark(context) ? const Color(0xFF323130) : Colors.grey[20];
+  /// Main brand colour for icons, highlights and badges (follows the theme).
+  static Color primary(BuildContext context) =>
+      isClever(context) ? cleverPurple : primaryColor;
+
+  /// Secondary brand colour (follows the theme).
+  static Color accent(BuildContext context) =>
+      isClever(context) ? cleverPurpleDark : accentColor;
+
+  /// Border / divider color that works in every theme.
+  static Color dividerColor(BuildContext context) => isClever(context)
+      ? cleverDivider
+      : isDark(context)
+          ? const Color(0xFF3B3A39)
+          : Colors.grey[40];
+
+  /// Subtle header/background fill that works in every theme.
+  static Color subtleFill(BuildContext context) => isClever(context)
+      ? cleverSubtle
+      : isDark(context)
+          ? const Color(0xFF323130)
+          : Colors.grey[20];
 
   /// Panel/surface color (cards, footers).
-  static Color surfaceColor(BuildContext context) =>
-      isDark(context) ? const Color(0xFF2D2D2D) : Colors.white;
+  static Color surfaceColor(BuildContext context) => isClever(context)
+      ? cleverSurface
+      : isDark(context)
+          ? const Color(0xFF2D2D2D)
+          : Colors.white;
 }
 
 class AppStyles {
