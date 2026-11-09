@@ -1159,16 +1159,23 @@ class SyncService {
           print('[SYNC] Pulling $table: ${records.length} records (lastSync: $lastSync)');
         }
 
-        // Upsert records to local database
-        for (final record in records) {
-          try {
-            await _upsertRecord(table, record);
-            count++;
-          } catch (e) {
-            // ignore: avoid_print
-            print('[SYNC ERROR] Failed to upsert $table/${record['id']}: $e');
-            errors.add('Failed to upsert $table/${record['id']}: $e');
-          }
+        // Upsert records to local database in one transaction per table, so
+        // open screens refresh once per table instead of once per record.
+        // Each record keeps its own try/catch: a bad record is skipped and
+        // the rest of the table is still saved.
+        if (records.isNotEmpty) {
+          await _database.transaction(() async {
+            for (final record in records) {
+              try {
+                await _upsertRecord(table, record);
+                count++;
+              } catch (e) {
+                // ignore: avoid_print
+                print('[SYNC ERROR] Failed to upsert $table/${record['id']}: $e');
+                errors.add('Failed to upsert $table/${record['id']}: $e');
+              }
+            }
+          });
         }
 
         // Update sync metadata
@@ -1748,10 +1755,11 @@ class SyncService {
 
   /// Gets the count of pending sync items
   Future<int> getPendingSyncCount() async {
-    final result = await (_database.select(_database.syncQueue)
-          ..where((t) => t.processedAt.isNull()))
-        .get();
-    return result.length;
+    final count = _database.syncQueue.id.count();
+    final query = _database.selectOnly(_database.syncQueue)
+      ..addColumns([count])
+      ..where(_database.syncQueue.processedAt.isNull());
+    return (await query.getSingle()).read(count) ?? 0;
   }
 
   void dispose() {
