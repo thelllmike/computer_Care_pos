@@ -90,14 +90,50 @@ class AppDatabase extends _$AppDatabase {
 
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
+  /// Lookup indexes for the columns the app filters and joins on most.
+  /// Indexes only speed up reads; they never change stored data.
+  static const _indexes = <String, String>{
+    'idx_sales_sale_date': 'sales(sale_date)',
+    'idx_sales_customer': 'sales(customer_id)',
+    'idx_sales_sync': 'sales(sync_status)',
+    'idx_sale_items_sale': 'sale_items(sale_id)',
+    'idx_sale_items_product': 'sale_items(product_id)',
+    'idx_sale_items_sync': 'sale_items(sync_status)',
+    'idx_sale_serials_item': 'sale_serials(sale_item_id)',
+    'idx_payments_sale': 'payments(sale_id)',
+    'idx_payments_sync': 'payments(sync_status)',
+    'idx_credit_tx_customer': 'credit_transactions(customer_id)',
+    'idx_inventory_product': 'inventory(product_id)',
+    'idx_inventory_sync': 'inventory(sync_status)',
+    'idx_products_category': 'products(category_id)',
+    'idx_products_sync': 'products(sync_status)',
+    'idx_serials_product_status': 'serial_numbers(product_id, status)',
+    'idx_serials_sale': 'serial_numbers(sale_id)',
+    'idx_customers_sync': 'customers(sync_status)',
+    'idx_grn_items_grn': 'grn_items(grn_id)',
+    'idx_po_items_po': 'purchase_order_items(purchase_order_id)',
+    'idx_quotation_items_quotation': 'quotation_items(quotation_id)',
+    'idx_repair_jobs_customer': 'repair_jobs(customer_id)',
+    'idx_repair_jobs_status': 'repair_jobs(status)',
+    'idx_repair_parts_job': 'repair_parts(repair_job_id)',
+    'idx_sync_queue_processed': 'sync_queue(processed_at)',
+  };
+
+  Future<void> _createIndexes() async {
+    for (final e in _indexes.entries) {
+      await customStatement('CREATE INDEX IF NOT EXISTS ${e.key} ON ${e.value}');
+    }
+  }
+
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (Migrator m) async {
         await m.createAll();
+        await _createIndexes();
         await _seedInitialData();
       },
       onUpgrade: (Migrator m, int from, int to) async {
@@ -192,6 +228,10 @@ class AppDatabase extends _$AppDatabase {
         // Migration from version 4 to 5: wholesale price per product
         if (from < 5) {
           await m.addColumn(products, products.wholesalePrice);
+        }
+
+        if (from < 6) {
+          await _createIndexes();
         }
       },
     );

@@ -23,7 +23,7 @@ import '../expenses/expenses_screen.dart';
 import '../losses/stock_losses_screen.dart';
 import '../warranty/warranty_claims_screen.dart';
 import '../sales/sales_history_screen.dart';
-import '../../../core/constants/app_constants.dart';
+import '../../widgets/clever_logo_animated.dart' show CleverLogoAnimated, CleverLogoTheme, CleverColors;
 
 final selectedIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -44,17 +44,28 @@ class NavigationShell extends ConsumerWidget {
         automaticallyImplyLeading: false,
         title: Row(
           children: [
-            Icon(
-              FluentIcons.laptop_secure,
-              color: AppTheme.primaryColor,
-              size: 24,
+            CleverLogoAnimated(
+              size: 34,
+              theme: FluentTheme.of(context).brightness == Brightness.dark
+                  ? CleverLogoTheme.dark
+                  : CleverLogoTheme.light,
             ),
             const SizedBox(width: 12),
-            Text(
-              AppConstants.appName,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: CleverColors.purple,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'POS',
+                style: TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 1,
+                ),
               ),
             ),
           ],
