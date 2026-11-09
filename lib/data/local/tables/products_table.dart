@@ -11,6 +11,7 @@ class Products extends Table {
   TextColumn get productType => text().withDefault(const Constant('ACCESSORY'))(); // LAPTOP, ACCESSORY, SPARE_PART
   BoolColumn get requiresSerial => boolean().withDefault(const Constant(false))();
   RealColumn get sellingPrice => real().withDefault(const Constant(0.0))();
+  RealColumn get wholesalePrice => real().withDefault(const Constant(0.0))(); // 0 = no wholesale price
   RealColumn get weightedAvgCost => real().withDefault(const Constant(0.0))();
   IntColumn get warrantyMonths => integer().withDefault(const Constant(0))();
   IntColumn get reorderLevel => integer().withDefault(const Constant(5))();

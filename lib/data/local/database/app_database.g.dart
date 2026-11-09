@@ -1203,6 +1203,14 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       type: DriftSqlType.double,
       requiredDuringInsert: false,
       defaultValue: const Constant(0.0));
+  static const VerificationMeta _wholesalePriceMeta =
+      const VerificationMeta('wholesalePrice');
+  @override
+  late final GeneratedColumn<double> wholesalePrice = GeneratedColumn<double>(
+      'wholesale_price', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
   static const VerificationMeta _weightedAvgCostMeta =
       const VerificationMeta('weightedAvgCost');
   @override
@@ -1298,6 +1306,7 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         productType,
         requiresSerial,
         sellingPrice,
+        wholesalePrice,
         weightedAvgCost,
         warrantyMonths,
         reorderLevel,
@@ -1371,6 +1380,12 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
           _sellingPriceMeta,
           sellingPrice.isAcceptableOrUnknown(
               data['selling_price']!, _sellingPriceMeta));
+    }
+    if (data.containsKey('wholesale_price')) {
+      context.handle(
+          _wholesalePriceMeta,
+          wholesalePrice.isAcceptableOrUnknown(
+              data['wholesale_price']!, _wholesalePriceMeta));
     }
     if (data.containsKey('weighted_avg_cost')) {
       context.handle(
@@ -1461,6 +1476,8 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
           .read(DriftSqlType.bool, data['${effectivePrefix}requires_serial'])!,
       sellingPrice: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}selling_price'])!,
+      wholesalePrice: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}wholesale_price'])!,
       weightedAvgCost: attachedDatabase.typeMapping.read(
           DriftSqlType.double, data['${effectivePrefix}weighted_avg_cost'])!,
       warrantyMonths: attachedDatabase.typeMapping
@@ -1504,6 +1521,7 @@ class Product extends DataClass implements Insertable<Product> {
   final String productType;
   final bool requiresSerial;
   final double sellingPrice;
+  final double wholesalePrice;
   final double weightedAvgCost;
   final int warrantyMonths;
   final int reorderLevel;
@@ -1526,6 +1544,7 @@ class Product extends DataClass implements Insertable<Product> {
       required this.productType,
       required this.requiresSerial,
       required this.sellingPrice,
+      required this.wholesalePrice,
       required this.weightedAvgCost,
       required this.warrantyMonths,
       required this.reorderLevel,
@@ -1556,6 +1575,7 @@ class Product extends DataClass implements Insertable<Product> {
     map['product_type'] = Variable<String>(productType);
     map['requires_serial'] = Variable<bool>(requiresSerial);
     map['selling_price'] = Variable<double>(sellingPrice);
+    map['wholesale_price'] = Variable<double>(wholesalePrice);
     map['weighted_avg_cost'] = Variable<double>(weightedAvgCost);
     map['warranty_months'] = Variable<int>(warrantyMonths);
     map['reorder_level'] = Variable<int>(reorderLevel);
@@ -1600,6 +1620,7 @@ class Product extends DataClass implements Insertable<Product> {
       productType: Value(productType),
       requiresSerial: Value(requiresSerial),
       sellingPrice: Value(sellingPrice),
+      wholesalePrice: Value(wholesalePrice),
       weightedAvgCost: Value(weightedAvgCost),
       warrantyMonths: Value(warrantyMonths),
       reorderLevel: Value(reorderLevel),
@@ -1638,6 +1659,7 @@ class Product extends DataClass implements Insertable<Product> {
       productType: serializer.fromJson<String>(json['productType']),
       requiresSerial: serializer.fromJson<bool>(json['requiresSerial']),
       sellingPrice: serializer.fromJson<double>(json['sellingPrice']),
+      wholesalePrice: serializer.fromJson<double>(json['wholesalePrice']),
       weightedAvgCost: serializer.fromJson<double>(json['weightedAvgCost']),
       warrantyMonths: serializer.fromJson<int>(json['warrantyMonths']),
       reorderLevel: serializer.fromJson<int>(json['reorderLevel']),
@@ -1665,6 +1687,7 @@ class Product extends DataClass implements Insertable<Product> {
       'productType': serializer.toJson<String>(productType),
       'requiresSerial': serializer.toJson<bool>(requiresSerial),
       'sellingPrice': serializer.toJson<double>(sellingPrice),
+      'wholesalePrice': serializer.toJson<double>(wholesalePrice),
       'weightedAvgCost': serializer.toJson<double>(weightedAvgCost),
       'warrantyMonths': serializer.toJson<int>(warrantyMonths),
       'reorderLevel': serializer.toJson<int>(reorderLevel),
@@ -1690,6 +1713,7 @@ class Product extends DataClass implements Insertable<Product> {
           String? productType,
           bool? requiresSerial,
           double? sellingPrice,
+          double? wholesalePrice,
           double? weightedAvgCost,
           int? warrantyMonths,
           int? reorderLevel,
@@ -1712,6 +1736,7 @@ class Product extends DataClass implements Insertable<Product> {
         productType: productType ?? this.productType,
         requiresSerial: requiresSerial ?? this.requiresSerial,
         sellingPrice: sellingPrice ?? this.sellingPrice,
+        wholesalePrice: wholesalePrice ?? this.wholesalePrice,
         weightedAvgCost: weightedAvgCost ?? this.weightedAvgCost,
         warrantyMonths: warrantyMonths ?? this.warrantyMonths,
         reorderLevel: reorderLevel ?? this.reorderLevel,
@@ -1747,6 +1772,9 @@ class Product extends DataClass implements Insertable<Product> {
       sellingPrice: data.sellingPrice.present
           ? data.sellingPrice.value
           : this.sellingPrice,
+      wholesalePrice: data.wholesalePrice.present
+          ? data.wholesalePrice.value
+          : this.wholesalePrice,
       weightedAvgCost: data.weightedAvgCost.present
           ? data.weightedAvgCost.value
           : this.weightedAvgCost,
@@ -1787,6 +1815,7 @@ class Product extends DataClass implements Insertable<Product> {
           ..write('productType: $productType, ')
           ..write('requiresSerial: $requiresSerial, ')
           ..write('sellingPrice: $sellingPrice, ')
+          ..write('wholesalePrice: $wholesalePrice, ')
           ..write('weightedAvgCost: $weightedAvgCost, ')
           ..write('warrantyMonths: $warrantyMonths, ')
           ..write('reorderLevel: $reorderLevel, ')
@@ -1814,6 +1843,7 @@ class Product extends DataClass implements Insertable<Product> {
         productType,
         requiresSerial,
         sellingPrice,
+        wholesalePrice,
         weightedAvgCost,
         warrantyMonths,
         reorderLevel,
@@ -1840,6 +1870,7 @@ class Product extends DataClass implements Insertable<Product> {
           other.productType == this.productType &&
           other.requiresSerial == this.requiresSerial &&
           other.sellingPrice == this.sellingPrice &&
+          other.wholesalePrice == this.wholesalePrice &&
           other.weightedAvgCost == this.weightedAvgCost &&
           other.warrantyMonths == this.warrantyMonths &&
           other.reorderLevel == this.reorderLevel &&
@@ -1864,6 +1895,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<String> productType;
   final Value<bool> requiresSerial;
   final Value<double> sellingPrice;
+  final Value<double> wholesalePrice;
   final Value<double> weightedAvgCost;
   final Value<int> warrantyMonths;
   final Value<int> reorderLevel;
@@ -1887,6 +1919,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.productType = const Value.absent(),
     this.requiresSerial = const Value.absent(),
     this.sellingPrice = const Value.absent(),
+    this.wholesalePrice = const Value.absent(),
     this.weightedAvgCost = const Value.absent(),
     this.warrantyMonths = const Value.absent(),
     this.reorderLevel = const Value.absent(),
@@ -1911,6 +1944,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.productType = const Value.absent(),
     this.requiresSerial = const Value.absent(),
     this.sellingPrice = const Value.absent(),
+    this.wholesalePrice = const Value.absent(),
     this.weightedAvgCost = const Value.absent(),
     this.warrantyMonths = const Value.absent(),
     this.reorderLevel = const Value.absent(),
@@ -1937,6 +1971,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Expression<String>? productType,
     Expression<bool>? requiresSerial,
     Expression<double>? sellingPrice,
+    Expression<double>? wholesalePrice,
     Expression<double>? weightedAvgCost,
     Expression<int>? warrantyMonths,
     Expression<int>? reorderLevel,
@@ -1961,6 +1996,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       if (productType != null) 'product_type': productType,
       if (requiresSerial != null) 'requires_serial': requiresSerial,
       if (sellingPrice != null) 'selling_price': sellingPrice,
+      if (wholesalePrice != null) 'wholesale_price': wholesalePrice,
       if (weightedAvgCost != null) 'weighted_avg_cost': weightedAvgCost,
       if (warrantyMonths != null) 'warranty_months': warrantyMonths,
       if (reorderLevel != null) 'reorder_level': reorderLevel,
@@ -1987,6 +2023,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       Value<String>? productType,
       Value<bool>? requiresSerial,
       Value<double>? sellingPrice,
+      Value<double>? wholesalePrice,
       Value<double>? weightedAvgCost,
       Value<int>? warrantyMonths,
       Value<int>? reorderLevel,
@@ -2010,6 +2047,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       productType: productType ?? this.productType,
       requiresSerial: requiresSerial ?? this.requiresSerial,
       sellingPrice: sellingPrice ?? this.sellingPrice,
+      wholesalePrice: wholesalePrice ?? this.wholesalePrice,
       weightedAvgCost: weightedAvgCost ?? this.weightedAvgCost,
       warrantyMonths: warrantyMonths ?? this.warrantyMonths,
       reorderLevel: reorderLevel ?? this.reorderLevel,
@@ -2055,6 +2093,9 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     }
     if (sellingPrice.present) {
       map['selling_price'] = Variable<double>(sellingPrice.value);
+    }
+    if (wholesalePrice.present) {
+      map['wholesale_price'] = Variable<double>(wholesalePrice.value);
     }
     if (weightedAvgCost.present) {
       map['weighted_avg_cost'] = Variable<double>(weightedAvgCost.value);
@@ -2110,6 +2151,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
           ..write('productType: $productType, ')
           ..write('requiresSerial: $requiresSerial, ')
           ..write('sellingPrice: $sellingPrice, ')
+          ..write('wholesalePrice: $wholesalePrice, ')
           ..write('weightedAvgCost: $weightedAvgCost, ')
           ..write('warrantyMonths: $warrantyMonths, ')
           ..write('reorderLevel: $reorderLevel, ')
@@ -22917,6 +22959,7 @@ typedef $$ProductsTableCreateCompanionBuilder = ProductsCompanion Function({
   Value<String> productType,
   Value<bool> requiresSerial,
   Value<double> sellingPrice,
+  Value<double> wholesalePrice,
   Value<double> weightedAvgCost,
   Value<int> warrantyMonths,
   Value<int> reorderLevel,
@@ -22941,6 +22984,7 @@ typedef $$ProductsTableUpdateCompanionBuilder = ProductsCompanion Function({
   Value<String> productType,
   Value<bool> requiresSerial,
   Value<double> sellingPrice,
+  Value<double> wholesalePrice,
   Value<double> weightedAvgCost,
   Value<int> warrantyMonths,
   Value<int> reorderLevel,
@@ -23054,6 +23098,10 @@ class $$ProductsTableFilterComposer
 
   ColumnFilters<double> get sellingPrice => $composableBuilder(
       column: $table.sellingPrice, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get wholesalePrice => $composableBuilder(
+      column: $table.wholesalePrice,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get weightedAvgCost => $composableBuilder(
       column: $table.weightedAvgCost,
@@ -23215,6 +23263,10 @@ class $$ProductsTableOrderingComposer
       column: $table.sellingPrice,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get wholesalePrice => $composableBuilder(
+      column: $table.wholesalePrice,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<double> get weightedAvgCost => $composableBuilder(
       column: $table.weightedAvgCost,
       builder: (column) => ColumnOrderings(column));
@@ -23310,6 +23362,9 @@ class $$ProductsTableAnnotationComposer
 
   GeneratedColumn<double> get sellingPrice => $composableBuilder(
       column: $table.sellingPrice, builder: (column) => column);
+
+  GeneratedColumn<double> get wholesalePrice => $composableBuilder(
+      column: $table.wholesalePrice, builder: (column) => column);
 
   GeneratedColumn<double> get weightedAvgCost => $composableBuilder(
       column: $table.weightedAvgCost, builder: (column) => column);
@@ -23467,6 +23522,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             Value<String> productType = const Value.absent(),
             Value<bool> requiresSerial = const Value.absent(),
             Value<double> sellingPrice = const Value.absent(),
+            Value<double> wholesalePrice = const Value.absent(),
             Value<double> weightedAvgCost = const Value.absent(),
             Value<int> warrantyMonths = const Value.absent(),
             Value<int> reorderLevel = const Value.absent(),
@@ -23491,6 +23547,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             productType: productType,
             requiresSerial: requiresSerial,
             sellingPrice: sellingPrice,
+            wholesalePrice: wholesalePrice,
             weightedAvgCost: weightedAvgCost,
             warrantyMonths: warrantyMonths,
             reorderLevel: reorderLevel,
@@ -23515,6 +23572,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             Value<String> productType = const Value.absent(),
             Value<bool> requiresSerial = const Value.absent(),
             Value<double> sellingPrice = const Value.absent(),
+            Value<double> wholesalePrice = const Value.absent(),
             Value<double> weightedAvgCost = const Value.absent(),
             Value<int> warrantyMonths = const Value.absent(),
             Value<int> reorderLevel = const Value.absent(),
@@ -23539,6 +23597,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             productType: productType,
             requiresSerial: requiresSerial,
             sellingPrice: sellingPrice,
+            wholesalePrice: wholesalePrice,
             weightedAvgCost: weightedAvgCost,
             warrantyMonths: warrantyMonths,
             reorderLevel: reorderLevel,
