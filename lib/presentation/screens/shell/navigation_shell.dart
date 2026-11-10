@@ -97,14 +97,14 @@ class NavigationShell extends ConsumerWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: AppTheme.primary(context).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       authState.role?.displayName ?? 'Unknown',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primary(context),
                         fontWeight: FontWeight.w500,
                       ),
                     ),

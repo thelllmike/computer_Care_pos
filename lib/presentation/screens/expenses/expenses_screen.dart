@@ -73,7 +73,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                         title: 'Expense Count',
                         value: summary.totalExpenses.toString(),
                         icon: FluentIcons.receipt_processing,
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primary(context),
                       ),
                     ),
                     const SizedBox(width: 16),

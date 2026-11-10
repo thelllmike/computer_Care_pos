@@ -61,7 +61,7 @@ class RepairsScreen extends ConsumerWidget {
                         title: 'Active Jobs',
                         value: summary.activeJobs.toString(),
                         icon: FluentIcons.repair,
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primary(context),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -604,7 +604,7 @@ class _RepairJobFormDialogState extends ConsumerState<_RepairJobFormDialog> {
               if (formState.customerName != null) ...[
                 const SizedBox(height: 8),
                 Text('Selected: ${formState.customerName}',
-                    style: TextStyle(color: AppTheme.primaryColor)),
+                    style: TextStyle(color: AppTheme.primary(context))),
               ],
             ] else ...[
               // Manual customer entry
@@ -1061,7 +1061,7 @@ class _RepairJobDetailContent extends ConsumerWidget {
                 style: FluentTheme.of(context).typography.bodyStrong),
             const SizedBox(height: 8),
             Card(
-              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+              backgroundColor: AppTheme.primary(context).withValues(alpha: 0.1),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Text(job.diagnosis!),
@@ -1296,7 +1296,7 @@ class _CostRow extends StatelessWidget {
             Formatters.currency(amount),
             style: TextStyle(
               fontWeight: isTotal ? FontWeight.bold : null,
-              color: isTotal ? AppTheme.primaryColor : null,
+              color: isTotal ? AppTheme.primary(context) : null,
             ),
           ),
         ],
@@ -2053,7 +2053,7 @@ class _AddPartDialogState extends ConsumerState<_AddPartDialog> {
           if (_selectedProduct != null) ...[
             const SizedBox(height: 8),
             Card(
-              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+              backgroundColor: AppTheme.primary(context).withValues(alpha: 0.1),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
@@ -2135,7 +2135,7 @@ class _AddPartDialogState extends ConsumerState<_AddPartDialog> {
                           .typography
                           .bodyStrong
                           ?.copyWith(
-                            color: AppTheme.primaryColor,
+                            color: AppTheme.primary(context),
                           ),
                     ),
                   ],

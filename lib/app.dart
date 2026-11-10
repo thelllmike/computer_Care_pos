@@ -13,14 +13,16 @@ class CpPosApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authNotifierProvider);
-    final themeMode = ref.watch(themeModeProvider);
+    final themeChoice = ref.watch(themeModeProvider);
 
     return FluentApp(
       title: 'CP POS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
+      darkTheme: themeChoice == AppThemeChoice.clever
+          ? AppTheme.cleverTheme
+          : AppTheme.darkTheme,
+      themeMode: themeChoice.mode,
       home: authState.isAuthenticated
           ? const NavigationShell()
           : const LoginScreen(),

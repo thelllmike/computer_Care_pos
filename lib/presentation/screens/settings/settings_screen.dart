@@ -730,16 +730,16 @@ class _AppearanceCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final themeChoice = ref.watch(themeModeProvider);
 
-    Widget option(ThemeMode mode, IconData icon, String label) {
+    Widget option(AppThemeChoice mode, IconData icon, String label) {
       return Padding(
         padding: const EdgeInsets.only(right: 24),
         child: RadioButton(
-          checked: themeMode == mode,
+          checked: themeChoice == mode,
           onChanged: (checked) {
             if (checked) {
-              ref.read(themeModeProvider.notifier).setThemeMode(mode);
+              ref.read(themeModeProvider.notifier).setTheme(mode);
             }
           },
           content: Row(
@@ -762,9 +762,10 @@ class _AppearanceCard extends ConsumerWidget {
           child: Wrap(
             runSpacing: 8,
             children: [
-              option(ThemeMode.light, FluentIcons.sunny, 'Light'),
-              option(ThemeMode.dark, FluentIcons.clear_night, 'Dark'),
-              option(ThemeMode.system, FluentIcons.t_v_monitor, 'Use system setting'),
+              option(AppThemeChoice.light, FluentIcons.sunny, 'Light'),
+              option(AppThemeChoice.dark, FluentIcons.clear_night, 'Dark'),
+              option(AppThemeChoice.clever, FluentIcons.color, 'Clever Project'),
+              option(AppThemeChoice.system, FluentIcons.t_v_monitor, 'Use system setting'),
             ],
           ),
         ),

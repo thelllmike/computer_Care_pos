@@ -40,7 +40,7 @@ class InventoryScreen extends ConsumerWidget {
       content: Column(
         children: [
           // Stats cards
-          _buildStatsCards(ref),
+          _buildStatsCards(context, ref),
           const SizedBox(height: 16),
           // Tab bar
           Padding(
@@ -67,7 +67,7 @@ class InventoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsCards(WidgetRef ref) {
+  Widget _buildStatsCards(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(inventoryStatsProvider);
 
     return Padding(
@@ -80,7 +80,7 @@ class InventoryScreen extends ConsumerWidget {
                 title: 'Total Products',
                 value: stats.totalProducts.toString(),
                 icon: FluentIcons.product,
-                color: AppTheme.primaryColor,
+                color: AppTheme.primary(context),
               ),
             ),
             const SizedBox(width: 16),
@@ -279,12 +279,12 @@ class _StockLevelsTab extends ConsumerWidget {
         decoration: BoxDecoration(
           color: isLowStock
               ? AppTheme.errorColor.withValues(alpha: 0.1)
-              : AppTheme.primaryColor.withValues(alpha: 0.1),
+              : AppTheme.primary(context).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           FluentIcons.product,
-          color: isLowStock ? AppTheme.errorColor : AppTheme.primaryColor,
+          color: isLowStock ? AppTheme.errorColor : AppTheme.primary(context),
         ),
       ),
       title: Row(

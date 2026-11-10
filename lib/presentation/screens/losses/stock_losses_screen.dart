@@ -600,7 +600,7 @@ class _StockLossFormDialogState extends ConsumerState<_StockLossFormDialog> {
               Text(
                 'Selected: ${formState.productName}',
                 style: TextStyle(
-                  color: AppTheme.primaryColor,
+                  color: AppTheme.primary(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),

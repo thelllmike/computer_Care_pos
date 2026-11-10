@@ -92,58 +92,175 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
+  void _open(String id) => setState(() => _selectedReport = id);
+
   Widget _buildReportsList() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        children: [
-          _ReportCard(
-            title: 'Trends & Charts',
-            description: 'Revenue and profit trends, top products, payments',
-            icon: FluentIcons.line_chart,
-            onTap: () => setState(() => _selectedReport = 'trends'),
-          ),
-          _ReportCard(
-            title: 'Online Delivery Sales',
-            description: 'Online order sales, status and trends',
-            icon: FluentIcons.delivery_truck,
-            onTap: () => setState(() => _selectedReport = 'online'),
-          ),
-          _ReportCard(
-            title: 'Sales Report',
-            description: 'Daily, weekly, monthly sales analysis',
-            icon: FluentIcons.chart,
-            onTap: () => setState(() => _selectedReport = 'sales'),
-          ),
-          _ReportCard(
-            title: 'Profit & Loss',
-            description: 'Revenue, costs, and profit margins',
-            icon: FluentIcons.calculator,
-            onTap: () => setState(() => _selectedReport = 'profit'),
-          ),
-          _ReportCard(
-            title: 'Inventory Valuation',
-            description: 'Stock value based on WAC',
-            icon: FluentIcons.archive,
-            onTap: () => setState(() => _selectedReport = 'inventory'),
-          ),
-          _ReportCard(
-            title: 'Aging Report',
-            description: 'Credit aging by 30/60/90+ days',
-            icon: FluentIcons.calendar,
-            onTap: () => setState(() => _selectedReport = 'aging'),
-          ),
-          _ReportCard(
-            title: 'Repair Summary',
-            description: 'Repair jobs and revenue',
-            icon: FluentIcons.repair,
-            onTap: () => setState(() => _selectedReport = 'repairs'),
-          ),
-        ],
+    final trends = ref.watch(trendsProvider('30d'));
+    final online = ref.watch(onlineReportProvider('30d'));
+    final stock = ref.watch(inventoryStatsProvider);
+    final credit = ref.watch(creditSummaryProvider);
+    final repairs = ref.watch(repairSummaryProvider);
+    final primary = AppTheme.primary(context);
+
+    _Preview trendPreview(String label, double Function(TrendsData d) cur,
+        double Function(TrendsData d) prev,
+        {bool money = true, bool spark = false}) {
+      return trends.when(
+        loading: () => const _Preview.loading(),
+        error: (_, __) => const _Preview.unavailable(),
+        data: (d) => _Preview(
+          label: label,
+          value: money ? Formatters.currency(cur(d)) : cur(d).toStringAsFixed(0),
+          current: cur(d),
+          previous: prev(d),
+          spark: spark ? d.points.map((p) => p.revenue).toList() : null,
+        ),
+      );
+    }
+
+    final salesCards = [
+      _ReportCard(
+        title: 'Trends & Charts',
+        description: 'Revenue and profit trends, top products, payments',
+        icon: FluentIcons.line_chart,
+        tint: primary,
+        preview: trendPreview('Revenue · 30 days', (d) => d.revenue, (d) => d.prevRevenue, spark: true),
+        onTap: () => _open('trends'),
       ),
-    );
+      _ReportCard(
+        title: 'Sales Report',
+        description: 'Daily, weekly, monthly sales analysis',
+        icon: FluentIcons.chart,
+        tint: primary,
+        preview: trendPreview('Sales · 30 days', (d) => d.count.toDouble(), (d) => d.prevCount.toDouble(), money: false),
+        onTap: () => _open('sales'),
+      ),
+      _ReportCard(
+        title: 'Profit & Loss',
+        description: 'Revenue, costs, and profit margins',
+        icon: FluentIcons.calculator,
+        tint: primary,
+        preview: trendPreview('Gross profit · 30 days', (d) => d.profit, (d) => d.prevProfit),
+        onTap: () => _open('profit'),
+      ),
+      _ReportCard(
+        title: 'Online Delivery Sales',
+        description: 'Online order sales, status and trends',
+        icon: FluentIcons.delivery_truck,
+        tint: const Color(0xFF1BAF7A),
+        preview: online.when(
+          loading: () => const _Preview.loading(),
+          error: (_, __) => const _Preview.unavailable(note: 'Needs internet'),
+          data: (d) => _Preview(
+            label: 'Online sales · 30 days',
+            value: Formatters.currency(d.sales),
+            current: d.sales,
+            previous: d.prevSales,
+          ),
+        ),
+        onTap: () => _open('online'),
+      ),
+    ];
+
+    final otherCards = [
+      _ReportCard(
+        title: 'Inventory Valuation',
+        description: 'Stock value based on WAC',
+        icon: FluentIcons.archive,
+        tint: const Color(0xFFEB6834),
+        preview: stock.when(
+          loading: () => const _Preview.loading(),
+          error: (_, __) => const _Preview.unavailable(),
+          data: (s) => _Preview(
+            label: 'Stock value',
+            value: Formatters.currency(s.totalValue),
+            note: s.lowStockCount > 0 ? '${s.lowStockCount} low on stock' : 'Stock levels OK',
+            noteColor: s.lowStockCount > 0 ? AppTheme.warningColor : null,
+          ),
+        ),
+        onTap: () => _open('inventory'),
+      ),
+      _ReportCard(
+        title: 'Aging Report',
+        description: 'Credit aging by 30/60/90+ days',
+        icon: FluentIcons.calendar,
+        tint: const Color(0xFFE0A030),
+        preview: credit.when(
+          loading: () => const _Preview.loading(),
+          error: (_, __) => const _Preview.unavailable(),
+          data: (c) => _Preview(
+            label: 'Customers owe',
+            value: Formatters.currency(c.totalOutstanding),
+            note: c.overdueAmount > 0
+                ? '${Formatters.currency(c.overdueAmount)} overdue'
+                : 'Nothing overdue',
+            noteColor: c.overdueAmount > 0 ? AppTheme.errorColor : null,
+          ),
+        ),
+        onTap: () => _open('aging'),
+      ),
+      _ReportCard(
+        title: 'Repair Summary',
+        description: 'Repair jobs and revenue',
+        icon: FluentIcons.repair,
+        tint: const Color(0xFF3987E5),
+        preview: repairs.when(
+          loading: () => const _Preview.loading(),
+          error: (_, __) => const _Preview.unavailable(),
+          data: (r) => _Preview(
+            label: 'Open repair jobs',
+            value: '${r.activeJobs}',
+            note: '${r.completedToday} completed today',
+          ),
+        ),
+        onTap: () => _open('repairs'),
+      ),
+    ];
+
+    return LayoutBuilder(builder: (context, box) {
+      const gap = 16.0;
+      final width = box.maxWidth - 48;
+      final cols = ((width + gap) / (280 + gap)).floor().clamp(1, 4);
+      final cardWidth = (width - gap * (cols - 1)) / cols;
+
+      Widget section(String title, List<Widget> cards) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title.toUpperCase(),
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                      letterSpacing: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [for (final c in cards) SizedBox(width: cardWidth, child: c)],
+              ),
+            ],
+          );
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Pick a report to open it. Figures on the cards are live from your data.',
+              style: FluentTheme.of(context).typography.body?.copyWith(
+                    color: FluentTheme.of(context).typography.caption?.color,
+                  ),
+            ),
+            const SizedBox(height: 20),
+            section('Sales & profit', salesCards),
+            const SizedBox(height: 28),
+            section('Stock, credit & service', otherCards),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildReportContent(String reportType) {
@@ -168,54 +285,286 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 }
 
-class _ReportCard extends StatelessWidget {
+/// Live figure shown at the bottom of a report card.
+class _Preview {
+  final String label;
+  final String value;
+  final double? current;
+  final double? previous;
+  final List<double>? spark;
+  final String? note;
+  final Color? noteColor;
+  final bool loading;
+
+  const _Preview({
+    required this.label,
+    required this.value,
+    this.current,
+    this.previous,
+    this.spark,
+    this.note,
+    this.noteColor,
+  }) : loading = false;
+
+  const _Preview.loading()
+      : label = '',
+        value = '',
+        current = null,
+        previous = null,
+        spark = null,
+        note = null,
+        noteColor = null,
+        loading = true;
+
+  const _Preview.unavailable({String note = 'Not available'})
+      : label = '',
+        value = '—',
+        current = null,
+        previous = null,
+        spark = null,
+        note = note,
+        noteColor = null,
+        loading = false;
+}
+
+/// Clickable report tile: lifts and highlights on hover, shrinks on press,
+/// keyboard focusable (Tab + Enter), shows a live figure.
+class _ReportCard extends StatefulWidget {
   final String title;
   final String description;
   final IconData icon;
+  final Color tint;
+  final _Preview preview;
   final VoidCallback onTap;
 
   const _ReportCard({
     required this.title,
     required this.description,
     required this.icon,
+    required this.tint,
+    required this.preview,
     required this.onTap,
   });
 
   @override
+  State<_ReportCard> createState() => _ReportCardState();
+}
+
+class _ReportCardState extends State<_ReportCard> {
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 250,
-      child: Card(
-        child: Button(
-          style: ButtonStyle(
-            padding: WidgetStateProperty.all(EdgeInsets.zero),
-          ),
-          onPressed: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 32),
-                const SizedBox(height: 12),
-                Text(
-                  title,
-                  style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: FluentTheme.of(context).typography.caption,
+    final theme = FluentTheme.of(context);
+    final highlight = theme.accentColor.defaultBrushFor(theme.brightness);
+    const duration = Duration(milliseconds: 160);
+
+    return HoverButton(
+      onPressed: widget.onTap,
+      cursor: SystemMouseCursors.click,
+      semanticLabel: 'Open ${widget.title}',
+      builder: (context, states) {
+        final hovered = states.isHovered;
+        final pressed = states.isPressed;
+        final focused = states.isFocused;
+        final active = hovered || focused;
+
+        return AnimatedScale(
+          scale: pressed ? 0.98 : 1,
+          duration: const Duration(milliseconds: 90),
+          child: AnimatedContainer(
+            duration: duration,
+            curve: Curves.easeOut,
+            transform: Matrix4.translationValues(0, active && !pressed ? -3 : 0, 0),
+            height: 200,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: active ? AppTheme.subtleFill(context) : AppTheme.surfaceColor(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: active ? highlight : AppTheme.dividerColor(context),
+                width: active ? 1.5 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: active ? 0.22 : 0.06),
+                  blurRadius: active ? 18 : 6,
+                  offset: Offset(0, active ? 8 : 2),
                 ),
               ],
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: duration,
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: widget.tint.withValues(alpha: active ? 0.28 : 0.16),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(widget.icon, size: 20, color: widget.tint),
+                    ),
+                    const Spacer(),
+                    AnimatedOpacity(
+                      opacity: active ? 1 : 0,
+                      duration: duration,
+                      child: AnimatedSlide(
+                        offset: active ? Offset.zero : const Offset(-0.6, 0),
+                        duration: duration,
+                        child: Icon(FluentIcons.chevron_right, size: 14, color: highlight),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typography.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  widget.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typography.caption,
+                ),
+                const Spacer(),
+                Container(height: 1, color: AppTheme.dividerColor(context)),
+                const SizedBox(height: 10),
+                SizedBox(height: 38, child: _previewRow(context)),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
+
+  Widget _previewRow(BuildContext context) {
+    final theme = FluentTheme.of(context);
+    final p = widget.preview;
+    if (p.loading) {
+      return const Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(width: 16, height: 16, child: ProgressRing(strokeWidth: 2)),
+      );
+    }
+
+    Widget? badge;
+    final cur = p.current, prev = p.previous;
+    if (cur != null && prev != null && prev > 0) {
+      final change = (cur - prev) / prev * 100;
+      final up = change >= 0;
+      final color = up ? AppTheme.successColor : AppTheme.errorColor;
+      badge = Tooltip(
+        message: 'Compared with the 30 days before',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            '${up ? '▲' : '▼'} ${change.abs().toStringAsFixed(0)}%',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                p.label.isEmpty ? (p.note ?? '') : p.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typography.caption?.copyWith(fontSize: 11),
+              ),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      p.value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.typography.bodyStrong?.copyWith(fontSize: 16),
+                    ),
+                  ),
+                  if (badge != null) ...[const SizedBox(width: 8), badge],
+                  if (p.label.isNotEmpty && p.note != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        p.note!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.typography.caption?.copyWith(
+                          fontSize: 11,
+                          color: p.noteColor,
+                          fontWeight: p.noteColor != null ? FontWeight.w600 : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (p.spark != null && p.spark!.length > 1) ...[
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            height: 28,
+            child: CustomPaint(
+              painter: _SparkPainter(p.spark!, widget.tint),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Tiny revenue line for the Trends card.
+class _SparkPainter extends CustomPainter {
+  final List<double> values;
+  final Color color;
+  _SparkPainter(this.values, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final maxV = values.reduce((a, b) => a > b ? a : b);
+    if (maxV <= 0) return;
+    final path = Path();
+    for (var i = 0; i < values.length; i++) {
+      final x = size.width * i / (values.length - 1);
+      final y = size.height - (values[i] / maxV) * (size.height - 2) - 1;
+      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SparkPainter old) => old.values != values || old.color != color;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,7 +675,7 @@ class _SalesReportContentState extends ConsumerState<_SalesReportContent> {
                         title: 'Total Sales',
                         value: summary.totalSales.toString(),
                         subtitle: 'transactions',
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.primary(context),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -821,7 +1170,7 @@ class _InventoryReportContent extends ConsumerWidget {
                     title: 'Total Products',
                     value: stats.totalProducts.toString(),
                     subtitle: 'items',
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.primary(context),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -985,7 +1334,7 @@ class _AgingReportContent extends ConsumerWidget {
                       children: [
                         Text('Credit Summary', style: FluentTheme.of(context).typography.subtitle),
                         const SizedBox(height: 16),
-                        _AgingRow(label: 'Total Outstanding', value: summary.totalOutstanding, color: AppTheme.primaryColor),
+                        _AgingRow(label: 'Total Outstanding', value: summary.totalOutstanding, color: AppTheme.primary(context)),
                         _AgingRow(label: 'Overdue Amount', value: summary.overdueAmount, color: AppTheme.errorColor),
                         _AgingRow(label: 'Collected This Month', value: summary.collectedThisMonth, color: AppTheme.successColor),
                       ],
@@ -1082,7 +1431,7 @@ class _RepairReportContent extends ConsumerWidget {
                     title: 'Active Jobs',
                     value: summary.activeJobs.toString(),
                     subtitle: 'in progress',
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.primary(context),
                   ),
                 ),
                 const SizedBox(width: 16),

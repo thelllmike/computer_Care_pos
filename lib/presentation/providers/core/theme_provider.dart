@@ -7,12 +7,28 @@ import 'settings_provider.dart';
 
 const _themeModeKey = 'theme_mode';
 
-/// App theme mode (light / dark / system), saved in local app settings.
-class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+/// The themes a user can pick in Settings → Appearance.
+enum AppThemeChoice {
+  light,
+  dark,
+  system,
+  clever;
+
+  /// What FluentApp should use for light/dark switching.
+  ThemeMode get mode => switch (this) {
+        AppThemeChoice.light => ThemeMode.light,
+        AppThemeChoice.dark => ThemeMode.dark,
+        AppThemeChoice.system => ThemeMode.system,
+        AppThemeChoice.clever => ThemeMode.dark,
+      };
+}
+
+/// App theme (light / dark / system / Clever Project), saved in local app settings.
+class ThemeModeNotifier extends StateNotifier<AppThemeChoice> {
   final AppDatabase _db;
   final Ref _ref;
 
-  ThemeModeNotifier(this._db, this._ref) : super(ThemeMode.light) {
+  ThemeModeNotifier(this._db, this._ref) : super(AppThemeChoice.light) {
     _load();
   }
 
@@ -27,27 +43,19 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     }
   }
 
-  Future<void> setThemeMode(ThemeMode mode) async {
-    state = mode;
+  Future<void> setTheme(AppThemeChoice choice) async {
+    state = choice;
     await _ref
         .read(settingsNotifierProvider.notifier)
-        .saveSetting(_themeModeKey, mode.name);
+        .saveSetting(_themeModeKey, choice.name);
   }
 
-  static ThemeMode _fromString(String? value) {
-    switch (value) {
-      case 'dark':
-        return ThemeMode.dark;
-      case 'system':
-        return ThemeMode.system;
-      default:
-        return ThemeMode.light;
-    }
-  }
+  static AppThemeChoice _fromString(String? value) => AppThemeChoice.values
+      .firstWhere((c) => c.name == value, orElse: () => AppThemeChoice.light);
 }
 
 final themeModeProvider =
-    StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+    StateNotifierProvider<ThemeModeNotifier, AppThemeChoice>((ref) {
   final db = ref.watch(databaseProvider);
   return ThemeModeNotifier(db, ref);
 });

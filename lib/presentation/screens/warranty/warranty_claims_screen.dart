@@ -488,7 +488,7 @@ class _CreateClaimDialogState extends ConsumerState<_CreateClaimDialog> {
             if (formState.serialNumber != null) ...[
               const SizedBox(height: 8),
               Card(
-                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                backgroundColor: AppTheme.primary(context).withValues(alpha: 0.1),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -700,7 +700,7 @@ class _ClaimDetailDialogState extends ConsumerState<_ClaimDetailDialog> {
                         .map((h) => ListTile(
                               leading: Icon(
                                 FluentIcons.history,
-                                color: AppTheme.primaryColor,
+                                color: AppTheme.primary(context),
                                 size: 20,
                               ),
                               title: Text(
